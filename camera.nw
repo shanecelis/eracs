@@ -1,0 +1,77 @@
+\subsection{Camera Movement}
+
+For the keybindings, we'll use the standard
+bindings \verb|C-f|, \verb|C-b|, \verb|C-p|, \verb|C-n| for forward,
+backward, up, and down with additional bindings \verb|C-i| and
+\verb|C-o| for in and out.
+
+<<file:camera.scm>>=
+
+<<+ Lisp Preamble>>
+<<Load modules.>>
+
+<<Variables>>
+<<Procedures>>
+<<Key bindings>>
+<<Variables>>=
+
+(define eracs-mode-map (make-keymap))
+(define eracs-buffer (make <physics-buffer> 
+  #:keymap eracs-mode-map 
+  #:name "eracs"
+  #:sim (make-sim)
+))
+<<Key bindings>>=
+
+;; Camera movement keys
+(define-key eracs-mode-map (kbd "C-f") 'forward-camera-x)  ; forward
+(define-key eracs-mode-map (kbd "C-b") 'backward-camera-x) ; backward
+(define-key eracs-mode-map (kbd "C-p") 'forward-camera-y)  ; previous
+(define-key eracs-mode-map (kbd "C-n") 'backward-camera-y) ; next
+(define-key eracs-mode-map (kbd "C-i") 'backward-camera-z) ; in 
+(define-key eracs-mode-map (kbd "C-o") 'forward-camera-z)  ; out
+<<Procedures>>=
+
+(define (move-camera i amount)
+  (let ((r (get-parameter 'camera-position)))
+    (vector-set! r i (+ amount (vector-ref r i)))
+    (set-parameter! 'camera-position r)))
+
+(define-interactive (forward-camera-x #:optional (n 1))
+  (move-camera 0 n))
+
+(define-interactive (forward-camera-y #:optional (n 1))
+  (move-camera 1 n))
+
+(define-interactive (forward-camera-z #:optional (n 1))
+  (move-camera 2 n))
+
+(define-interactive (backward-camera-x #:optional (n 1))
+  (forward-camera-x (- n)))
+
+(define-interactive (backward-camera-y #:optional (n 1))
+  (forward-camera-y (- n)))
+
+(define-interactive (backward-camera-z #:optional (n 1))
+  (forward-camera-z (- n)))
+
+(set-buffer! eracs-buffer)
+<<+ Lisp Preamble>>=
+
+#| FILENAME
+DO NOT EDIT - automatically generated from FILENAME.
+
+<<+ Copyright>>
+<<+ License>>
+|#
+<<Load modules.>>=
+
+(use-modules (oop goops))
+(use-modules (vector-math))
+(use-modules (emacsy emacsy))
+(use-modules (convenience-lambda))
+<<+ Load scheme files.>>=
+
+  scm_c_primitive_load("physics-buffer.scm");
+  scm_c_primitive_load("camera.scm");
+@ 

@@ -1,0 +1,140 @@
+\section{Primitive Scheme Procedures}
+
+Now we want to expose certain portions of our robot simulator to
+Scheme.  We do that be writing primitive Scheme procedures.  These
+procedures are written in C or C++ but are accessible from Scheme.
+The most important primitives to begin with are the following:
+
+\begin{enumerate}
+\item \verb|(get-parameter name)|
+\item \verb|(set-parameter! name value)|
+\end{enumerate}
+
+From this we can set the camera position and focal point.
+
+<<file:primitive-procedures.h>>=
+
+void primitive_procedures_init();
+<<file:primitive-procedures.cpp>>=
+
+<<+ Preamble>>
+<<Includes>>
+<<Helper Functions>>
+<<Primitives>>
+
+void primitive_procedures_init()
+{
+#ifndef SCM_MAGIC_SNARFER 
+#include "primitive-procedures.cpp.x" 
+#endif
+}
+<<+ Initialize submodules.>>=
+
+primitive_procedures_init();
+@ Since this file is SNARF'd to pull out the primitive Scheme procedure
+names, we have to be careful with what we include.
+
+<<Includes>>=
+
+#ifndef SCM_MAGIC_SNARFER
+/* Headers we don't want snarfed. */
+#include <GL/glfw.h>
+#endif
+/* Headers we must have snarfed. */
+#include <libguile.h>
+//#include <emacsy.h>
+#include "primitive-procedures.h"
+#include "render.h"
+@ Let's write a little test primitive.
+
+<<Primitives>>=
+
+SCM_DEFINE (my_incr, "my-incr", 1, 0, 0,
+            (SCM x),
+            "Increment x by 1.")
+{
+  return scm_from_int(scm_to_int(x) + 1);
+}
+@ \section{Getting Parameters}
+
+We can test this by running the \verb|M-: (my-incr 1)| and it should
+print '2'.  Let's implement \verb|get-parameter|.
+
+<<Primitives>>=
+
+SCM_DEFINE (get_parameter, "get-parameter", 1, 0, 0,
+            (SCM name),
+            "Get simulation parameter.")
+{
+  char *str = scm_to_locale_string(scm_symbol_to_string(name));
+  if (strcmp("FPS", str) == 0) {
+    extern double render_fps;
+    return scm_from_double(render_fps);
+  } else if (strcmp("window-width", str) == 0) {
+    int width, height;
+    glfwGetWindowSize(&width, &height);
+    return scm_from_int(width);
+  } else if (strcmp("window-height", str) == 0) {
+    int width, height;
+    glfwGetWindowSize(&width, &height);
+    return scm_from_int(height);
+  } else if (strcmp("camera-position", str) == 0) {
+    return vl_vec3_to_vector(eye);
+  } else if (strcmp("camera-target", str) == 0) {
+    return vl_vec3_to_vector(center);
+  } else if (strcmp("camera-up", str) == 0) {
+    return vl_vec3_to_vector(up);
+  } else if (strcmp("pause", str) == 0) {
+    return SCM_BOOL_F;
+  } else
+    return SCM_BOOL_F;
+}
+<<Helper Functions>>=
+
+SCM vl_vec3_to_vector(vl::vec3 v3) {
+  SCM v = scm_c_make_vector(3, SCM_UNSPECIFIED);
+  for (int j = 0; j < 3; j++)
+    scm_c_vector_set_x(v, j, scm_from_double(v3[j]));
+  return v;
+}
+@ \section{Setting Parameters}
+
+<<Primitives>>=
+
+SCM_DEFINE (set_parameter_x, "set-parameter!", 2, 0, 0,
+            (SCM name, SCM value),
+            "Set simulation parameter.")
+{
+  char *str = scm_to_locale_string(scm_symbol_to_string(name));
+  
+  if (strcmp("touches", str) == 0) {
+    /* int index = scm_to_int(scm_car(value)); */
+    /* int v = scm_to_int(scm_cdr(value)); */
+    /* demoApp.touches[index] = v; */
+    return SCM_UNSPECIFIED;
+  } else if (strcmp("camera-target", str) == 0) {
+    center = vector_to_vl_vec3(value);
+    render_update_camera();
+    return SCM_UNSPECIFIED;
+  } else if (strcmp("camera-position", str) == 0) {
+    eye =  vector_to_vl_vec3(value);
+    render_update_camera();
+    return SCM_UNSPECIFIED;
+  } else if (strcmp("camera-up", str) == 0) {
+    up = vector_to_vl_vec3(value);
+    render_update_camera();
+    return SCM_UNSPECIFIED;
+  } else if (strcmp("pause", str) == 0) {
+    return SCM_UNSPECIFIED;
+  } else
+    return SCM_BOOL_F;
+}
+<<Helper Functions>>=
+
+vl::vec3 vector_to_vl_vec3(SCM vector) {
+  vl::vec3 v;
+  for (int i = 0; i < 3; i++)
+    v[i] = scm_to_double(scm_vector_ref(vector, scm_from_int(i)));
+  return v;
+}
+@

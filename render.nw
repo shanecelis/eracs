@@ -1,0 +1,297 @@
+\section{Rendering}
+
+Now we want to actually implement the rendering.  This will mainly
+make use of the VL library.
+
+<<file:render.h>>=
+
+#include <vlCore/glsl_math.hpp>
+void render_init(int w, int h);
+void render_setup_viewport(int w, int h);
+void render(void);
+void render_update_camera(void);
+extern vl::vec3 eye;
+extern vl::vec3 center;
+extern vl::vec3 up;
+<<file:render.cpp>>=
+
+<<+ Preamble>>
+#include "render.h"
+#include "dummy-opengl-context.hpp"
+<<Includes>>
+
+<<State>>
+
+<<Functions>>
+
+<<State>>=
+
+vl::ref<vl::RenderingTree> mainRendering;
+vl::ref<DummyOpenGLContext> glcontext;
+vl::ref<vl::SceneManagerActorTree> scene_manager;
+vl::ref<vl::Rendering> rendering;
+vl::vec3 eye        = vl::vec3(0,10,10); 
+vl::vec3 center     = vl::vec3(0,0,0);   
+vl::vec3 up         = vl::vec3(0,1,0);   
+double   render_fps = 0.;
+<<Functions>>=
+
+void render_setup_viewport(int screen_width, int screen_height)
+{
+  rendering->camera()->viewport()->setWidth(screen_width);
+  rendering->camera()->viewport()->setHeight(screen_height - echo_area_height);
+  rendering->camera()->viewport()->setY(echo_area_height);
+
+  //vl::ref<vl::Rendering> renderer3 = mainRendering->subRenderings()[0];
+  renderer3->camera()->viewport()->setWidth(screen_width);
+  renderer3->camera()->viewport()->setHeight(echo_area_height);
+  renderer3->camera()->viewport()->setX(0);
+  renderer3->camera()->viewport()->setY(0);
+}
+<<Functions>>=
+
+void render_init(int screen_width, int screen_height)
+{
+  vl::ref<vl::Effect> effect;
+
+  glcontext = new DummyOpenGLContext;
+  mainRendering = new vl::RenderingTree();
+  scene_manager = new vl::SceneManagerActorTree;
+  rendering = new vl::Rendering();
+  vl::vec4 background_color(61.f/255.f, 110.f/255.f, 203/255.f, 1.f);
+  rendering->camera()->viewport()->setClearColor(background_color);
+  rendering->renderer()->setFramebuffer(glcontext->framebuffer());
+  rendering->sceneManagers()->push_back(scene_manager.get());
+  mainRendering->subRenderings()->push_back(rendering.get());
+  /* define the camera position and orientation */
+  render_update_camera();
+  <<Setup cube.>>
+
+  <<Setup echo area.>>
+
+  <<Setup cursor.>>
+
+  <<Setup modeline.>>
+}
+<<Functions>>=
+
+void render(void)
+{ 
+  <<Before render>>
+  <<Calculate FPS.>>
+
+  mainRendering->render();  
+}
+<<Calculate FPS.>>=
+
+static unsigned int frame_count = 0;
+static double start_time = vl::Time::currentTime(); 
+if (frame_count != 0) {
+  render_fps = (double) frame_count/(vl::Time::currentTime() - start_time);
+}
+frame_count++;
+<<file:render.cpp>>=
+
+void render_update_camera() {
+  vl::mat4 view_mat = vl::mat4::getLookAt(eye, center, up);
+  rendering->camera()->setViewMatrix( view_mat );
+}
+@ %def render_update_camera
+<<Setup cube.>>=
+
+  vl::ref<vl::Transform> cubeTransform;
+  vl::ref<vl::Geometry> cube;
+  /* Initialize scene. */
+  cubeTransform = new vl::Transform;
+  rendering->transform()->addChild(cubeTransform.get());
+  cube = vl::makeBox(vl::vec3(0,0,0), 10, 10, 10);
+  cube->computeNormals();
+
+  effect = new vl::Effect; 
+  effect->shader()->enable(vl::EN_DEPTH_TEST);
+  effect->shader()->setRenderState(new vl::Light, 0);
+  effect->shader()->enable(vl::EN_LIGHTING);
+  effect->shader()->enable(vl::EN_BLEND);
+  vl::vec4 color = vl::crimson;
+  color.a() = 0.5;
+  effect->shader()->gocMaterial()->setDiffuse(color);
+
+  scene_manager->tree()->addActor(cube.get(), 
+                                  effect.get(), 
+                                  cubeTransform.get());
+@ \subsection{Render Message or Echo Area}
+
+We want to display the message or echo area at the bottom left of the
+window as Emacs would typically do.  We'll need to include the Emacsy
+header file.
+
+<<Includes>>=
+
+#include <emacsy.h>
+@ We'll keep the text as global state.
+
+<<State>>=
+
+  vl::ref<vl::Text> echo_area;
+  const int echo_area_height = 20; /* XXX this should be dynamic with font size */
+@ We'll refresh the state from Emacsy with each render.
+
+<<Before render>>=
+
+  echo_area->setText(vl::String(emacsy_message_or_echo_area()));
+@ Setting up the echo area is a little complicated.
+
+<<State>>=
+
+vl::ref<vl::Rendering> renderer3;
+@ \end{multicols}
+<<Setup echo area.>>=
+
+  vl::ref<vl::Font> font = vl::defFontManager()->acquireFont("/Library/Fonts/Andale Mono.ttf", 12);
+
+  vl::ref<vl::SceneManagerActorTree> scene_manager_text;
+  scene_manager_text = new vl::SceneManagerActorTree;  
+  echo_area = new vl::Text;
+  echo_area->setFont(font.get());
+  echo_area->setKerningEnabled(true);
+  echo_area->setText( L"line 1\nline2\nline3\nline4\n");
+  echo_area->setMode(vl::Text2D);
+  //echo_area->setTextAlignment( vl::TextAlignJustify );
+  int alignment = vl::AlignTop | vl::AlignLeft;
+  echo_area->setAlignment(alignment);
+  echo_area->setViewportAlignment(alignment);
+  //echo_area->setBorderEnabled(false);
+  echo_area->setBackgroundEnabled(false);
+  echo_area->setColor( vl::white );
+  //echo_area->translate(-100.f, 0.f, 0.f);
+  renderer3 = new vl::Rendering;
+  renderer3->camera()->viewport()->setClearColor(vl::black);
+  renderer3->sceneManagers()->push_back(scene_manager_text.get());
+  renderer3->renderer()->setFramebuffer(glcontext->framebuffer());
+
+  effect = new vl::Effect;
+  effect->shader()->enable(vl::EN_BLEND);
+  scene_manager_text->tree()->addActor( echo_area.get(), effect.get() );
+  mainRendering->subRenderings()->push_back(renderer3.get());
+@ \begin{multicols}{2}
+
+<<State>>=
+
+  vl::ref<vl::Text> cursor;
+<<Setup cursor.>>=
+
+  cursor = new vl::Text;
+  cursor->setFont(font.get());
+  cursor->setKerningEnabled(true);
+  cursor->setText( L"|");
+  cursor->setMode(vl::Text2D);
+  alignment = vl::AlignTop | vl::AlignLeft;
+  cursor->setAlignment(alignment);
+  cursor->setViewportAlignment(alignment);
+  cursor->setBackgroundEnabled(false);
+  cursor->setColor(vl::white);
+  cursor->translate(10.f, 0.f, 0.f);
+  scene_manager_text->tree()->addActor(cursor.get(), 
+                                       effect.get());
+<<Before render>>=
+
+  int point = emacsy_minibuffer_point();
+  float font_width = 10.f;
+  cursor->resetMatrix();
+  if (point != -1) 
+    cursor->translate(((float)point - 1.25f) * font_width, 0.f, 0.f);
+  else
+    cursor->translate(-100.f, 0.f, 0.f);
+@ \subsection{Render Modeline}
+Now let's setup the modeline.  
+
+<<State>>=
+
+  vl::ref<vl::Text> modeline;
+<<Setup modeline.>>=
+
+  modeline = new vl::Text;
+  modeline->setFont(font.get());
+  modeline->setKerningEnabled(true);
+  modeline->setText(L"");
+  modeline->setMode(vl::Text2D);
+  modeline->setTextAlignment(vl::TextAlignJustify);
+  alignment = vl::AlignBottom | vl::AlignLeft;
+  modeline->setAlignment(alignment);
+  modeline->setViewportAlignment(alignment);
+  modeline->setBorderEnabled(true);
+  modeline->setBackgroundEnabled(true);
+  modeline->setColor(vl::white);
+  vl::fvec4 bg = vl::gray;
+  bg.a() = 0.3;
+  modeline->setBackgroundColor(bg);
+  vl::ref<vl::ActorTree> tree = new vl::ActorTree();
+  tree->addActor(modeline.get(), 
+                 effect.get());
+  scene_manager->tree()->addChild(tree.get());
+<<Before render>>=
+
+  modeline->setText(vl::String(emacsy_mode_line()));
+@ VL requires an OpenGLContext object.  I implement it extremely
+minimally because I do not want to use VL's GUI abstraction layer. 
+
+<<OpenGL Context>>=
+
+#define SCREEN_WIDTH 640
+#define SCREEN_HEIGHT 480
+#define SCREEN_DEPTH 8
+
+/* 
+   DummyOpenGLContext implements the required abstract methods of
+   OpenGLContext.  My use case is that I do not want to use VL's GUI
+   wrappers.  I want to use VL for rendering only.
+*/
+class DummyOpenGLContext : public vl::OpenGLContext {
+public: 
+  DummyOpenGLContext();
+  virtual void swapBuffers();
+  virtual void makeCurrent();
+  virtual void update();
+};
+@ %def DummyOpenGLContext
+<<file:dummy-opengl-context.hpp>>=
+
+#include <vlGraphics/OpenGLContext.hpp>
+<<OpenGL Context>>
+<<file:dummy-opengl-context.cpp>>=
+
+#include "dummy-opengl-context.hpp"
+
+DummyOpenGLContext::DummyOpenGLContext() 
+  : OpenGLContext(SCREEN_WIDTH, SCREEN_HEIGHT) {
+  initGLContext();
+}
+void DummyOpenGLContext::swapBuffers() { }
+void DummyOpenGLContext::makeCurrent() { }
+void DummyOpenGLContext::update() { }
+<<Includes>>=
+
+#include <vlCore/VisualizationLibrary.hpp>
+#include <vlCore/Time.hpp>
+#include <vlGraphics/Rendering.hpp>
+#include <vlGraphics/RenderingTree.hpp>
+#include <vlGraphics/SceneManagerActorTree.hpp>
+#include <vlGraphics/Geometry.hpp>
+#include <vlGraphics/OpenGLContext.hpp>
+#include <vlGraphics/GeometryPrimitives.hpp>
+#include <vlGraphics/Light.hpp>
+#include <vlGraphics/Text.hpp>
+#include <vlGraphics/FontManager.hpp>
+@ %\begin{subappendices}
+%\section*{A} 
+\subsection{Indices}
+%\addtocontents{toc}{\protect\setcounter{tocdepth}{-1}}
+\subsubsection{Index of Filenames}
+
+\subsubsection{Index of Fragments}
+\nowebchunks  
+\subsubsection{Index of User Specified Identifiers}
+\nowebindex 
+%\addtocontents{toc}{\protect\setcounter{tocdepth}{2}} 
+%\end{subappendices} 
+

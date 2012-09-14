@@ -1,0 +1,175 @@
+\subsection{Scene SMOB}
+
+SMOBs are simple objects that GNU Guile uses to wrap \verb|C/C++|
+objects into something that is Scheme friendly.  SMOBs are garbage
+collected.  We'll define two types of SMOBs: Scene, and
+constraint (or joint).  
+
+<<file:scene-smob.h>>=
+
+#ifndef SCM_MAGIC_SNARFER
+#include <vlGraphics/RenderingTree.hpp>
+#include <vlGraphics/SceneManagerActorTree.hpp>
+#include <vlGraphics/Rendering.hpp>
+#include <vlGraphics/OpenGLContext.hpp>
+#endif
+#include <libguile.h>
+
+extern vl::ref<vl::OpenGLContext> glcontext;
+
+struct scene {
+vl::ref<vl::RenderingTree> main_rendering; 
+vl::ref<vl::SceneManagerActorTree> scene_manager;
+vl::ref<vl::Rendering> rendering; 
+vl::vec3 eye;
+vl::vec3 center;
+vl::vec3 up;
+double render_fps;
+};
+
+void init_scene_type(void);
+@ %def scene
+<<file:scene-smob.cpp>>=
+
+<<+ Preamble>>
+
+<<Includes>>
+
+<<State>>
+
+<<Helper Functions>>
+
+/* SMOB functions */
+<<Free>>
+<<Mark>>
+<<Print>>
+
+<<Primitives>>
+
+<<Initialize.>>
+
+<<Includes>>=
+
+#include <vlCore/VisualizationLibrary.hpp>
+#include <vlCore/Time.hpp>
+#include <vlGraphics/Geometry.hpp>
+#include <vlGraphics/GeometryPrimitives.hpp>
+#include <vlGraphics/Light.hpp>
+#include <vlGraphics/Text.hpp>
+#include <vlGraphics/FontManager.hpp>
+#include <libguile.h>
+#include "dummy-opengl-context.hpp"
+#include "scene-smob.h"
+@ All SMOBs must implement three functions: \verb|free|, \verb|mark| ,
+and \verb|print|.
+
+<<Free>>=
+
+static size_t free_scene (SCM scene_smob)
+{
+  struct scene *scene = (struct scene *) SCM_SMOB_DATA (scene_smob);
+  scene->main_rendering = 0;
+  scene->rendering = 0;
+  scene->scene_manager = 0;
+  scm_gc_free (scene, sizeof (struct scene), "scene");
+  return 0;
+}
+@ We want to mark all the living objects so that they will not be
+garbage collected.  This will be called often for objects that are
+live.
+
+<<Mark>>=
+
+static SCM mark_scene (SCM scene_smob)
+{
+  //fprintf(stderr, "mark_scene\n");
+  /* Mark the scene's name and update function.  */
+  struct scene *scene = (struct scene *) SCM_SMOB_DATA (scene_smob);
+     
+  //scm_gc_mark (scene->name);
+  //return (scene->contact_func); // will recurse and mark these
+     
+  return SCM_BOOL_F;
+}
+@ When the smob is printed to string, say on the REPL, it will use
+whatever this function produces.  The convention for non-readable
+objects is to format it as \verb|#<smob-name other details...>#|.
+
+<<Print>>=
+
+static int print_scene (SCM scene_smob, SCM port, scm_print_state *pstate)
+{
+  struct scene *scene = (struct scene *) SCM_SMOB_DATA (scene_smob);
+     
+  scm_puts ("#<scene ", port);
+  //scm_display (scene->name, port);
+  scm_puts (">", port);
+     
+  /* Non-zero means success. */
+  return 1;
+}
+@ Let's register this new SMOB type and its associated functions with
+Guile.  That requires we keep a ``tag'' to identify our SMOB from
+others.
+
+<<State>>=
+
+static scm_t_bits scene_tag;
+<<Initialize.>>=
+
+void init_scene_type(void)
+{
+#ifndef SCM_MAGIC_SNARFER 
+#include "scene-smob.cpp.x" 
+#endif
+  scene_tag = scm_make_smob_type ("scene", sizeof (struct scene));
+  scm_set_smob_mark (scene_tag, mark_scene);
+  scm_set_smob_free (scene_tag, free_scene);
+  scm_set_smob_print (scene_tag, print_scene);
+}
+<<Primitives>>=
+
+// XXX Rename this to make-box or include a parameter for shape.
+SCM_DEFINE (scm_make_scene, "make-scene", 0, 0, 0,
+            (),
+            "Make a scene.")
+{
+  SCM smob;
+  static int scene_count = 0;
+  struct scene *sc;
+     
+  /* Step 1: Allocate the memory block.
+   */
+  sc = (struct scene *)
+    scm_gc_malloc (sizeof (struct scene), "scene");
+     
+  /* Step 2: Initialize it with straight code.
+   */
+  if (! glcontext)
+    glcontext = new DummyOpenGLContext;
+  sc->main_rendering = new vl::RenderingTree();
+  sc->scene_manager = new vl::SceneManagerActorTree;
+  sc->rendering = new vl::Rendering();
+  //vl::vec4 background_color(61.f/255.f, 110.f/255.f, 203/255.f, 1.f);
+  //sc->rendering->camera()->viewport()->setClearColor(background_color);
+  sc->rendering->renderer()->setFramebuffer(glcontext->framebuffer());
+  sc->rendering->sceneManagers()->push_back(sc->scene_manager.get());
+  sc->main_rendering->subRenderings()->push_back(sc->rendering.get());
+  sc->eye = vl::vec3(0,10,10);
+  sc->center = vl::vec3(0,0,0); 
+  sc->up = vl::vec3(0,1,0);
+  sc->render_fps = 0.0;
+  scene_count++;
+  /* Step 3: Create the smob.
+   */
+  SCM_NEWSMOB (smob, scene_tag, sc);
+     
+  return smob;  
+}
+<<+ Initialize submodules.>>=
+
+init_scene_type();
+<<+ Include submodules.>>=
+
+#include "scene-smob.h"
+@ 

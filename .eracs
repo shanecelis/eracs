@@ -1,0 +1,15 @@
+(use-modules (convenience-lambda)
+             ((rnrs) #:select (vector-map vector-for-each mod))
+             (system repl server)
+             (zeroconf))
+
+;; Let's start a REPL.
+(spawn-server)
+
+;; Let's start the OSC server and publish it.
+(start-osc-server)
+(spawn-publish-service "" "_osc._udp." "ERACS" 7770)
+(set-parameter! 'camera-position #(4 4 3))
+(load "quadruped.scm")
+(load "record-robot.scm")
+(primitive-load "hill-climber.scm")

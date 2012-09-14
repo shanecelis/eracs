@@ -1,0 +1,22 @@
+\subsection{Physics Buffer}
+
+We'd like to have a physics buffer for ERACS rather than a text buffer.
+
+<<file:physics-buffer.scm>>=
+
+(use-modules 
+  (oop goops)
+  (emacsy emacsy))
+
+(define-class <physics-buffer> (<buffer>)
+  (sim #:accessor sim #:init-keyword #:sim)
+  (paused? #:accessor paused? #:init-value #f))
+
+(define (current-sim)
+  (if (is-a? (current-buffer) <physics-buffer>)
+    (sim (current-buffer))
+    #f))
+<<+ Load scheme files.>>=
+
+  scm_c_primitive_load("physics-buffer.scm");
+@ 

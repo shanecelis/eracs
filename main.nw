@@ -1,0 +1,349 @@
+\section{The Main Function}
+
+It seems fitting that we should begin with the \verb|main| function.  
+
+<<Main>>=
+
+int main(int argc, char** argv) {
+  /* Initialize Guile. */
+  scm_init_guile();
+  scm_c_use_module("line-pragma"); 
+  /* Initialize Emacsy. */ 
+  emacsy_initialize();
+  /* Load the optional windows module. */
+  //scm_c_use_module("emacsy windows"); 
+  <<Initialize GLFW.>>
+  /* Initialize VL. */
+  vl::VisualizationLibrary::init();
+
+  <<Open window.>>
+  /* Callbacks must be setup after window is open. 
+     (Learned that one the hard way.) */
+  render_init(SCREEN_WIDTH, SCREEN_HEIGHT);
+  <<Setup callbacks.>>
+
+  <<+ Initialize submodules.>>
+
+  physics_init();
+
+  <<+ Load scheme files.>>
+
+  <<Process arguments.>>
+
+  <<Load personal configuration.>>
+
+  <<Run loop.>>
+
+  /* physics_terminate(); */
+  vl::VisualizationLibrary::shutdown();
+  glfwTerminate();
+  exit(0);
+}
+@ %def main
+<<Initialize GLFW.>>=
+
+if (glfwInit() != GL_TRUE) {
+  fprintf(stderr, "error: Unable to initialize GLFW.\n");
+  return 1;
+}
+//glfwEnable(GLFW_AUTO_POLL_EVENTS); /* No explicit call to glfwPollEvents() */
+@ GLFW can currently only handle one window, which I think is an odd
+restriction.  The same is true for Simple DirectMedia Library (SDL).
+(Surprisingly, GLUT can handle multiple open windows.)
+
+<<Open window.>>=
+
+//glfwOpenWindowHint(GLFW_WINDOW_NO_RESIZE, GL_TRUE);
+if (glfwOpenWindow(SCREEN_WIDTH, SCREEN_HEIGHT, 
+  /* RGB bits (0 means default) */
+                   0, 0, 0, 
+  /* depth, alpha, stencil bits */
+                   16, 8, 8, 
+                   GLFW_WINDOW) != GL_TRUE) {
+  fprintf(stderr, 
+          "error: Cannot create the OpenGL context and associated window.\n");
+  exit(2);
+}
+glfwSwapInterval(1);
+glfwEnable(GLFW_KEY_REPEAT);
+glfwSetWindowTitle("ERACS version $VERSION");
+
+@ \section{Process Arguments}
+
+Our main program has the following options: ``-l FILE''.
+
+<<Process arguments.>>=
+
+int c;
+while ((c = getopt (argc, argv, "l:")) != -1)
+  switch (c)
+  {
+  case 'l':
+    if (access(optarg, R_OK) != -1)
+      scm_c_primitive_load(optarg);
+    break;
+  case '?':
+    if (optopt == 'c')
+      fprintf (stderr, "Option -%c requires an argument.\n", optopt);
+    return 1;
+  default:
+    abort ();
+  }
+
+// Option 1) next argument at argv[optind]
+
+// Option 2) next argument at argv[1]; good for old code. 
+// argc -= optind;
+// argv += optind;
+
+// Option 3) next argument at argv[0]; good for new code.
+argc -= (optind - 1);
+argv += (optind - 1);
+
+@ \section{Keyboard Input}
+
+We need to handle key presses.  Mac OS X has a peculiar behavior here.
+When \verb|Alt-KEY| is pressed, sometimes accent characters are
+produced.  To avoid these ``extraneous'' characters, we note when a
+key press comes in with the \verb|key_callback| function.  And we only
+allow the first character provided by the \verb|char_callback|
+function.
+
+<<State>>=
+
+bool key_pressed = true;
+@ \end{multicols}
+
+<<Functions>>=
+
+extern "C" void GLFWCALL char_callback(int character, int action) {
+  wprintf(L"got char %lc (%d) with action %d, mod flags %d\n", character, character, action, get_modifier_key_flags()); 
+  if (key_pressed) {
+    emacsy_key_event(character, get_modifier_key_flags()); 
+    key_pressed = false;
+  }
+}
+@ %def char_callback
+<<Functions>>=
+
+extern "C" void GLFWCALL key_callback(int key, int action) {
+  printf("got key %c (%d) action %d with mod flags %d\n", key, key, action, get_modifier_key_flags());
+  int modkey_flags = get_modifier_key_flags();
+  if (action == GLFW_PRESS) {
+    key_pressed = true;
+    if ((modkey_flags & EY_MODKEY_CONTROL
+         || modkey_flags & EY_MODKEY_SUPER
+         || modkey_flags & EY_MODKEY_META)
+        && isupper(key)) {
+      //printf("char_callback 1\n");
+      char_callback(modkey_flags & EY_MODKEY_SHIFT ? key : tolower(key), action);
+    } else {
+
+      if (59 == key && modkey_flags & EY_MODKEY_SHIFT) {
+        char_callback(58, action);
+        return;
+      }
+
+      // XXX This should be initialized once, not every function call.
+      const int count = 4;
+      int glfw_to_guile[count][2] = {
+        {GLFW_KEY_TAB, scm_c_char_to_int("#\\tab")},
+        {GLFW_KEY_DEL, scm_c_char_to_int("#\\del")},
+        {GLFW_KEY_ENTER, scm_c_char_to_int("#\\newline")},
+        {GLFW_KEY_BACKSPACE, scm_c_char_to_int("#\\del")},
+      };
+      for (int i = 0; i < count; i++) {
+        if (glfw_to_guile[i][0] == key) {
+          char_callback(glfw_to_guile[i][1], action);
+          return;
+        }
+      }
+    }
+  }
+}
+@ %def key_callback
+<<Helper Functions>>=
+
+int get_modifier_key_flags() {
+  int mod_keys[EY_MODKEY_COUNT][3] = {
+    {0},                                   /* alt */
+    {GLFW_KEY_LCTRL,  GLFW_KEY_RCTRL,  0}, /* control */
+    {0},                                   /* hyper */
+    {GLFW_KEY_LALT,   GLFW_KEY_RALT,   0}, /* meta */
+    {GLFW_KEY_LSUPER, GLFW_KEY_RSUPER, 0}, /* super, windows key, or
+                                              command key */
+    {GLFW_KEY_LSHIFT, GLFW_KEY_RSHIFT, 0}, /* shift */
+  };
+  int flags = 0;
+
+  for (int i = 0; i < EY_MODKEY_COUNT; i++) {
+    for (int j = 0; mod_keys[i][j]; j++) 
+      if (glfwGetKey(mod_keys[i][j]) == GLFW_PRESS) {
+        flags |= 1 @<< i;
+        break;
+      }
+  }
+  return flags;
+}
+@ %def get_modifier_key_flags
+@ \begin{multicols}{2}
+
+<<Helper Functions>>=
+
+int scm_c_char_to_int(const char *char_name) {
+  /* I should put a regex in here to validate it's a char */
+  return scm_to_int(scm_char_to_integer(scm_c_eval_string(char_name)));
+}
+@ %def scm_c_char_to_int
+<<Setup callbacks.>>=
+
+glfwSetCharCallback(char_callback);
+glfwSetKeyCallback(key_callback);
+@ Since we're using \verb|wprintf| to print unicode, let's set the
+locale appropriately.
+
+<<+ Initialize submodules.>>=
+
+setlocale(LC_ALL, "en_US.UTF-8");
+@ \section{Mouse Input}
+
+We need to be able to handle button presses.
+
+\end{multicols}
+<<Functions>>=
+
+extern "C" void GLFWCALL button_callback(int button, int action) {
+  int x, y, ey_button, ey_state;
+  switch (action) {
+  case GLFW_PRESS: ey_state = EY_MOUSE_BUTTON_DOWN; break;
+  case GLFW_RELEASE: ey_state = EY_MOUSE_BUTTON_UP; break;
+  default:
+    fprintf(stderr, "warning: neither mouse up nor down received.\n");
+    return;
+  }
+  switch(button) {
+  case GLFW_MOUSE_BUTTON_LEFT  : ey_button = 1; break;
+  case GLFW_MOUSE_BUTTON_MIDDLE: ey_button = 2; break;
+  case GLFW_MOUSE_BUTTON_RIGHT : ey_button = 3; break;
+  default:
+    fprintf(stderr, "warning: got mouse button %d.\n",
+      button);
+    return;
+  }
+  glfwGetMousePos(&x, &y);
+  printf("mouse event (%d, %d) state %d button %d mod flags %d\n",
+         x, y, ey_state, ey_button, get_modifier_key_flags());
+  emacsy_mouse_event(x, y, ey_state, ey_button, get_modifier_key_flags());
+}
+@ \begin{multicols}{2}
+
+<<Setup callbacks.>>=
+
+glfwSetMouseButtonCallback(button_callback); 
+@ \section{Window Operations}
+
+<<Functions>>=
+
+extern "C" void GLFWCALL resize_callback(int w, int h) {
+  printf("Resizing\n");
+  render_setup_viewport(w, h);
+  /* render(); */
+  /* glfwSwapBuffers();  */
+}
+<<Setup callbacks.>>=
+
+glfwSetWindowSizeCallback(resize_callback); 
+@ \section{Local Configuration}
+
+In the spirit of Emacs, we load the \verb|.eracs| file if it exists.
+
+<<Load personal configuration.>>=
+
+if (access(".eracs", R_OK) != -1)
+  scm_c_primitive_load(".eracs");
+@ \section{The Run Loop}
+
+The run loop is where all the action happens.
+
+<<Run loop.>>=
+
+bool quitp = false; // C99
+unsigned int tick = 0;
+int emacsy_flags;
+while (! quitp) {
+  emacsy_run_hook_0("physics-tick-hook"); 
+  render();
+  glfwSwapBuffers(); 
+  glfwPollEvents();
+  emacsy_flags = emacsy_tick();
+  quitp = 
+    emacsy_flags & EY_QUIT_APPLICATION
+    || ! glfwGetWindowParam(GLFW_OPENED);
+  tick++;
+}
+<<+ Preamble>>=
+
+/* FILENAME
+DO NOT EDIT - automatically generated from FILENAME.
+*/
+<<+ Copyright>>
+<<+ License>>
+
+<<file:main.cpp>>=
+ 
+<<+ Preamble>> 
+<<Includes>>
+<<Defines>>
+<<State>>
+<<Helper Functions>>
+<<Functions>>
+<<Main>>
+@ The includes are a little tricky to get right on Mac OS X.  There is a
+dependency on the order because of the Visualization Library (VL)
+which requires all the OpenGL definitions to be available so it can
+wrap them.  (I wish VL would not try to wrap OpenGL definitions.  It
+seems like a needless layer of indirection.  It's supposed to be a
+lightweight library.)
+
+<<Includes>>=
+
+#include <stdbool.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include <libguile.h>
+#include <emacsy.h>
+
+/* OpenGL/GLFW */
+#include <GL/mesa_gl.h>
+#include <GL/khronos_glext.h>
+#define GLFW_NO_GLU
+#include <GL/glfw.h>
+#include <GL/glu.h>
+#include <OpenGL/gl.h>
+
+/* VL */
+#include <vlCore/VisualizationLibrary.hpp>
+#include "render.h" 
+#include "physics.h"
+#include "primitive-procedures.h"
+
+<<+ Include submodules.>>
+<<Defines>>=
+
+#define SCREEN_WIDTH 640
+#define SCREEN_HEIGHT 480
+#define SCREEN_DEPTH 8
+@ %\begin{subappendices}
+%\section*{A} 
+\subsection{Indices}
+%\addtocontents{toc}{\protect\setcounter{tocdepth}{-1}}
+\subsubsection{Index of Filenames}
+
+\subsubsection{Index of Fragments}
+\nowebchunks  
+\subsubsection{Index of User Specified Identifiers}
+\nowebindex 
+%\addtocontents{toc}{\protect\setcounter{tocdepth}{2}} 
+%\end{subappendices} 

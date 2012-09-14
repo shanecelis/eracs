@@ -1,0 +1,351 @@
+\section{Fast Artificial Neural Network Integration}
+
+
+ERACS makes use of the Fast Artificial Neural Network (FANN) library
+to easily expose feed forward neural networks.  This will expose a
+SMOB.
+
+<<file:nn.h>>=
+
+<<+ Begin C Header Guard.>>
+
+struct nn {
+
+  struct fann *ann;
+/* The name of this nn */
+  SCM node_count;
+  //SCM name;
+};
+
+void init_nn_type(void);
+<<+ End C Header Guard.>>
+<<file:nn.c>>=
+
+<<+ Preamble>>
+<<Includes>>
+<<State>>
+<<Helper Functions>>
+<<Primitives>>
+/* SMOB functions */
+<<Free>>
+<<Mark>>
+<<Print>>
+<<Initialize.>>
+<<+ Include submodules.>>=
+
+#include "nn.h"
+<<+ Initialize submodules.>>=
+
+init_nn_type();
+<<Includes>>=
+
+#ifndef SCM_MAGIC_SNARFER
+#include <doublefann.h>
+#endif
+#include <libguile.h>
+#include "nn.h"
+
+// Row major subscript->linear for 2d matrix. (0 1) -> 1; (1 0) -> n
+#define SUB2LIN(m, n, i, j) ((i) * (n) + (j))
+// Column major subscript->linear for 2d matrix. (1 0) -> 1; (0 1) -> m
+#define SUB2LIN_C(m, n, i, j) ((i) + (j) * (m))
+<<State>>=
+
+static scm_t_bits nn_tag;
+<<Initialize.>>=
+
+void
+init_nn_type (void)
+{
+#ifndef SCM_MAGIC_SNARFER 
+#include "nn.c.x" 
+#endif
+
+  nn_tag = scm_make_smob_type ("nn", sizeof (struct nn));
+  scm_set_smob_mark (nn_tag, mark_nn);
+  scm_set_smob_free (nn_tag, free_nn);
+  scm_set_smob_print (nn_tag, print_nn);
+}
+<<Free>>=
+
+size_t
+free_nn (SCM nn_smob)
+{
+  struct nn *nn = (struct nn *) SCM_SMOB_DATA (nn_smob);
+
+  fann_destroy(nn->ann);
+  scm_gc_free (nn, sizeof (struct nn), "nn");
+     
+  return 0;
+}
+<<Mark>>=
+
+SCM
+mark_nn (SCM nn_smob)
+{
+/* Mark the nn's name and update function.  */
+  struct nn *nn = (struct nn *) SCM_SMOB_DATA (nn_smob);
+  
+  return nn->node_count;
+}
+<<Print>>=
+
+static int
+print_nn (SCM nn_smob, SCM port, scm_print_state *pstate)
+{
+  struct nn *nn;
+  int conn_count;
+  struct fann_connection *connections;
+
+  nn = (struct nn *) SCM_SMOB_DATA (nn_smob);
+  scm_puts ("#<nn ", port);
+  scm_display(nn->node_count, port);
+  scm_newline(port);
+  conn_count = fann_get_total_connections(nn->ann);
+  connections = (struct fann_connection*) 
+    malloc(sizeof (struct fann_connection) * conn_count);
+  fann_get_connection_array(nn->ann, connections);
+  for (int i = 0; i < conn_count; i++) {
+    char line[255];
+    sprintf(line, "  %d -> %d has weight %f\n", 
+            connections[i].from_neuron, 
+            connections[i].to_neuron, 
+            connections[i].weight);
+    scm_display(scm_from_locale_string(line), port);
+  }
+  free(connections);
+
+  scm_puts (">", port);
+     
+/* non-zero means success */
+  return 1;
+}
+<<Primitives>>=
+
+SCM_DEFINE (make_nn, "make-nn", 1, 0, 0,
+            (SCM neuron_counts),
+            "Make a nn smob.")     
+{
+  SCM smob;
+  struct nn *nn; 
+     
+/* Step 1: Allocate the memory block.
+ */
+  nn = (struct nn *)
+                 scm_gc_malloc (sizeof (struct nn), "nn");
+
+  nn->node_count = neuron_counts;
+     
+/* Step 2: Initialize it with straight code.
+ */
+  unsigned int *counts = 
+    (unsigned int *) malloc(sizeof(unsigned int) 
+                            * scm_c_length(neuron_counts));
+  list_to_uint_array(neuron_counts, counts);
+  nn->ann = fann_create_standard_array(scm_c_length(neuron_counts),
+                                       counts);
+  free(counts);
+  fann_set_activation_function_output(nn->ann, FANN_SIGMOID_SYMMETRIC);
+  fann_set_activation_function_hidden(nn->ann, FANN_SIGMOID_SYMMETRIC);
+  // fann_set_training_algorithm(nn->ann, FANN_TRAIN_INCREMENTAL);
+  // fann_set_learning_rate(nn->ann, 0.0001);
+                                       
+/* Step 3: Create the smob.
+ */
+  SCM_NEWSMOB (smob, nn_tag, nn);
+     
+/* Step 4: Finish the initialization.
+ */
+  return smob;
+}
+<<Helper Functions>>=
+
+void list_to_uint_array(SCM list, unsigned int *c_array) {
+      while(list != SCM_EOL) {
+        *c_array = scm_to_uint(scm_car(list));
+        c_array++;
+        list = scm_cdr(list);
+      }
+} 
+<<Primitives>>=
+
+SCM_DEFINE (nn_run, "nn-run", 2, 0, 0,
+            (SCM nn_smob, SCM input),
+            "Evaluate a neural network using libfann.")
+{
+  struct nn *nn = (struct nn *) SCM_SMOB_DATA (nn_smob);
+  size_t input_len = scm_c_vector_length(input);
+  fann_type *c_input = (fann_type *) malloc(sizeof(fann_type) * input_len);
+  vector_to_array(input, c_input);
+  fann_type *output = fann_run(nn->ann, c_input);
+  free(c_input);
+  int output_count = fann_get_num_output(nn->ann);
+  SCM v = array_to_vector(output_count, output);
+  return v;
+}
+@ \subsection{NN Conversion To and From Vectors}
+
+<<Primitives>>=
+
+SCM_DEFINE (nn_to_vector, "nn->vector", 1, 0, 0,
+            (SCM nn_smob),
+            "Return all the weights from the NN in a vector.")
+{
+  scm_assert_smob_type(nn_tag, nn_smob);
+  struct nn *nn = (struct nn *) SCM_SMOB_DATA (nn_smob);
+  return scm_c_nn_to_vector(nn->ann);
+}
+@ This could be a little tricky, but I'm going to try something
+
+<<Helper Functions>>=
+
+SCM scm_c_nn_to_vector(struct fann* ann) {
+  int inputs, outputs, conn_count;
+  inputs = fann_get_num_input(ann);
+  outputs = fann_get_num_output(ann);
+  conn_count = fann_get_total_connections(ann);
+  SCM weights = scm_c_make_vector(conn_count, SCM_BOOL_F);
+  struct fann_connection *connections;
+  connections = (struct fann_connection*) 
+    malloc(sizeof (struct fann_connection) * conn_count);
+  fann_get_connection_array(ann, connections);
+  for (int i = 0; i < fann_get_total_connections(ann); i++) {
+    scm_c_vector_set_x(weights,
+                       i,
+                       scm_from_double(connections[i].weight));
+  }
+  free(connections);
+  return weights;
+}
+<<Primitives>>=
+
+SCM_DEFINE (vector_to_nn, "vector->nn", 2, 0, 0,
+            (SCM weights, SCM node_count),
+            "Convert the weights to a NN.")
+{
+  int conn_count;
+  struct nn *nn;
+  SCM nn_smob;
+  nn_smob = make_nn(node_count);
+  scm_assert_smob_type(nn_tag, nn_smob);
+  nn = (struct nn *) SCM_SMOB_DATA (nn_smob);
+  conn_count = fann_get_total_connections(nn->ann);
+  struct fann_connection *connections;
+  connections = (struct fann_connection*) 
+    malloc(sizeof (struct fann_connection) * conn_count);
+  fann_get_connection_array(nn->ann, connections);
+  for (int i = 0; i < conn_count; i++) {
+    connections[i].weight = scm_to_double(scm_c_vector_ref(weights, i));
+  }
+  fann_set_weight_array(nn->ann, connections, conn_count);
+  free(connections);
+  return nn_smob;
+}
+<<Helper Functions>>=
+
+int scm_c_length(SCM list) {
+  return scm_to_int(scm_length(list));
+}
+<<Helper Functions>>=
+
+void vector_to_array(SCM vec, double *a) {
+  scm_t_array_handle handle;
+  size_t i, len;
+  ssize_t inc;
+  const SCM *elt;
+          
+  elt = scm_vector_elements (vec, &handle, &len, &inc);
+  for (i = 0; i < len; i++, elt += inc)
+    a[i] = scm_to_double(*elt);
+  scm_array_handle_release (&handle);
+}
+<<Helper Functions>>=
+
+SCM array_to_vector(int count, double *array) {
+  SCM v = scm_c_make_vector(count, SCM_UNSPECIFIED);
+  for (int j = 0; j < count; j++)
+    scm_c_vector_set_x(v, j, scm_from_double(array[j]));
+  return v;
+}
+@ \subsection{NN Training}
+
+<<Primitives>>=
+
+SCM_DEFINE (nn_train, "nn-train", 3, 0, 0,
+            (SCM nn_smob, SCM input, SCM output),
+            "Train a neural network using one pair of input and output.")
+{
+  scm_assert_smob_type(nn_tag, nn_smob);
+  struct nn *nn = (struct nn *) SCM_SMOB_DATA (nn_smob);
+  double *input_array, *output_array;
+  input_array = malloc_vector_to_array(input);
+  output_array = malloc_vector_to_array(output);
+  fann_reset_MSE(nn->ann);
+  fann_train(nn->ann, input_array, output_array);
+  float mse = fann_get_MSE(nn->ann);
+  free(input_array);
+  free(output_array);
+  return scm_from_double((double) mse);
+}
+<<Helper Functions>>=
+
+double * malloc_vector_to_array(SCM vec) {
+  double *a = (double *) malloc(sizeof(double) * scm_c_vector_length(vec));
+  vector_to_array(vec, a);
+  return a;
+}
+<<Primitives>>=
+
+SCM_DEFINE (nn_train_epoch, "nn-train-epoch", 3, 2, 0,
+            (SCM nn_smob, SCM inputs, SCM outputs, SCM max_epochs, SCM desired_error),
+            "Evaluate a neural network using libfann.")
+{
+  struct nn *nn = (struct nn *) SCM_SMOB_DATA (nn_smob);
+  // fann_create_train_from_callback offers no user data parameter, yuck!
+  train_context.input = inputs;
+  train_context.output = outputs;
+  struct fann_train_data* train_data;
+  struct fann* ann;
+  train_data = fann_create_train_from_callback(scm_c_length(inputs),
+                                               scm_c_vector_length(scm_car(inputs)),
+                                               scm_c_vector_length(scm_car(outputs)),
+                                               train_callback);
+  fann_shuffle_train_data(train_data);
+  float mse_error;
+  if (SCM_UNBNDP(max_epochs) || SCM_UNBNDP(desired_error)) {
+    mse_error = fann_train_epoch(nn->ann, train_data);
+  } else {
+    fann_train_on_data(nn->ann,
+                       train_data,
+                       scm_to_int(max_epochs),
+                       scm_to_int(max_epochs) / 10,
+                       scm_to_double(desired_error));
+    mse_error = fann_get_MSE(nn->ann);
+  }
+  fann_destroy_train(train_data);
+
+  return scm_from_double(mse_error);
+}
+@ Setup the callback.  The callback does not pass a \verb|void| pointer,
+  so we must use the global variable \verb|train_context|.
+
+<<State>>=
+
+struct train_context_t {
+  SCM input;
+  SCM output;
+};
+
+struct train_context_t train_context;
+<<Helper Functions>>=
+
+void train_callback(unsigned data_index, unsigned input_count, unsigned output_count, fann_type *input_array, fann_type *output_array) {
+  
+  //printf("train_callback %d %d %d\n", data_index, input_count, output_count);
+  SCM index = scm_from_uint(data_index);
+  SCM this_input = scm_list_ref(train_context.input, index);
+  SCM this_output = scm_list_ref(train_context.output, index);
+  vector_to_array(this_input, input_array);
+  vector_to_array(this_output, output_array);
+}
+@ 

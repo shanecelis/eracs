@@ -1,0 +1,220 @@
+\subsection{Visualization Library Reference}
+
+The Visualization Library implements its own reference counting memory
+managmentment scheme.  So as not to upset it, I'm going to wrap it in
+a SMOB.
+
+<<file:vlref-smob.hpp>>=
+
+#ifndef SCM_MAGIC_SNARFER
+#include <vlGraphics/Actor.hpp>
+#endif
+#include <libguile.h>
+
+enum vlref_tag {ACTOR_TAG};
+
+struct vlref {
+  enum vlref_tag tag;
+  SCM name;
+  /*union*/ struct {
+    vl::ref<vl::Actor> actor;
+  } type;
+};
+
+void init_vlref_type(void);
+@ %def vlref
+<<file:vlref-smob.cpp>>=
+
+<<+ Preamble>>
+
+<<Includes>>
+
+<<State>>
+
+<<Helper Functions>>
+
+/* SMOB functions */
+<<Free>>
+<<Mark>>
+<<Print>>
+
+<<Primitives>>
+
+<<Initialize.>>
+
+<<Includes>>=
+
+#include <vlCore/VisualizationLibrary.hpp>
+#include <vlGraphics/Geometry.hpp>
+#include <vlGraphics/GeometryPrimitives.hpp>
+#include <vlGraphics/DepthSortCallback.hpp>
+#include <libguile.h>
+#include "vlref-smob.hpp"
+@ All SMOBs must implement three functions: \verb|free|, \verb|mark| ,
+and \verb|print|.
+
+<<Free>>=
+
+static size_t free_vlref (SCM vlref_smob)
+{
+  struct vlref *vlref = (struct vlref *) SCM_SMOB_DATA (vlref_smob);
+  switch (vlref->tag) {
+  case ACTOR_TAG:
+    vlref->type.actor = 0;
+    break;
+  default:
+    fprintf(stderr, "free_vlref error: invalid tag given.\n");
+  }
+  scm_gc_free (vlref, sizeof (struct vlref), "vlref");
+  return 0;
+}
+@ We want to mark all the living objects so that they will not be
+garbage collected.  This will be called often for objects that are
+live.
+
+<<Mark>>=
+
+static SCM mark_vlref (SCM vlref_smob)
+{
+  /* Mark the vlref's name and update function.  */
+  struct vlref *vlref = (struct vlref *) SCM_SMOB_DATA (vlref_smob);
+   
+  return vlref->name;
+}
+@ When the smob is printed to string, say on the REPL, it will use
+whatever this function produces.  The convention for non-readable
+objects is to format it as \verb|#<smob-name other details...>#|.
+
+<<Print>>=
+
+static int print_vlref (SCM vlref_smob, SCM port, scm_print_state *pstate)
+{
+  struct vlref *vlref = (struct vlref *) SCM_SMOB_DATA (vlref_smob);
+     
+  scm_puts ("#<vlref ", port);
+  switch (vlref->tag) {
+  case ACTOR_TAG:
+    scm_puts("actor ", port);
+    break;
+  }
+  scm_display (vlref->name, port);
+  scm_puts (">", port);
+     
+  /* Non-zero means success. */
+  return 1;
+}
+@ Let's register this new SMOB type and its associated functions with
+Guile.  That requires we keep a ``tag'' to identify our SMOB from
+others.
+
+<<State>>=
+
+static scm_t_bits vlref_tag;
+<<Initialize.>>=
+
+void init_vlref_type(void)
+{
+#ifndef SCM_MAGIC_SNARFER 
+#include "vlref-smob.cpp.x" 
+#endif
+  vlref_tag = scm_make_smob_type ("vlref", sizeof (struct vlref));
+  scm_set_smob_mark (vlref_tag, mark_vlref);
+  scm_set_smob_free (vlref_tag, free_vlref);
+  scm_set_smob_print (vlref_tag, print_vlref);
+}
+<<Helper Functions>>=
+
+vl::ref<vl::Effect> get_effect(const char *effect_name) {
+  if (strcmp("vanilla", effect_name) == 0) {
+    <<Vanilla Effect>>
+  } else {
+    return NULL;
+  }
+}
+<<Vanilla Effect>>=
+
+  // Setup the effect to be used to render the cube.
+  vl::ref<vl::Effect> effect = new vl::Effect;
+  // Enable depth test and lighting.
+  effect->shader()->enable(vl::EN_DEPTH_TEST);
+  // Add a Light to the scene, since no Transform is associated to the Light it will follow the camera.
+  effect->shader()->setRenderState( new vl::Light, 0 );
+  // Enable the standard OpenGL lighting.
+  effect->shader()->enable(vl::EN_LIGHTING);
+  effect->shader()->enable(vl::EN_BLEND);
+  // Set the front and back material color of the cube 
+  // "gocMaterial" stands for "get-or-create Material".
+  vl::vec4 color = vl::crimson;
+  //color.a() = 0.5;
+  color.a() = 0.0;
+  effect->shader()->gocMaterial()->setDiffuse(color );
+  return effect;
+<<Primitives>>=
+
+SCM_DEFINE (scm_make_box_actor, "make-box-actor", 0, 3, 0,
+            (SCM dims, SCM name, SCM effect_name),
+            "Make a box actor.")
+{
+  SCM smob;
+  static int box_count = 0;
+  struct vlref *sc;
+     
+  /* Step 1: Allocate the memory block.
+   */
+  sc = (struct vlref *)
+    scm_gc_malloc (sizeof (struct vlref), "vlref");
+
+  if (SCM_UNBNDP(name)) {
+    char box_name[80];
+    sprintf(box_name, "box-%d", box_count++);
+    sc->name = scm_from_locale_string(box_name);
+  } else {
+    sc->name = name;
+  }
+
+  vl::ref<vl::Transform> vl_transform;
+  vl::ref<vl::Geometry> cube;
+  
+  if (SCM_UNBNDP(dims)) {
+    cube = 
+      vl::makeBox(vl::vec3(0,0,0),
+                  /* x */ 1.0, 
+                  /* y */ 1.0,
+                  /* z */ 1.0);
+  } else {
+    cube = 
+      vl::makeBox(vl::vec3(0,0,0),
+                  /* x */ scm_to_double(scm_c_vector_ref(dims, 0)),
+                  /* y */ scm_to_double(scm_c_vector_ref(dims, 1)),
+                  /* z */ scm_to_double(scm_c_vector_ref(dims, 2)));
+  }
+  cube->computeNormals();
+  vl_transform = new vl::Transform;
+  vl::ref<vl::Effect> effect;
+  if (SCM_UNBNDP(effect_name)) {
+    effect = get_effect("vanilla");
+  } else {
+    effect = get_effect(scm_to_locale_string(effect_name));
+  }
+  if (! effect)
+    return SCM_BOOL_F;
+  vl::ref<vl::Actor> actor = new vl::Actor(cube.get(),
+                                           effect.get(),
+                                           vl_transform.get());
+
+  actor->actorEventCallbacks()->push_back( new vl::DepthSortCallback );
+
+  sc->tag = ACTOR_TAG;
+  sc->type.actor = actor.get();
+     
+  SCM_NEWSMOB (smob, vlref_tag, sc);
+     
+  return smob;  
+}
+<<+ Initialize submodules.>>=
+
+init_vlref_type();
+<<+ Include submodules.>>=
+
+#include "vlref-smob.hpp"
+@

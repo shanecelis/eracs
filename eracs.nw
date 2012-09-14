@@ -1,0 +1,158 @@
+% eracs.w
+ 
+\documentclass[paper]{report}
+\newif\ifshowcode
+\showcodetrue
+
+\usepackage{latexsym}
+%\usepackage{html}
+\usepackage{appendix}
+\usepackage{multicol}
+\usepackage{listings}
+\usepackage{noweb}
+\usepackage{color}
+%\usepackage{framed}
+\usepackage{textcomp}
+%\definecolor{listinggray}{gray}{0.9}
+%\definecolor{shadecolor}{HTML}{211e1e}
+\definecolor{darkgray}{rgb}{0.95,0.95,0.95}
+\lstset{
+  basicstyle=\footnotesize\ttfamily,
+  backgroundcolor=\color{darkgray},
+	tabsize=2,
+	language=C,
+  escapechar=\@,
+  keepspaces=true,
+  upquote=true,
+  %aboveskip=0pt,
+  %belowskip=0pt,
+  %framesep=0pt,
+  %rulesep=0pt,
+  columns=fixed,
+  %columns=fullflexible,
+  showstringspaces=true,
+  extendedchars=true,
+  breaklines=true,
+  frame=tb,
+  breakatwhitespace=false,
+  prebreak = \raisebox{0ex}[0ex][0ex]{\ensuremath{\hookleftarrow}},
+  %frame=none,
+  %framerule=0pt,
+  showtabs=false,
+  showspaces=false,
+  showstringspaces=false,
+  %basicstyle=\color[HTML]{dadada},
+	%rulecolor=\color[HTML]{dadada},
+	%backgroundcolor=\color[HTML]{211E1E},
+  %identifierstyle=\color[HTML]{bec337},%\ttfamily,
+  %keywordstyle=\color[HTML]{6f61ff},
+  %commentstyle=\color[HTML]{ED5B15},
+  %stringstyle=\color[HTML]{ad9361}
+}
+\definecolor{linkcolor}{rgb}{0, 0, 0.7}
+\usepackage[backref,raiselinks,pdfhighlight=/O,pagebackref,hyperfigures,breaklinks,colorlinks,pdfstartview=FitBH,linkcolor={linkcolor},anchorcolor={linkcolor},citecolor={linkcolor},filecolor={linkcolor},menucolor={linkcolor},pagecolor={linkcolor},urlcolor={linkcolor}]{hyperref}
+
+\setlength{\oddsidemargin}{0in}
+\setlength{\evensidemargin}{0in}
+\setlength{\topmargin}{0in}
+\addtolength{\topmargin}{-\headheight}
+\addtolength{\topmargin}{-\headsep}
+\setlength{\textheight}{8.9in}
+\setlength{\textwidth}{6.5in}
+\setlength{\marginparwidth}{0.5in}
+
+\title{ERACS: Extensible Robot And Controller Simulation}
+\date{}
+\author{Shane Celis
+\\ {\sl shane.celis@uvm.edu}}
+
+\begin{document}
+\maketitle 
+\tableofcontents
+\newpage
+\part{Usage}
+\begin{multicols}{2}
+\chapter{Introduction}
+This document contains the literate program for the Extensible Robot
+and Controller Simulation (ERACS).  The documented is divided into the
+user guide followed by the implementation.
+
+\chapter{Usage}
+TBD.
+
+\end{multicols}
+\part{Implementation} 
+\begin{multicols}{2}
+
+ERACS builds on top of the following libraries: Emacsy, Bullet Physics
+Engine, Visualization Library, GLFW, and OpenGL.  Each library must be
+installed to build ERACS.
+
+\input{main}
+
+\section{New Rendering}
+
+I only need a few things from the rendering library exposed to Scheme: 
+
+\begin{enumerate}
+\item Shapes
+\begin{enumerate}
+\item I want to create a box geometry.
+\item I want to be able to update that geometry's position and
+  orientation.
+\item I want to be able to coarsely selected its display properties.
+\end{enumerate}
+\item Text
+\begin{enumerate}
+\item I want to be able to render a text to a rectangle.
+\item I want to be able to coarsely selected its display properties.
+\end{enumerate}
+\item I want to be able to add it to a scene.
+\item I want to be able to remove it from a scene.
+\end{enumerate}
+
+When I say ``coarsely'' I mean that I want to ask for a bag of
+properties by name.  So essentially, those properties will be defined
+in \verb|C|.  This will allow me to extend how things are displayed
+without forcing me to adapt a whole rendering API from \verb|C| to
+\verb|Scheme|, and really this project isn't about having a pretty
+display.
+
+
+\input{vlref-smob}
+
+\input{scene-smob}
+\input{render}
+
+\input{physics}
+
+\input{primitive-procedures}
+
+\section{Emacsy Integration}
+
+Most of the user interface will be defined in Scheme.  For the user
+interface, let's define a means of moving around the camera first of
+all.
+
+\input{physics-buffer}
+
+\input{camera}
+\input{physics-ui} 
+\input{rigid-body-smob}
+\input{osc}
+\input{nn}
+\newpage
+\appendix
+
+\input{boiler-plate}
+ \chapter{Global Index}
+The index of global filenames, fragments, and user specified identifiers.
+\section{Index of Filenames}
++
+\section{Index of Fragments}
+\nowebchunks +
+\section{Index of User Specified Identifiers}
+\nowebindex +
+\end{multicols}
+\end{document}
+ 

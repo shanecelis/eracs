@@ -1,0 +1,318 @@
+\section{Physics}
+
+For the physics simulation in ERACS, we could be fancy and expose it
+within Scheme and make it a \verb|<physics-buffer>| object which would
+allow us to create multiple physics simulation buffers (and would be
+pretty cool!), but for the moment, let's do something straightforward
+and easy, which we can refactor into what we want later.  
+
+Let's define a simple interface.
+
+<<file:physics.h>>=
+
+#ifndef SCM_MAGIC_SNARFER 
+#include <btBulletDynamicsCommon.h>
+#endif
+void physics_init();
+@ And the body will be similar to \verb|render.cpp|.
+
+<<file:physics.cpp>>=
+
+<<+ Preamble>>
+<<Includes>>
+<<Helper Functions>>
+
+<<Physics Initialize>>=
+
+void physics_init() {
+#ifndef SCM_MAGIC_SNARFER 
+#include "physics.cpp.x" 
+#endif
+}
+@ Let's include the necessary headers from Bullet.
+
+<<Includes>>=
+
+#include "physics.h"
+#include <libguile.h>
+@ How to render anything?  Lots of things we could do.  I'm tempted to
+define a new file called \verb|render_physics.cpp|, but that's
+probably overkill.  Let's just try doing it in this file.
+
+<<file:physics.h>>=
+
+#define DEFAULT_TIME_STEP 0.1
+<<Includes>>=
+
+#include <vlGraphics/RenderingTree.hpp>
+#include <vlGraphics/Rendering.hpp>
+#include <vlGraphics/GeometryPrimitives.hpp>
+#include <vlGraphics/DepthSortCallback.hpp>
+#include <vlGraphics/SceneManagerActorTree.hpp>
+@ \subsection{Rendering Physical Objects}
+
+Let's add all visible objects in the physics engine to the scene.  VL
+uses an automatic memory management policy documented
+\href{http://www.visualizationlibrary.org/documentation/pag_guide_memory.html}{here}.
+
+<<file:physics.cpp>>=
+
+void physics_add_scene(btDynamicsWorld *world)
+{
+  extern vl::ref<vl::SceneManagerActorTree> scene_manager;
+  extern vl::ref<vl::Rendering> rendering;
+  vl::ref<vl::SceneManagerActorTree> scene;
+  //if (scene == NULL)
+    scene = scene_manager.get();
+  
+  <<Setup wireframe.>>
+  <<Setup effect.>>
+  /* Used to include 'Setup solid renderer.'*/
+
+
+        btScalar        M[16];
+        const int       numObjects = world->getNumCollisionObjects();
+        for(int i = 0; i < numObjects; i++)     {
+                btCollisionObject* colObj = world->getCollisionObjectArray()[i];
+                btRigidBody*                 body = btRigidBody::upcast(colObj);
+    btCollisionShape*   shape = colObj->getCollisionShape();
+                if(body&&body->getMotionState()) {
+                        btDefaultMotionState* myMotionState;
+      myMotionState = (btDefaultMotionState*) body->getMotionState();
+                        myMotionState->m_graphicsWorldTrans.getOpenGLMatrix(M);
+                } else {
+                        colObj->getWorldTransform().getOpenGLMatrix(M);
+                }
+    <<Add shape to scene.>>
+  }
+  /* Now update so the transformations are correct. */
+  physics_update_scene(world);
+}
+SCM_DEFINE (scm_physics_add_scene, "physics-add-scene", 1, 0, 0,
+            (SCM sim),
+            "Add all the objects into the scene.")
+{
+  struct sim *s = unwrap_sim(sim);
+  physics_add_scene(s->world);
+  return SCM_UNSPECIFIED;
+}
+<<Includes>>=
+
+#include "sim-smob.h"
+<<Add shape to scene.>>=
+
+if (shape->getShapeType() == BOX_SHAPE_PROXYTYPE) {
+  const btBoxShape* boxShape;
+        btVector3 halfExtent;
+  boxShape = static_cast<const btBoxShape*>(shape);
+  halfExtent = boxShape->getHalfExtentsWithMargin();
+  vl::ref<vl::Transform> vl_transform;
+  vl::ref<vl::Geometry> cube;
+  cube = 
+    vl::makeBox(vl::vec3(0,0,0),
+                /* x */ halfExtent[0] * 2., 
+                /* y */ halfExtent[1] * 2.,  
+                /* z */ halfExtent[2] * 2.);
+  cube->computeNormals();
+  vl_transform = new vl::Transform;
+  vl::ref<vl::Actor> actor;
+  actor = scene->tree()->addActor(cube.get(), 
+                                  effect.get(), 
+                                  vl_transform.get());
+
+  actor->actorEventCallbacks()->push_back( new vl::DepthSortCallback );
+
+  if (colObj->getCollisionShape()->getUserPointer()) {
+    vl::ref<vl::Transform> old_transform;
+    old_transform = (vl::Transform *) colObj->
+      getCollisionShape()->getUserPointer();
+    if (has_child(rendering->transform()->childrenCount(),
+                  rendering->transform()->children(), 
+                  old_transform.get())) 
+      rendering->transform()->eraseChild(old_transform.get());
+  }
+  colObj->getCollisionShape()->setUserPointer(vl_transform.get());
+  rendering->transform()->addChild(vl_transform.get());
+} else {
+  fprintf(stderr, "warning: cannot draw any shape except a box.\n");
+}
+<<Helper Functions>>=
+
+bool has_child(size_t n, vl::ref<vl::Transform> *children, vl::Transform *child)
+{
+  for(int i = 0; i < n; i++)
+    if (children[i] == child)
+      return true;
+  return false;
+}
+<<Setup effect.>>=
+
+  // Setup the effect to be used to render the cube.
+  vl::ref<vl::Effect> effect = new vl::Effect;
+  // Enable depth test and lighting.
+  effect->shader()->enable(vl::EN_DEPTH_TEST);
+  // Add a Light to the scene, since no Transform is associated to the Light it will follow the camera.
+  effect->shader()->setRenderState( new vl::Light, 0 );
+  // Enable the standard OpenGL lighting.
+  effect->shader()->enable(vl::EN_LIGHTING);
+  effect->shader()->enable(vl::EN_BLEND);
+  // Set the front and back material color of the cube 
+  // "gocMaterial" stands for "get-or-create Material".
+  vl::vec4 color = vl::crimson;
+  //color.a() = 0.5;
+  color.a() = 0.0;
+  effect->shader()->gocMaterial()->setDiffuse(color );
+@
+<<Includes>>=
+
+#include <vlGraphics/EdgeRenderer.hpp>
+@
+<<Setup wireframe.>>=
+
+vl::ref<vl::Renderer> solid_renderer;
+vl::ref<vl::EdgeRenderer> edge_renderer;
+
+solid_renderer = rendering->renderer();
+edge_renderer = new vl::EdgeRenderer;
+
+// we set the clear flags to be CF_CLEAR_DEPTH (by default is set to
+// CF_CLEAR_COLOR_DEPTH) because when the wireframe rendering starts
+// we want to preserve the color-buffer as generated by the solid
+// rendering but we want to clear the Z-buffer as it is needed by the
+// hidden-line-removal algorithm implemented by EdgeRenderer.
+edge_renderer->setClearFlags(vl::CF_CLEAR_DEPTH);
+// target the same opengl window
+edge_renderer->setFramebuffer(solid_renderer->framebuffer());
+// enqueue the EdgeRenderer in the rendering, will be executed after
+// mSolidRenderer
+rendering->renderers().push_back( edge_renderer.get() );
+
+// hidden line and crease options
+edge_renderer->setShowHiddenLines(true);
+edge_renderer->setShowCreases(true);
+edge_renderer->setCreaseAngle(35.0f);
+
+// style options
+edge_renderer->setLineWidth(2.0f);
+edge_renderer->setSmoothLines(true);
+vl::vec4 line_color = vl::white;
+line_color.a() = 0.5;
+edge_renderer->setDefaultLineColor(line_color);
+
+//solid_renderer->setEnableMask(0xFFFFFFFF);
+// preserve color buffer, clear depth buffer
+edge_renderer->setClearFlags(vl::CF_CLEAR_DEPTH);
+//edge_renderer->setEnableMask(0xFFFFFFFF);
+edge_renderer->setShowCreases(true);
+edge_renderer->setShowHiddenLines(false);
+@
+<<Setup solid renderer.>>=
+
+
+// Load texture.
+vl::ref<vl::Texture> tex  = new vl::Texture("grid-texture.jpg", 
+                                            vl::TF_UNKNOWN, 
+                                            true );
+tex->getTexParameter()->setMagFilter(vl::TPF_LINEAR);
+tex->getTexParameter()->setMinFilter(vl::TPF_LINEAR_MIPMAP_LINEAR);
+tex->getTexParameter()->setWrapS(vl::TPW_REPEAT);
+tex->getTexParameter()->setWrapR(vl::TPW_REPEAT);
+vl::ref<vl::Renderer> solid_renderer;
+vl::ref<vl::Effect> fx = new vl::Effect;
+fx->shader()->enable(vl::EN_DEPTH_TEST);
+fx->shader()->enable(vl::EN_LIGHTING);
+fx->shader()->setRenderState(new vl::Light, 0);
+vl::ref<vl::Light> light = new vl::Light;
+light->setPosition(vl::vec4(0.f, 200.f, 0.f, 1.f));
+fx->shader()->setRenderState(light.get(), 1);
+fx->shader()->gocMaterial()->setDiffuse(vl::royalblue);
+/* wireframe shader */
+fx->lod(0)->push_back( new vl::Shader );
+fx->shader(0,1)->enable(vl::EN_BLEND);
+fx->shader(0,1)->enable(vl::EN_LINE_SMOOTH);
+fx->shader(0,1)->enable(vl::EN_DEPTH_TEST);
+fx->shader(0,1)->enable(vl::EN_POLYGON_OFFSET_LINE);
+fx->shader(0,1)->gocPolygonOffset()->set(-1.0f, -1.0f);
+fx->shader(0,1)->gocPolygonMode()->set(vl::PM_LINE, vl::PM_LINE);
+fx->shader(0,1)->gocColor()->setValue(vl::lightgreen);
+fx->shader()->gocTextureSampler(0)->setTexture( tex.get() );
+
+// speedup tricks: 
+// we don't use lighting here so these won't be used, however including them in the second pass 
+// will allow VL to avoid restoring and resetting them back and forth all the time.
+fx->shader(0,1)->setRenderState( fx->shader()->getMaterial() );
+fx->shader(0,1)->setRenderState( fx->shader()->getLight(0), 0 );
+vl::ref<vl::Effect> effect = fx.get();
+@ For all the physics objects currently represented in the scene, update
+their positions and orientations.
+
+<<file:physics.cpp>>=
+
+void physics_update_scene(btDynamicsWorld* world)
+{
+        btScalar        M[16];
+        const int       numObjects = world->getNumCollisionObjects();
+        for(int i = 0; i < numObjects; i++)     {
+                btCollisionObject* colObj = world->getCollisionObjectArray()[i];
+                btRigidBody*                 body = btRigidBody::upcast(colObj);
+    vl::ref<vl::Transform> vl_transform;
+
+                if(body&&body->getMotionState()) {
+                        btDefaultMotionState* myMotionState;
+      btTransform t;
+      myMotionState = (btDefaultMotionState*)body->getMotionState();
+      myMotionState->getWorldTransform(t);
+      t.getOpenGLMatrix(M);
+                } else {
+                        colObj->getWorldTransform().getOpenGLMatrix(M);
+                }
+    vl_transform = (vl::Transform*) 
+      colObj->getCollisionShape()->getUserPointer();
+    if (vl_transform) {
+      vl::Matrix4<btScalar> N;
+      N.fillPtr(M);
+      vl_transform->setLocalMatrix( N );    
+      //fprintf(stderr, "debug: Updated transform.\n");
+    } else {
+      fprintf(stderr, "warning: Unable to update transform.\n");
+    }
+  }
+}
+SCM_DEFINE (scm_physics_update_scene, "physics-update-scene", 1, 0, 0,
+            (SCM sim),
+            "Update the objects in the scene.")
+{
+  struct sim *s = unwrap_sim(sim);
+  physics_update_scene(s->world);
+  return SCM_UNSPECIFIED;
+}
+@ %def scm_physics_update_scene physics-update-scene
+<<file:physics.cpp>>=
+
+void physics_clear_scene()
+{
+  extern vl::ref<vl::SceneManagerActorTree> scene_manager;
+  extern vl::ref<vl::Rendering> rendering;
+  //scene_manager->tree()->eraseAllChildren();
+  scene_manager->tree()->actors()->clear();
+  rendering->transform()->eraseAllChildren();
+
+  // rendering->sceneManagers()->clear();
+  // rendering->sceneManagers()->push_back(scene_manager.get());
+}
+SCM_DEFINE (scm_physics_clear_scene, "physics-clear-scene", 0, 0, 0,
+            (),
+            "Clear the scene.")
+{
+  physics_clear_scene();
+  return SCM_UNSPECIFIED;
+}
+<<file:physics.h>>=
+
+void physics_add_scene(btDynamicsWorld *world);
+void physics_update_scene(btDynamicsWorld *world);
+void physics_clear_scene();
+<<file:physics.cpp>>=
+
+<<Physics Initialize>>
+@ 
