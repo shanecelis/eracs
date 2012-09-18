@@ -1,4 +1,12 @@
 \chapter{Boiler Plate}
+\section{C Code}
+<<+ Preamble>>=
+/* FILENAME
+DO NOT EDIT - automatically generated from FILENAME.
+*/
+<<+ Copyright>>
+<<+ License>>
+@ 
 <<+ Begin C Header Guard.>>=
 
 #ifdef __cplusplus
@@ -9,7 +17,7 @@
 #ifdef __cplusplus
  }
 #endif
-@ \chapter{Legal Stuff}
+@ \section{Legal Stuff}
 <<+ Copyright>>=
 // Copyright (C) 2012 Shane Celis 
 @
@@ -29,3 +37,13 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 @
+\section{Lisp Code}
+
+<<+ Lisp Preamble>>=
+#| FILENAME
+DO NOT EDIT - automatically generated from FILENAME.
+
+<<+ Copyright>>
+<<+ License>>
+|#
+@ 

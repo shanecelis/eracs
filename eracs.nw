@@ -61,6 +61,8 @@
 \setlength{\textwidth}{6.5in}
 \setlength{\marginparwidth}{0.5in}
 
+\renewenvironment{multicols}[1]{}{}
+
 \title{ERACS: Extensible Robot And Controller Simulation}
 \date{}
 \author{Shane Celis
@@ -100,15 +102,15 @@ I only need a few things from the rendering library exposed to Scheme:
 \item I want to create a box geometry.
 \item I want to be able to update that geometry's position and
   orientation.
-\item I want to be able to coarsely selected its display properties.
+\item I want to be able to coarsely select its display properties.
 \end{enumerate}
 \item Text
 \begin{enumerate}
 \item I want to be able to render a text to a rectangle.
-\item I want to be able to coarsely selected its display properties.
+\item I want to be able to coarsely select its display properties.
 \end{enumerate}
-\item I want to be able to add it to a scene.
-\item I want to be able to remove it from a scene.
+\item I want to be able to add either to a scene.
+\item I want to be able to remove either from a scene.
 \end{enumerate}
 
 When I say ``coarsely'' I mean that I want to ask for a bag of
@@ -120,12 +122,9 @@ display.
 
 
 \input{vlref-smob}
-
 \input{scene-smob}
 \input{render}
-
 \input{physics}
-
 \input{primitive-procedures}
 
 \section{Emacsy Integration}
@@ -148,11 +147,10 @@ all.
  \chapter{Global Index}
 The index of global filenames, fragments, and user specified identifiers.
 \section{Index of Filenames}
-+
 \section{Index of Fragments}
-\nowebchunks +
+\nowebchunks
 \section{Index of User Specified Identifiers}
-\nowebindex +
+\nowebindex
 \end{multicols}
 \end{document}
  

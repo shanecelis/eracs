@@ -20,13 +20,13 @@ LDFLAGS = $(shell pkg-config guile-2.0 --libs) $(shell pkg-config libglfw --libs
 TARGET = eracs
 VERSION = 0.1
 
-LITSRCS = eracs.nw main.nw render.nw physics.nw primitive-procedures.nw vlref-smob.nw scene-smob.nw sim-smob.nw rigid-body-smob.nw osc.nw nn.nw physics-buffer.nw camera.nw boiler-plate.nw
+LITSRCS = eracs.nw main.nw render.nw physics.nw primitive-procedures.nw vlref-smob.nw scene-smob.nw sim-smob.nw rigid-body-smob.nw osc.nw nn.nw physics-buffer.nw camera.nw boiler-plate.nw physics-ui.nw
 
-TEXS = eracs.tex main.tex render.tex physics.tex primitive-procedures.tex vlref-smob.tex scene-smob.tex  sim-smob.tex rigid-body-smob.tex osc.tex nn.tex physics-buffer.tex camera.tex boiler-plate.tex
+TEXS = eracs.tex main.tex render.tex physics.tex primitive-procedures.tex vlref-smob.tex scene-smob.tex  sim-smob.tex rigid-body-smob.tex osc.tex nn.tex physics-buffer.tex camera.tex boiler-plate.tex physics-ui.tex
 
-DEFS = eracs.defs main.defs render.defs physics.defs primitive-procedures.defs vlref-smob.defs scene-smob.defs sim-smob.defs rigid-body-smob.defs osc.defs nn.defs physics-buffer.defs camera.defs boiler-plate.defs
+DEFS = eracs.defs main.defs render.defs physics.defs primitive-procedures.defs vlref-smob.defs scene-smob.defs sim-smob.defs rigid-body-smob.defs osc.defs nn.defs physics-buffer.defs camera.defs boiler-plate.defs physics-ui.defs
 
-SRCS = main.cpp render.cpp physics.cpp primitive-procedures.cpp vlref-smob.cpp scene-smob.cpp sim-smob.cpp rigid-body-smob.cpp osc.c nn.c dummy-opengl-context.cpp physics-buffer.scm camera.scm 
+SRCS = main.cpp render.cpp physics.cpp primitive-procedures.cpp vlref-smob.cpp scene-smob.cpp sim-smob.cpp rigid-body-smob.cpp osc.c nn.c dummy-opengl-context.cpp physics-buffer.scm camera.scm physics-ui.scm
 
 TESTS = 
 
@@ -57,13 +57,10 @@ NOTANGLE = $(TOP)/bin/mynotangle $@
 	noweave -n -delay -indexfrom all.defs $< | cpif $@
 
 %.c %.cpp %.h %.hpp: %.nw
-	$(NOTANGLE) $(NOTANGLE_C_FLAGS) -R"file:$@" $^
-#	notangle $(NOTANGLE_C_FLAGS) -R"file:$@" $^ | cpif $@; if [ $$? -eq 3 ]; then false; else true; fi
-
-#; if [ $${PIPESTATUS[0]} -eq 3 ]; then false; fi
+	$(NOTANGLE) $(NOTANGLE_C_FLAGS) -R"file:$@" $^ boiler-plate.nw
 
 %.scm: %.nw
-	$(NOTANGLE) $(NOTANGLE_LISP_FLAGS) -R"file:$@" $^ 
+	$(NOTANGLE) $(NOTANGLE_LISP_FLAGS) -R"file:$@" $^ boiler-plate.nw
 
 %.dvi: %.tex
 	noindex $<
@@ -123,8 +120,8 @@ TAGS: $(SRCS) $(TESTS)
 
 main.cpp: main.nw eracs.nw
 
-dummy-opengl-context.hpp dummy-opengl-context.cpp: render.nw
-	$(NOTANGLE) $(NOTANGLE_C_FLAGS) -R"file:$@" $^
+dummy-opengl-context.hpp dummy-opengl-context.cpp: render.nw boiler-plate.nw
+	$(NOTANGLE) $(NOTANGLE_C_FLAGS) -R"file:$@" $^ 
 
 physics.o: physics.cpp physics.cpp.x
 
@@ -142,6 +139,8 @@ nn.o: nn.c nn.c.x
 
 sim-smob.o: sim-smob.cpp sim-smob.cpp.x
 
-main.cpp: main.nw camera.nw nn.nw osc.nw physics-buffer.nw physics-ui.nw primitive-procedures.nw rigid-body-smob.nw scene-smob.nw sim-smob.nw vlref-smob.nw boiler-plate.nw
+main.cpp: main.nw camera.nw nn.nw osc.nw physics-buffer.nw physics-ui.nw primitive-procedures.nw rigid-body-smob.nw scene-smob.nw sim-smob.nw vlref-smob.nw 
 
-nn.h: nn.nw boiler-plate.nw 
+# nn.h: nn.nw boiler-plate.nw 
+
+# camera.scm: camera.nw boiler-plate.nw 

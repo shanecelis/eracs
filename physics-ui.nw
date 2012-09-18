@@ -1,6 +1,6 @@
 \subsection{Physics Scheme}
 
-<<physics-ui.scm>>=
+<<file:physics-ui.scm>>=
 
 <<+ Lisp Preamble>>
 <<Load modules.>>

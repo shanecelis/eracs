@@ -9,7 +9,6 @@ and easy, which we can refactor into what we want later.
 Let's define a simple interface.
 
 <<file:physics.h>>=
-
 #ifndef SCM_MAGIC_SNARFER 
 #include <btBulletDynamicsCommon.h>
 #endif
@@ -17,13 +16,11 @@ void physics_init();
 @ And the body will be similar to \verb|render.cpp|.
 
 <<file:physics.cpp>>=
-
 <<+ Preamble>>
 <<Includes>>
 <<Helper Functions>>
 
 <<Physics Initialize>>=
-
 void physics_init() {
 #ifndef SCM_MAGIC_SNARFER 
 #include "physics.cpp.x" 
@@ -32,7 +29,6 @@ void physics_init() {
 @ Let's include the necessary headers from Bullet.
 
 <<Includes>>=
-
 #include "physics.h"
 #include <libguile.h>
 @ How to render anything?  Lots of things we could do.  I'm tempted to
@@ -40,8 +36,8 @@ define a new file called \verb|render_physics.cpp|, but that's
 probably overkill.  Let's just try doing it in this file.
 
 <<file:physics.h>>=
-
 #define DEFAULT_TIME_STEP 0.1
+@ 
 <<Includes>>=
 
 #include <vlGraphics/RenderingTree.hpp>
