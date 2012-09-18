@@ -6,6 +6,7 @@ TOP ?= $(shell pwd)
 export PKG_CONFIG_PATH := /usr/local/lib/pkgconfig
 
 GUILE_CFLAGS = $(shell pkg-config guile-2.0 --cflags)
+GUILE_LDFLAGS = $(shell pkg-config guile-2.0 --libs)
 
 EMACSY_LDFLAGS = /Users/shane/School/uvm/CSYS-395-evolutionary-robotics/bullet-2.79/Demos/GuileDemo/noweb-emacsy/libemacsy.a
 
@@ -15,18 +16,18 @@ FANN_LDFLAGS = -L/usr/local/lib -lm -ldoublefann
 
 CPPFLAGS = -g $(GUILE_CFLAGS) $(EMACSY_CFLAGS) $(shell pkg-config bullet --cflags)
 
-LDFLAGS = $(shell pkg-config guile-2.0 --libs) $(shell pkg-config libglfw --libs) -lVLCore -lVLGraphics $(EMACSY_LDFLAGS) -lstdc++ $(shell pkg-config bullet --libs) $(shell pkg-config liblo --libs) $(FANN_LDFLAGS)
+LDFLAGS = $(GUILE_LDFLAGS) $(shell pkg-config libglfw --libs) -lVLCore -lVLGraphics $(EMACSY_LDFLAGS) -lstdc++ $(shell pkg-config bullet --libs) $(shell pkg-config liblo --libs) $(FANN_LDFLAGS)
 
 TARGET = eracs
 VERSION = 0.1
 
-LITSRCS = eracs.nw main.nw render.nw physics.nw primitive-procedures.nw vlref-smob.nw scene-smob.nw sim-smob.nw rigid-body-smob.nw osc.nw nn.nw physics-buffer.nw camera.nw boiler-plate.nw physics-ui.nw
+LITSRCS = eracs.nw main.nw render.nw physics.nw primitive-procedures.nw vlref-smob.nw scene-smob.nw sim-smob.nw rigid-body-smob.nw osc.nw nn.nw physics-buffer.nw camera.nw boiler-plate.nw physics-ui.nw nsga2.nw
 
-TEXS = eracs.tex main.tex render.tex physics.tex primitive-procedures.tex vlref-smob.tex scene-smob.tex  sim-smob.tex rigid-body-smob.tex osc.tex nn.tex physics-buffer.tex camera.tex boiler-plate.tex physics-ui.tex
+TEXS := $(patsubst %.nw, %.tex, $(LITSRCS))
 
-DEFS = eracs.defs main.defs render.defs physics.defs primitive-procedures.defs vlref-smob.defs scene-smob.defs sim-smob.defs rigid-body-smob.defs osc.defs nn.defs physics-buffer.defs camera.defs boiler-plate.defs physics-ui.defs
+DEFS := $(patsubst %.nw, %.defs, $(LITSRCS))
 
-SRCS = main.cpp render.cpp physics.cpp primitive-procedures.cpp vlref-smob.cpp scene-smob.cpp sim-smob.cpp rigid-body-smob.cpp osc.c nn.c dummy-opengl-context.cpp physics-buffer.scm camera.scm physics-ui.scm
+SRCS = main.cpp render.cpp physics.cpp primitive-procedures.cpp vlref-smob.cpp scene-smob.cpp sim-smob.cpp rigid-body-smob.cpp osc.c nn.c dummy-opengl-context.cpp physics-buffer.scm camera.scm physics-ui.scm nsga2.c nsga2.scm
 
 TESTS = 
 
@@ -144,3 +145,12 @@ main.cpp: main.nw camera.nw nn.nw osc.nw physics-buffer.nw physics-ui.nw primiti
 # nn.h: nn.nw boiler-plate.nw 
 
 # camera.scm: camera.nw boiler-plate.nw 
+
+nsga2.c: nsga2.nw
+
+nsga2.scm: nsga2.nw
+
+NSGA2_HOME = nsga2-gnuplot-v1.1.6
+
+libguile-nsga2.dylib: nsga2.c
+	$(CC) -I $(NSGA2_HOME) $(GUILE_CFLAGS) $(GUILE_LDFLAGS) -shared -o $@ -fPIC $<

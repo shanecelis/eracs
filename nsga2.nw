@@ -1,0 +1,33 @@
+\section{NSGA-II}
+
+We want to use an NSGA-II search algorithm with Guile Scheme. A C
+library exists; we're just going to wrap it.  We're also going to make
+the following assumptions: real valued genes only, no constraints.  
+
+<<file:nsga2.c>>=
+#include <stdio.h>
+#include <libguile.h>
+#include "global.h"
+#include "rand.h"
+
+SCM test_function(SCM i)
+{
+  printf("Hi!\n");
+  return SCM_BOOL_T;
+}
+
+void init_nsga2()
+{
+  scm_c_define_gsubr("test-function", 1, 0, 0, test_function);
+}
+@ 
+
+Let's write a module file that'll automatically load this shared
+library.
+<<file:nsga2.scm>>=
+(define-module (nsga2))
+
+(load-extension "./libguile-nsga2.dylib" "init_nsga2")
+(export test-function)
+@ 
+

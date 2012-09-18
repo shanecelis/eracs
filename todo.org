@@ -1,0 +1,17 @@
+* TODO What parameters are required NSGA-II?
+  - pop size (multiples of 4)
+  - # of generations
+  - # of objectives
+  - # of constraints
+  - # of real variables with lower and upper limits of each
+  - Probability of crossover of real variable? (0.6-1.0)
+  - probability of mutation 1/nreal
+  - distribution index for crossover
+    
+** What should the Scheme interface look like?
+   Limit it to a real search.
+   (nsga-ii-search fitness-function #:objective-count 2 
+                                    #:gene-count 10 
+                                    #:population-count 10 
+                                    #:max-generations 10)
+   
