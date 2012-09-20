@@ -10,24 +10,302 @@ the following assumptions: real valued genes only, no constraints.
 #include "global.h"
 #include "rand.h"
 
-SCM test_function(SCM i)
-{
-  printf("Hi!\n");
-  return SCM_BOOL_T;
-}
+<<State>>
+
+<<Helper Function>>
+
+<<C Fitness Function>>
+
+<<Primitive Procedure>>
 
 void init_nsga2()
 {
-  scm_c_define_gsubr("test-function", 1, 0, 0, test_function);
+  scm_c_define_gsubr("primitive-nsga-ii-search", 
+                     6, 0, 0, 
+                     primitive_nsga_ii_search); 
+}
+@
+
+Rather than deal with all the default values in the primitive
+procedure, which would be cumbersome, we'll deal with that in the
+Scheme code, which is a lot easier.
+
+<<Procedure>>= 
+(define*-public (nsga-ii-search fitness-function #:key
+                                (objective-count 1)
+                                (gene-count 1)
+                                (population-count 4)
+                                (generation-count 1)
+                                (random-seed #f))
+  (primitive-nsga-ii-search fitness-function 
+                            objective-count 
+                            gene-count 
+                            population-count
+                            generation-count
+                            random-seed))
+@ 
+
+<<test>>=
+(check-true nsga-ii-search)
+@ 
+
+Let's try to maximize our genes.
+
+<<test>>=
+(let ((result  (car (nsga-ii-search (lambda (x) (vector-map - x)) 
+                                #:random-seed 0.1 #:generation-count 100))))
+  (check (car result) (=> vector=?) #(1.0))
+  (check (cdr result) (=> vector=?) #(-1.0)))
+@ 
+
+Let's try to minimize our genes.
+
+<<test>>=
+(let ((result  (car (nsga-ii-search (lambda (x) x) 
+                                #:random-seed 0.1 #:generation-count 100))))
+  (check (car result) (=> vector=?) #(-1.0))
+  (check (cdr result) (=> vector=?) #(-1.0)))
+
+@ 
+
+Let's minimize for $x^2$.
+
+<<test>>=
+(let ((result  (car (nsga-ii-search (lambda (x) (vector-map * x x)) 
+                                #:random-seed 0.1 #:generation-count 100))))
+  (check (car result) (=> vector=?) #(0.0))
+  (check (cdr result) (=> vector=?) #(0.0)))
+@ 
+
+
+The primitive procedure has no optional arguments.  The code is
+derived from the NSGA-II code in [[nsga2r.c]].
+
+<<Primitive Procedure>>=
+SCM primitive_nsga_ii_search(
+  SCM fitness_function,
+  SCM objective_count,
+  SCM gene_count,
+  SCM population_count,
+  SCM generation_count,
+  SCM random_seed
+)
+{
+  int i;
+  population *parent_pop;
+  population *child_pop;
+  population *mixed_pop;
+
+  <<Setup search parameters.>>
+  fitness_procedure = fitness_function;
+  bitlength = 0;
+  nbinmut = 0;
+  nrealmut = 0;
+  nbincross = 0;
+  nrealcross = 0;
+
+  parent_pop = (population *)malloc(sizeof(population));
+  child_pop  = (population *)malloc(sizeof(population));
+  mixed_pop  = (population *)malloc(sizeof(population));
+  allocate_memory_pop (parent_pop, popsize);
+  allocate_memory_pop (child_pop, popsize);
+  allocate_memory_pop (mixed_pop, 2*popsize);
+  randomize();
+  initialize_pop (parent_pop);
+  decode_pop (parent_pop);
+  evaluate_pop (parent_pop);
+  assign_rank_and_crowding_distance (parent_pop);
+  for (i = 2; i <= ngen; i++) {
+    selection (parent_pop, child_pop);
+    mutation_pop (child_pop);
+    decode_pop(child_pop);
+    evaluate_pop(child_pop);
+    merge (parent_pop, child_pop, mixed_pop);
+    fill_nondominated_sort (mixed_pop, parent_pop);
+    /* Comment following four lines if information for all
+       generations is not desired, it will speed up the execution */
+    //report_pop(parent_pop,fpt4);
+    //fflush(fpt4);
+    //printf("\n gen = %d",i);
+  }
+  SCM results = scm_report_feasible(parent_pop);
+  if (nreal!=0) {
+    free (min_realvar);
+    free (max_realvar);
+  }
+  deallocate_memory_pop (parent_pop, popsize);
+  deallocate_memory_pop (child_pop, popsize);
+  deallocate_memory_pop (mixed_pop, 2*popsize);
+  free (parent_pop);
+  free (child_pop);
+  free (mixed_pop);
+  return results;
+}
+@ 
+
+The fitness function calls our Scheme function.  (This function should
+really be a function pointer and include a [[void* context]], but
+that's not in my control.)  One concern is, while this is operating,
+do I need to deal with garbage collection manually?
+
+<<C Fitness Function>>=
+void test_problem (double *xreal, 
+                   double *xbin, 
+                   int **gene, 
+                   double *obj, 
+                   double *constr)
+{
+  SCM genome, objectives;
+  genome = scm_c_array_to_vector(nreal, xreal);
+  objectives = scm_call_1(fitness_procedure, genome);
+  scm_c_vector_to_array(objectives, nobj, obj);
+}
+@ 
+
+<<Helper Function>>=
+SCM scm_c_array_to_vector(int count, double* array) 
+{
+  int i;
+  SCM v = scm_c_make_vector(count, SCM_UNSPECIFIED);
+  for (i = 0; i < count; i++) 
+    scm_c_vector_set_x(v, i, scm_from_double(array[i]));
+  return v;
+}
+@ 
+
+<<Helper Function>>=
+void scm_c_vector_to_array(SCM v, int count, double* array) 
+{
+  int i;
+  for (i = 0; i < count; i++) 
+    array[i] = scm_to_double(scm_c_vector_ref(v, i));
+}
+@ 
+
+
+<<State>>=
+SCM fitness_procedure;
+@ 
+
+<<Setup search parameters.>>=
+  if (scm_is_false(random_seed)) 
+    seed = scm_to_double(scm_random(scm_from_double(1.0), scm_random_state_from_platform ()));
+  else
+    seed = scm_to_double(random_seed);
+  if (seed <= 0.0 || seed >= 1.0) {
+    // XXX Should throw an exception.
+    return SCM_BOOL_F;
+  }
+  popsize = scm_to_int(population_count);
+  if (popsize%4 != 0) {
+    return SCM_BOOL_F;
+  }
+  ngen = scm_to_int(generation_count);
+  nobj = scm_to_int(objective_count);
+  ncon = 0; // Zero constraints.
+  nreal = scm_to_int(gene_count);
+  min_realvar = (double *)malloc(nreal*sizeof(double));
+  max_realvar = (double *)malloc(nreal*sizeof(double));
+  // Default range of real values is [-1, 1].
+  for (i=0; i<nreal; i++) {
+    min_realvar[i] = -1.0;
+    //printf("min %e\n", min_realvar[i]);
+    max_realvar[i] = 1.0;
+  }
+  pcross_real = 0.6;
+  pmut_real = 1.0/((double)nreal);
+  // I don't know what these values actually mean.
+  // XXX Find out!
+  eta_c = 5;
+  eta_m = 5;
+  nbin = 0;
+  choice = 0;
+@ 
+
+These are expected variables defined in [[global.h]].
+
+<<State>>=
+int nreal;
+int nbin;
+int nobj;
+int ncon;
+int popsize;
+double pcross_real;
+double pcross_bin;
+double pmut_real;
+double pmut_bin;
+double eta_c;
+double eta_m;
+int ngen;
+int nbinmut;
+int nrealmut;
+int nbincross;
+int nrealcross;
+int *nbits;
+double *min_realvar;
+double *max_realvar;
+double *min_binvar;
+double *max_binvar;
+int bitlength;
+int choice;
+int obj1;
+int obj2;
+int obj3;
+int angle1;
+int angle2;
+@ 
+
+We want to collect some information from the last population to report
+back from this search.  This is modeled after the [[report-feasible]]
+in the NSGA-II C code [[report.c]].
+
+<<Helper Function>>=
+SCM scm_report_feasible (population *pop)
+{
+  SCM list = SCM_EOL;
+  int i, j, k;
+  for (i=0; i<popsize; i++) {
+    if (pop->ind[i].constr_violation == 0.0 && pop->ind[i].rank==1) {
+      SCM objective;
+      SCM genome;
+      objective = scm_c_make_vector(nobj, SCM_UNSPECIFIED);
+      for (j=0; j<nobj; j++) {
+        scm_c_vector_set_x(objective, j, scm_from_double(pop->ind[i].obj[j]));
+      }
+
+      genome = scm_c_make_vector(nreal, SCM_UNSPECIFIED);
+      if (nreal!=0) {
+        for (j=0; j<nreal; j++) {
+          scm_c_vector_set_x(genome, j, scm_from_double(pop->ind[i].xreal[j]));
+        }
+      }
+
+      // Add it to the list.
+      list = scm_cons(scm_cons(genome, objective), list);
+    }
+  }
+  return list;
 }
 @ 
 
 Let's write a module file that'll automatically load this shared
 library.
 <<file:nsga2.scm>>=
-(define-module (nsga2))
+(define-module (nsga2)
+ #:use-module (ice-9 optargs))
 
 (load-extension "./libguile-nsga2.dylib" "init_nsga2")
-(export test-function)
+<<Procedure>>
+
+(export nsga-ii-search)
 @ 
 
+<<file:nsga2.test.scm>>=
+;; nsga2-test.scm
+(use-modules (nsga2)
+             (vector-math))
+(use-modules ((rnrs) #:select (vector-map vector-for-each mod)))
+<<+ Test Preamble>>
+<<test>>
+<<+ Test Postscript>>
+@

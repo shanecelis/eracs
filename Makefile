@@ -29,7 +29,7 @@ DEFS := $(patsubst %.nw, %.defs, $(LITSRCS))
 
 SRCS = main.cpp render.cpp physics.cpp primitive-procedures.cpp vlref-smob.cpp scene-smob.cpp sim-smob.cpp rigid-body-smob.cpp osc.c nn.c dummy-opengl-context.cpp physics-buffer.scm camera.scm physics-ui.scm nsga2.c nsga2.scm
 
-TESTS = 
+TESTS = nsga2.test.scm vlref-smob.test.scm
 
 HDRS = render.h physics.h primitive-procedures.h vlref-smob.hpp scene-smob.h sim-smob.h rigid-body-smob.h osc.h nn.h dummy-opengl-context.hpp
 
@@ -38,6 +38,8 @@ OBJS = main.o render.o physics.o primitive-procedures.o vlref-smob.o scene-smob.
 BIBS = 
  
 STYS = 
+
+LIBS = libguile-nsga2.dylib
 
 DIST = Makefile README $(LITSRCS) $(TARGET)doc.tex $(SRCS) $(HDRS) $(BIBS) $(STYS)
 
@@ -57,11 +59,17 @@ NOTANGLE = $(TOP)/bin/mynotangle $@
 %.tex: %.nw all.defs
 	noweave -n -delay -indexfrom all.defs $< | cpif $@
 
-%.c %.cpp %.h %.hpp: %.nw
-	$(NOTANGLE) $(NOTANGLE_C_FLAGS) -R"file:$@" $^ boiler-plate.nw
+%-paper.tex: %.nw
+	noweave -x $< | cpif $@
 
-%.scm: %.nw
-	$(NOTANGLE) $(NOTANGLE_LISP_FLAGS) -R"file:$@" $^ boiler-plate.nw
+%.c %.cpp %.h %.hpp: %.nw boiler-plate.nw
+	$(NOTANGLE) $(NOTANGLE_C_FLAGS) -R"file:$@" $^ 
+
+%.scm: %.nw boiler-plate.nw
+	$(NOTANGLE) $(NOTANGLE_LISP_FLAGS) -R"file:$@" $^ 
+
+%.test.scm: %.nw boiler-plate.nw
+	$(NOTANGLE) $(NOTANGLE_LISP_FLAGS) -R"file:$@" $^ 
 
 %.dvi: %.tex
 	noindex $<
@@ -84,12 +92,13 @@ NOTANGLE = $(TOP)/bin/mynotangle $@
 
 all: 
 	$(MAKE) source
+	$(MAKE) $(LIBS)
 	$(MAKE) $(TARGET)
 
 doc:
 	$(MAKE) $(TARGET).pdf
 
-source: $(HDRS) $(SRCS)
+source: $(HDRS) $(SRCS) $(TESTS)
 
 all.defs: $(DEFS)
 	sort -u $^ | cpif $@
@@ -152,5 +161,10 @@ nsga2.scm: nsga2.nw
 
 NSGA2_HOME = nsga2-gnuplot-v1.1.6
 
-libguile-nsga2.dylib: nsga2.c
-	$(CC) -I $(NSGA2_HOME) $(GUILE_CFLAGS) $(GUILE_LDFLAGS) -shared -o $@ -fPIC $<
+libguile-nsga2.dylib: nsga2.c $(NSGA2_HOME)/allocate.c $(NSGA2_HOME)/auxiliary.c $(NSGA2_HOME)/crossover.c $(NSGA2_HOME)/crowddist.c $(NSGA2_HOME)/decode.c $(NSGA2_HOME)/display.c $(NSGA2_HOME)/dominance.c $(NSGA2_HOME)/eval.c $(NSGA2_HOME)/fillnds.c $(NSGA2_HOME)/initialize.c $(NSGA2_HOME)/list.c $(NSGA2_HOME)/merge.c $(NSGA2_HOME)/mutation.c $(NSGA2_HOME)/nsga2r.c $(NSGA2_HOME)/rand.c $(NSGA2_HOME)/rank.c $(NSGA2_HOME)/report.c $(NSGA2_HOME)/sort.c $(NSGA2_HOME)/tourselect.c
+	$(CC) -g -I $(NSGA2_HOME) $(GUILE_CFLAGS) $(GUILE_LDFLAGS) -shared -o $@ -fPIC $^
+
+test: eracs $(SRCS) $(TESTS) $(LIBS)
+	for test in $(TESTS); do \
+		 ./eracs -l line-pragma.scm -l $$test || exit 1; \
+	done

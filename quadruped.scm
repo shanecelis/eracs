@@ -20,54 +20,43 @@
                            (make-boxy-cylinder #(-1   1  0  ) .1 1 1)
                            (make-boxy-cylinder #(-1.5 .5 0  ) .1 1 2)
                            (make-boxy-cylinder #(0    1  1  ) .1 1 3)
-                           (make-boxy-cylinder #(0   .5  1.5) .1 1 2)
-                           ))
+                           (make-boxy-cylinder #(0   .5  1.5) .1 1 2)))
                (joints (list (make-hinge body (nth legs 0)
                                          #(.5 0 0) #(-.5 0  0)
-                                         #(0 0 -1) #(0   0 -1)
-                                         )
+                                         #(0 0 -1) #(0   0 -1))
                              (make-hinge (nth legs 0) (nth legs 1)
                                          #(.5 0 0) #(0 0.5  0)
-                                         #(0 0 -1) #(0   0 -1)
-                                         )
+                                         #(0 0 -1) #(0   0 -1))
                              (make-hinge body (nth legs 2)
                                          #(0  0 -.5) #(0  0 .5)
-                                         #(-1 0   0) #(-1 0  0)
-                                         )
+                                         #(-1 0   0) #(-1 0  0))
                              (make-hinge (nth legs 2) (nth legs 3)
                                          #(0  0 -.5) #(0 0.5  0)
-                                         #(-1 0   0) #(-1  0  0)
-                                         )
+                                         #(-1 0   0) #(-1  0  0))
                              (make-hinge body (nth legs 4)
                                          #(-.5 0 0) #(.5 0  0)
-                                         #(0   0 1) #(0  0  1)
-                                         )
+                                         #(0   0 1) #(0  0  1))
                              (make-hinge (nth legs 4) (nth legs 5)
                                          #(-.5 0 0) #(0 0.5  0)
-                                         #(0   0 1) #(0   0  1)
-                                         )
+                                         #(0   0 1) #(0   0  1))
                              (make-hinge body (nth legs 6)
                                          #(0  0 .5) #(0  0 -.5)
-                                         #(1 0   0) #(1 0  0)
-                                         )
+                                         #(1 0   0) #(1 0  0))
                              (make-hinge (nth legs 6) (nth legs 7)
                                          #(0  0 .5) #(0 0.5  0)
-                                         #(1 0   0) #(1  0  0)
-                                         )
-                             )))
+                                         #(1 0   0) #(1  0  0)))))
           (cons (cons body legs) joints)))
 
 (define robot (make-quadruped-robot))
 (define bodies car)
 (define joints cdr)
 
-(map #.\ (sim-add-body (current-sim) %) (bodies robot))
-(map #.\ (sim-add-constraint (current-sim) %) (joints robot))
+(map #.\ (sim-add-body (current-sim) %1) (bodies robot))
+(map #.\ (sim-add-constraint (current-sim) %1) (joints robot))
 
 (sim-add-ground-plane (current-sim))
 
 (physics-add-scene (current-sim))
-
 
 (define-interactive (focus-on-robot)
   (set-parameter! 'camera-target (get-robot-position)))
@@ -185,8 +174,8 @@
 (define nn-time-period 10.)
 
 (define (nn-input)
-  (let* ((time (/ (mod (emacsy-time) nn-time-period) 
-                  nn-time-period)) ;; [0, 1]
+  (let* ((time (/ (mod (robot-time) nn-time-period) 
+                  nn-time-period))  ;; [0, 1]
          (time* (- (* 2. time) 1.)) ;; [-1, 1]
          (inputs (vector-map (lambda (x)
                               (if x
@@ -195,12 +184,10 @@
     (vector-append (vector time*) inputs)
       ;; fake the input
     (vector time* 1 1 1 1)
-    )
-  )
+    ))
+
 (define (nn-output)
   (vector-map #.\ (* % (/ 4. pi)) target-angles))
-
-
 
 (define neuron-count '(5 16 16 8))
 

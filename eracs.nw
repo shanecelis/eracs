@@ -114,12 +114,11 @@ I only need a few things from the rendering library exposed to Scheme:
 \end{enumerate}
 
 When I say ``coarsely'' I mean that I want to ask for a bag of
-properties by name.  So essentially, those properties will be defined
+properties by name.  Those properties will be defined
 in \verb|C|.  This will allow me to extend how things are displayed
 without forcing me to adapt a whole rendering API from \verb|C| to
 \verb|Scheme|, and really this project isn't about having a pretty
 display.
-
 
 \input{vlref-smob}
 \input{scene-smob}
@@ -140,11 +139,12 @@ all.
 \input{rigid-body-smob}
 \input{osc}
 \input{nn}
+\input{nsga2} 
 \newpage
 \appendix
 
 \input{boiler-plate}
- \chapter{Global Index}
+\chapter{Global Index}
 The index of global filenames, fragments, and user specified identifiers.
 \section{Index of Filenames}
 \section{Index of Fragments}

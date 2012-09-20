@@ -1,7 +1,6 @@
 \subsection{Simulation SMOB}
 
 <<file:sim-smob.h>>=
-
 #ifndef SCM_MAGIC_SNARFER
 #include <btBulletDynamicsCommon.h>
 #endif
@@ -117,10 +116,9 @@ struct sim* unwrap_sim(SCM sim_smob)
   return (struct sim*) SCM_SMOB_DATA(sim_smob);
 }
 @ %def unwrap_sim
-@ Now let's allow ourselves to create this C object from Scheme.
+Now let's allow ourselves to create this C object from Scheme.
 
 <<Includes>>=
-
 #include "physics.h"
 <<file:sim-smob.cpp>>=
 
@@ -149,7 +147,6 @@ SCM_DEFINE (scm_make_sim, "make-sim", 0, 0, 0,
   return wrap_sim(world);
 }
 <<Primitives>>=
-
 SCM_DEFINE (scm_sim_tick, "sim-tick", 1, 1, 0,
             (SCM sim, SCM time_step),
             "Simulate physics for one time step.")
@@ -163,15 +160,27 @@ SCM_DEFINE (scm_sim_tick, "sim-tick", 1, 1, 0,
   s->elapsed_time += dt;
   return scm_from_double(s->elapsed_time);
 }
+@ 
 <<Primitives>>=
-
 SCM_DEFINE (scm_sim_time, "sim-time", 1, 0, 0,
             (SCM sim),
-            "Simulate physics for one time step.")
+            "Return the elapsed time.")
 {
   scm_assert_smob_type(sim_tag, sim);
   struct sim *s = (struct sim*) SCM_SMOB_DATA(sim);
   return scm_from_double(s->elapsed_time);
+}
+@ 
+
+<<Primitives>>=
+SCM_DEFINE (scm_sim_time_set_x, "sim-time-set!", 2, 0, 0,
+            (SCM sim, SCM value),
+            "Set the elapsed time.")
+{
+  scm_assert_smob_type(sim_tag, sim);
+  struct sim *s = (struct sim*) SCM_SMOB_DATA(sim);
+  s->elapsed_time = scm_to_double(value);
+  return SCM_UNSPECIFIED;
 }
 @ Just a stop gap measure.
 

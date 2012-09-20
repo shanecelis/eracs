@@ -11,14 +11,11 @@ a SMOB.
 #endif
 #include <libguile.h>
 
-enum vlref_tag {ACTOR_TAG};
-
 struct vlref {
-  enum vlref_tag tag;
+  SCM type;
+  vl::Object *object;
   SCM name;
-  /*union*/ struct {
-    vl::ref<vl::Actor> actor;
-  } type;
+
 };
 
 void init_vlref_type(void);
@@ -58,13 +55,7 @@ and \verb|print|.
 static size_t free_vlref (SCM vlref_smob)
 {
   struct vlref *vlref = (struct vlref *) SCM_SMOB_DATA (vlref_smob);
-  switch (vlref->tag) {
-  case ACTOR_TAG:
-    vlref->type.actor = 0;
-    break;
-  default:
-    fprintf(stderr, "free_vlref error: invalid tag given.\n");
-  }
+  vlref->object->decReference();
   scm_gc_free (vlref, sizeof (struct vlref), "vlref");
   return 0;
 }
@@ -76,9 +67,10 @@ live.
 
 static SCM mark_vlref (SCM vlref_smob)
 {
-  /* Mark the vlref's name and update function.  */
+  /* Mark the vlref's name and type members.  */
   struct vlref *vlref = (struct vlref *) SCM_SMOB_DATA (vlref_smob);
-   
+
+  scm_gc_mark(vlref->type);  
   return vlref->name;
 }
 @ When the smob is printed to string, say on the REPL, it will use
@@ -92,11 +84,8 @@ static int print_vlref (SCM vlref_smob, SCM port, scm_print_state *pstate)
   struct vlref *vlref = (struct vlref *) SCM_SMOB_DATA (vlref_smob);
      
   scm_puts ("#<vlref ", port);
-  switch (vlref->tag) {
-  case ACTOR_TAG:
-    scm_puts("actor ", port);
-    break;
-  }
+  scm_display (vlref->type, port);
+  scm_puts (" ", port);
   scm_display (vlref->name, port);
   scm_puts (">", port);
      
@@ -132,7 +121,6 @@ vl::ref<vl::Effect> get_effect(const char *effect_name) {
   }
 }
 <<Vanilla Effect>>=
-
   // Setup the effect to be used to render the cube.
   vl::ref<vl::Effect> effect = new vl::Effect;
   // Enable depth test and lighting.
@@ -149,7 +137,9 @@ vl::ref<vl::Effect> get_effect(const char *effect_name) {
   color.a() = 0.0;
   effect->shader()->gocMaterial()->setDiffuse(color );
   return effect;
+@ 
 <<Primitives>>=
+extern "C" SCM scm_c_string_to_symbol(const char* str);
 
 SCM_DEFINE (scm_make_box_actor, "make-box-actor", 0, 3, 0,
             (SCM dims, SCM name, SCM effect_name),
@@ -204,17 +194,31 @@ SCM_DEFINE (scm_make_box_actor, "make-box-actor", 0, 3, 0,
 
   actor->actorEventCallbacks()->push_back( new vl::DepthSortCallback );
 
-  sc->tag = ACTOR_TAG;
-  sc->type.actor = actor.get();
+  sc->type = scm_c_string_to_symbol("actor");
+  sc->object = actor.get();
+  sc->object->incReference();
      
   SCM_NEWSMOB (smob, vlref_tag, sc);
      
   return smob;  
 }
+
+<<test>>=
+(check-true make-box-actor)
+@ 
+
 <<+ Initialize submodules.>>=
-
 init_vlref_type();
+@ 
 <<+ Include submodules.>>=
-
 #include "vlref-smob.hpp"
 @
+
+<<file:vlref-smob.test.scm>>=
+;; vlref-smob-test.scm
+<<+ Test Preamble>>
+<<test>>
+<<+ Test Postscript>>
+@
+
+

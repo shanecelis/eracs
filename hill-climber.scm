@@ -67,9 +67,11 @@
     (vector-fill! touch-sensors #f)
     (set! direction 'right)
     (restart-physics)
+    (sim-time-set! (sim eracs-buffer) 0.0)
+    (set! start-time 0.0)
     (set! start-position (get-robot-position))
-    (wait-until (lambda () 
-                  (> (- (robot-time) start-time) eval-robot-time))) ;; maybe wait-until and wait-while are better names
+    (block-until (lambda () 
+                  (> (- (robot-time) start-time) eval-robot-time))) 
     (let* ((pos (get-robot-position))
            (fitness (- (vector-ref start-position 0) (vector-ref pos 0))))
       (set! current-brain original-brain)
@@ -82,7 +84,7 @@
 (define-key eracs-mode-map (kbd "osc-ping") 'osc-noop)
 
 (define-interactive
-  (hill-climber #:optional (max-generations (read-string (read-from-minibuffer "max-evaluations: "))))
+  (hill-climber #:optional (max-generations (read-from-string (read-from-minibuffer "max-evaluations: "))))
   (message "optimizer: starting")
   ;(message "hill-climber: starting")
   (let* ((parent (if (and #f first-time)

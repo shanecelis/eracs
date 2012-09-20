@@ -89,14 +89,7 @@ while ((c = getopt (argc, argv, "l:")) != -1)
   default:
     abort ();
   }
-
-// Option 1) next argument at argv[optind]
-
-// Option 2) next argument at argv[1]; good for old code. 
-// argc -= optind;
-// argv += optind;
-
-// Option 3) next argument at argv[0]; good for new code.
+// next argument at argv[0]; good for new code.
 argc -= (optind - 1);
 argv += (optind - 1);
 
