@@ -9,9 +9,30 @@
   - distribution index for crossover
     
 ** What should the Scheme interface look like?
-   Limit it to a real search.
+   Limit it to a real valued search.
    (nsga-ii-search fitness-function #:objective-count 2 
                                     #:gene-count 10 
                                     #:population-count 10 
                                     #:max-generations 10)
+   (fitness-function real-vector) ; -> real-vector
    
+** What is required for a robot?
+   bodies
+   joints
+   controller-fn
+   sensor-fn
+
+   What should be swappable?
+
+   robot has bodies and joints
+
+   (controller-fn robot (sensor-fn robot))
+   
+* What's a better way to handle OSC updates?
+  (make <osc-registry> #:host host #:port port)
+  (osc-register reg path getter setter)
+  (osc-push reg)
+  (osc-pull reg)
+  
+  
+802-846-4119 voter registration

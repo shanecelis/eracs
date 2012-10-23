@@ -19,6 +19,8 @@ struct vlref {
 };
 
 void init_vlref_type(void);
+SCM scm_c_wrap_vlref(vl::Object *object, const char *type, const char *name);
+struct vlref* unwrap_vlref(SCM smob);
 @ %def vlref
 <<file:vlref-smob.cpp>>=
 
@@ -55,7 +57,10 @@ and \verb|print|.
 static size_t free_vlref (SCM vlref_smob)
 {
   struct vlref *vlref = (struct vlref *) SCM_SMOB_DATA (vlref_smob);
-  vlref->object->decReference();
+  if (vlref->object) {
+    vlref->object->decReference();
+    vlref->object = NULL;
+  }
   scm_gc_free (vlref, sizeof (struct vlref), "vlref");
   return 0;
 }
@@ -97,10 +102,9 @@ Guile.  That requires we keep a ``tag'' to identify our SMOB from
 others.
 
 <<State>>=
-
 static scm_t_bits vlref_tag;
+@ 
 <<Initialize.>>=
-
 void init_vlref_type(void)
 {
 #ifndef SCM_MAGIC_SNARFER 
@@ -111,8 +115,8 @@ void init_vlref_type(void)
   scm_set_smob_free (vlref_tag, free_vlref);
   scm_set_smob_print (vlref_tag, print_vlref);
 }
+@ 
 <<Helper Functions>>=
-
 vl::ref<vl::Effect> get_effect(const char *effect_name) {
   if (strcmp("vanilla", effect_name) == 0) {
     <<Vanilla Effect>>
@@ -120,6 +124,7 @@ vl::ref<vl::Effect> get_effect(const char *effect_name) {
     return NULL;
   }
 }
+@ 
 <<Vanilla Effect>>=
   // Setup the effect to be used to render the cube.
   vl::ref<vl::Effect> effect = new vl::Effect;
@@ -137,6 +142,38 @@ vl::ref<vl::Effect> get_effect(const char *effect_name) {
   color.a() = 0.0;
   effect->shader()->gocMaterial()->setDiffuse(color );
   return effect;
+@ 
+
+<<Helper Functions>>=
+SCM scm_c_wrap_vlref(vl::Object *object, const char *type, const char *name)
+{
+  SCM smob;
+  struct vlref *vr;
+     
+  /* Step 1: Allocate the memory block.
+   */
+  vr = (struct vlref *)
+    scm_gc_malloc (sizeof (struct vlref), "vlref");
+
+  vr->type = scm_from_locale_string(type);
+  vr->name = scm_from_locale_string(name);
+
+
+  vr->object = object;
+  vr->object->incReference();
+     
+  SCM_NEWSMOB (smob, vlref_tag, vr);
+     
+  return smob;  
+}
+@
+<<Helper Functions>>=
+struct vlref* unwrap_vlref(SCM smob)
+{
+  scm_assert_smob_type(vlref_tag, smob);
+  struct vlref *vr = (struct vlref*) SCM_SMOB_DATA(smob);
+  return vr;
+}
 @ 
 <<Primitives>>=
 extern "C" SCM scm_c_string_to_symbol(const char* str);
@@ -202,9 +239,13 @@ SCM_DEFINE (scm_make_box_actor, "make-box-actor", 0, 3, 0,
      
   return smob;  
 }
+@ 
+
 
 <<test>>=
 (check-true make-box-actor)
+(check-true (make-box-actor))
+;(check (current-module) => #f)
 @ 
 
 <<+ Initialize submodules.>>=

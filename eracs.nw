@@ -13,6 +13,7 @@
 \usepackage{color}
 %\usepackage{framed}
 \usepackage{textcomp}
+\usepackage{parskip}
 %\definecolor{listinggray}{gray}{0.9}
 %\definecolor{shadecolor}{HTML}{211e1e}
 \definecolor{darkgray}{rgb}{0.95,0.95,0.95}
@@ -124,6 +125,7 @@ display.
 \input{scene-smob}
 \input{render}
 \input{physics}
+\input{sim-smob}
 \input{primitive-procedures}
 
 \section{Emacsy Integration}

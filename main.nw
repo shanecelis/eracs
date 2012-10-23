@@ -16,24 +16,23 @@ int main(int argc, char** argv) {
   /* Initialize VL. */
   vl::VisualizationLibrary::init();
 
+  <<+ Initialize submodules.>>
+
+  scm_c_primitive_load("util.scm"); 
+  <<+ Load scheme files.>>
+
+  <<Process arguments.>>
+
   <<Open window.>>
   /* Callbacks must be setup after window is open. 
      (Learned that one the hard way.) */
   render_init(SCREEN_WIDTH, SCREEN_HEIGHT);
   <<Setup callbacks.>>
 
-  <<+ Initialize submodules.>>
-
-  physics_init();
-
-  <<+ Load scheme files.>>
-
-  <<Process arguments.>>
-
   <<Load personal configuration.>>
 
   <<Run loop.>>
-
+  emacsy_run_hook_0("emacsy-terminate-hook"); 
   /* physics_terminate(); */
   vl::VisualizationLibrary::shutdown();
   glfwTerminate();
@@ -103,12 +102,10 @@ allow the first character provided by the \verb|char_callback|
 function.
 
 <<State>>=
-
 bool key_pressed = true;
 @ \end{multicols}
 
 <<Functions>>=
-
 extern "C" void GLFWCALL char_callback(int character, int action) {
   wprintf(L"got char %lc (%d) with action %d, mod flags %d\n", character, character, action, get_modifier_key_flags()); 
   if (key_pressed) {
@@ -117,8 +114,8 @@ extern "C" void GLFWCALL char_callback(int character, int action) {
   }
 }
 @ %def char_callback
-<<Functions>>=
 
+<<Functions>>=
 extern "C" void GLFWCALL key_callback(int key, int action) {
   printf("got key %c (%d) action %d with mod flags %d\n", key, key, action, get_modifier_key_flags());
   int modkey_flags = get_modifier_key_flags();
@@ -155,8 +152,8 @@ extern "C" void GLFWCALL key_callback(int key, int action) {
   }
 }
 @ %def key_callback
-<<Helper Functions>>=
 
+<<Helper Functions>>=
 int get_modifier_key_flags() {
   int mod_keys[EY_MODKEY_COUNT][3] = {
     {0},                                   /* alt */
@@ -182,7 +179,6 @@ int get_modifier_key_flags() {
 @ \begin{multicols}{2}
 
 <<Helper Functions>>=
-
 int scm_c_char_to_int(const char *char_name) {
   /* I should put a regex in here to validate it's a char */
   return scm_to_int(scm_char_to_integer(scm_c_eval_string(char_name)));
@@ -196,7 +192,6 @@ glfwSetKeyCallback(key_callback);
 locale appropriately.
 
 <<+ Initialize submodules.>>=
-
 setlocale(LC_ALL, "en_US.UTF-8");
 @ \section{Mouse Input}
 
@@ -236,13 +231,45 @@ glfwSetMouseButtonCallback(button_callback);
 @ \section{Window Operations}
 
 <<Functions>>=
-
 extern "C" void GLFWCALL resize_callback(int w, int h) {
   printf("Resizing\n");
   render_setup_viewport(w, h);
   /* render(); */
   /* glfwSwapBuffers();  */
 }
+@ 
+
+<<Functions>>=
+SCM load_file(void *data) 
+{
+  scm_c_primitive_load((const char *)data);
+  return SCM_BOOL_T;
+}
+
+SCM load_file_error(void *data, SCM key, SCM args)
+{
+  return SCM_BOOL_F;
+}
+
+int load_file_safe(const char *filename)
+{
+  SCM result = scm_internal_catch(SCM_BOOL_T, 
+                                  load_file,       (void *) filename,
+                                  load_file_error, (void *) filename);
+  if (scm_is_false(result)) {
+    fprintf(stderr, "error: Unable to load file \"%s\".\n", filename);
+    return 1; //EY_ERR_NO_MODULE;
+  }
+  return 0;
+}
+
+int my_load_file(const char *filename)
+{
+  scm_call_1(scm_c_public_ref("guile-user", "my-load-file"),
+             scm_from_locale_string(filename));
+  return 0;
+}
+@ 
 <<Setup callbacks.>>=
 
 glfwSetWindowSizeCallback(resize_callback); 
@@ -252,8 +279,10 @@ In the spirit of Emacs, we load the \verb|.eracs| file if it exists.
 
 <<Load personal configuration.>>=
 
-if (access(".eracs", R_OK) != -1)
-  scm_c_primitive_load(".eracs");
+if (access(".eracs", R_OK) != -1) {
+  //scm_c_primitive_load(".eracs");
+  my_load_file(".eracs");
+}
 @ \section{The Run Loop}
 
 The run loop is where all the action happens.
@@ -264,7 +293,11 @@ bool quitp = false; // C99
 unsigned int tick = 0;
 int emacsy_flags;
 while (! quitp) {
+  //printf("BEGIN RUN LOOP\n");
+  //printf("BEGIN PHYSICS HOOK\n");
   emacsy_run_hook_0("physics-tick-hook"); 
+  //printf("END PHYSICS HOOK\n");
+  fflush(stdout);
   render();
   glfwSwapBuffers(); 
   glfwPollEvents();
@@ -273,10 +306,10 @@ while (! quitp) {
     emacsy_flags & EY_QUIT_APPLICATION
     || ! glfwGetWindowParam(GLFW_OPENED);
   tick++;
+  //printf("END RUN LOOP\n");
 }
 
-<<file:main.cpp>>=
- 
+<<file:main.cpp>>= 
 <<+ Preamble>> 
 <<Includes>>
 <<Defines>>
@@ -312,7 +345,6 @@ lightweight library.)
 /* VL */
 #include <vlCore/VisualizationLibrary.hpp>
 #include "render.h" 
-#include "physics.h"
 #include "primitive-procedures.h"
 
 <<+ Include submodules.>>

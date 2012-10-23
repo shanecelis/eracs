@@ -1,7 +1,22 @@
 (use-modules (convenience-lambda)
              ((rnrs) #:select (vector-map vector-for-each mod))
              (system repl server)
-             (zeroconf))
+             (zeroconf)
+             (osc)
+             (emacsy emacsy)
+             (statprof))
+(set! %load-hook (lambda (filename)
+                   (format #t "Loading ~a ...\n" filename)))
+(define profile? #f)
+
+(define (stop-profiling)
+    (statprof-stop)
+    (statprof-display))
+
+(when profile?
+  (statprof-reset 0 50000 #t)
+  (statprof-start)
+  (add-hook! emacsy-terminate-hook stop-profiling))
 
 ;; Let's start a REPL.
 (spawn-server)
@@ -10,6 +25,6 @@
 (start-osc-server)
 (spawn-publish-service "" "_osc._udp." "ERACS" 7770)
 (set-parameter! 'camera-position #(4 4 3))
-(load "quadruped.scm")
-(load "record-robot.scm")
-(primitive-load "hill-climber.scm")
+(load "quadruped2.scm")
+;(load "record-robot.scm")
+;(primitive-load "hill-climber.scm")

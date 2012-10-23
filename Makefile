@@ -27,19 +27,19 @@ TEXS := $(patsubst %.nw, %.tex, $(LITSRCS))
 
 DEFS := $(patsubst %.nw, %.defs, $(LITSRCS))
 
-SRCS = main.cpp render.cpp physics.cpp primitive-procedures.cpp vlref-smob.cpp scene-smob.cpp sim-smob.cpp rigid-body-smob.cpp osc.c nn.c dummy-opengl-context.cpp physics-buffer.scm camera.scm physics-ui.scm nsga2.c nsga2.scm
+SRCS = main.cpp render.cpp physics.cpp primitive-procedures.cpp vlref-smob.cpp scene-smob.cpp sim-smob.cpp rigid-body-smob.cpp nn.c dummy-opengl-context.cpp physics-buffer.scm camera.scm physics-ui.scm nsga2.c nsga2.scm osc.c osc.scm
 
-TESTS = nsga2.test.scm vlref-smob.test.scm
+TESTS = nsga2.test.scm vlref-smob.test.scm sim-smob.test.scm
 
 HDRS = render.h physics.h primitive-procedures.h vlref-smob.hpp scene-smob.h sim-smob.h rigid-body-smob.h osc.h nn.h dummy-opengl-context.hpp
 
-OBJS = main.o render.o physics.o primitive-procedures.o vlref-smob.o scene-smob.o sim-smob.o rigid-body-smob.o osc.o nn.o dummy-opengl-context.o
+OBJS = main.o render.o physics.o primitive-procedures.o vlref-smob.o scene-smob.o sim-smob.o rigid-body-smob.o nn.o dummy-opengl-context.o
 
 BIBS = 
  
 STYS = 
 
-LIBS = libguile-nsga2.dylib
+LIBS = libguile-nsga2.dylib libguile-osc.dylib
 
 DIST = Makefile README $(LITSRCS) $(TARGET)doc.tex $(SRCS) $(HDRS) $(BIBS) $(STYS)
 
@@ -149,7 +149,7 @@ nn.o: nn.c nn.c.x
 
 sim-smob.o: sim-smob.cpp sim-smob.cpp.x
 
-main.cpp: main.nw camera.nw nn.nw osc.nw physics-buffer.nw physics-ui.nw primitive-procedures.nw rigid-body-smob.nw scene-smob.nw sim-smob.nw vlref-smob.nw 
+main.cpp: main.nw camera.nw nn.nw osc.nw physics-buffer.nw physics-ui.nw primitive-procedures.nw rigid-body-smob.nw scene-smob.nw sim-smob.nw vlref-smob.nw physics.nw
 
 # nn.h: nn.nw boiler-plate.nw 
 
@@ -164,7 +164,12 @@ NSGA2_HOME = nsga2-gnuplot-v1.1.6
 libguile-nsga2.dylib: nsga2.c $(NSGA2_HOME)/allocate.c $(NSGA2_HOME)/auxiliary.c $(NSGA2_HOME)/crossover.c $(NSGA2_HOME)/crowddist.c $(NSGA2_HOME)/decode.c $(NSGA2_HOME)/display.c $(NSGA2_HOME)/dominance.c $(NSGA2_HOME)/eval.c $(NSGA2_HOME)/fillnds.c $(NSGA2_HOME)/initialize.c $(NSGA2_HOME)/list.c $(NSGA2_HOME)/merge.c $(NSGA2_HOME)/mutation.c $(NSGA2_HOME)/nsga2r.c $(NSGA2_HOME)/rand.c $(NSGA2_HOME)/rank.c $(NSGA2_HOME)/report.c $(NSGA2_HOME)/sort.c $(NSGA2_HOME)/tourselect.c
 	$(CC) -g -I $(NSGA2_HOME) $(GUILE_CFLAGS) $(GUILE_LDFLAGS) -shared -o $@ -fPIC $^
 
+osc.o: osc.c.x
+
+libguile-osc.dylib: osc.o
+	$(CC) -g $(GUILE_CFLAGS) $(GUILE_LDFLAGS) $(LDFLAGS) -shared -o $@ -fPIC $^
+
 test: eracs $(SRCS) $(TESTS) $(LIBS)
 	for test in $(TESTS); do \
-		 ./eracs -l line-pragma.scm -l $$test || exit 1; \
+		 ./eracs -l $$test || exit 1; \
 	done

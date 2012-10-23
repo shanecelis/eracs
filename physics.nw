@@ -25,6 +25,7 @@ void physics_init() {
 #ifndef SCM_MAGIC_SNARFER 
 #include "physics.cpp.x" 
 #endif
+  //scm_c_eval_string("(display (current-module))");
 }
 @ Let's include the necessary headers from Bullet.
 
@@ -304,11 +305,17 @@ SCM_DEFINE (scm_physics_clear_scene, "physics-clear-scene", 0, 0, 0,
   return SCM_UNSPECIFIED;
 }
 <<file:physics.h>>=
-
 void physics_add_scene(btDynamicsWorld *world);
 void physics_update_scene(btDynamicsWorld *world);
 void physics_clear_scene();
+@ 
 <<file:physics.cpp>>=
-
 <<Physics Initialize>>
 @ 
+
+<<+ Include submodules.>>=
+#include "physics.h"
+@
+<<+ Initialize submodules.>>=
+physics_init();
+@

@@ -1,5 +1,18 @@
 \subsection{Simulation SMOB}
 
+We want to be able to instantiate a physics simulator.
+
+<<test>>=
+(let ((sim (make-sim))
+      (body (make-box #(0 0 0) #(1 1 1))))
+  (sim-add-body sim body)
+  (check (get-position body) => #(0. 0. 0.))
+  (sim-tick sim)
+  (sim-tick sim)
+  ;; the object has started to fall.
+  (check-true (< (vector-ref (get-position body) 1) 0.)))
+@ 
+
 <<file:sim-smob.h>>=
 #ifndef SCM_MAGIC_SNARFER
 #include <btBulletDynamicsCommon.h>
@@ -15,8 +28,8 @@ SCM wrap_sim(btDynamicsWorld* world);
 
 void init_sim_type(void);
 struct sim* unwrap_sim(SCM sim_smob);
+@ 
 <<file:sim-smob.cpp>>=
-
 <<+ Preamble>>
 
 <<Includes>>
@@ -29,9 +42,10 @@ struct sim* unwrap_sim(SCM sim_smob);
 <<Free>>
 <<Mark>>
 <<Print>>
+@ 
 <<Includes>>=
-
 #include "sim-smob.h"
+@ 
 <<Free>>=
 
 static size_t free_sim (SCM sim_smob)
@@ -72,10 +86,9 @@ static int print_sim (SCM sim_smob, SCM port, scm_print_state *pstate)
 \verb|rigid-body-smob.cpp|.  Not sure I like this.
 
 <<State>>=
-
 static scm_t_bits sim_tag;
+@ 
 <<Initialize.>>=
-
 void init_sim_type(void)
 {
 #ifndef SCM_MAGIC_SNARFER 
@@ -86,8 +99,8 @@ void init_sim_type(void)
   scm_set_smob_free (sim_tag, free_sim);
   scm_set_smob_print (sim_tag, print_sim);
 }
+@ 
 <<file:sim-smob.cpp>>=
-
 SCM wrap_sim(btDynamicsWorld* btdw)
 {
   SCM smob;
@@ -218,4 +231,11 @@ SCM_DEFINE (scm_sim_add_ground_plane, "sim-add-ground-plane", 1, 0, 0,
 <<+ Initialize submodules.>>=
 
 init_sim_type();
+@
+
+<<file:sim-smob.test.scm>>=
+;; sim-smob-test.scm
+<<+ Test Preamble>>
+<<test>>
+<<+ Test Postscript>>
 @

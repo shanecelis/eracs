@@ -189,7 +189,8 @@ SCM fitness_procedure;
 
 <<Setup search parameters.>>=
   if (scm_is_false(random_seed)) 
-    seed = scm_to_double(scm_random(scm_from_double(1.0), scm_random_state_from_platform ()));
+    seed = scm_to_double(scm_random(scm_from_double(1.0), 
+                                    scm_random_state_from_platform()));
   else
     seed = scm_to_double(random_seed);
   if (seed <= 0.0 || seed >= 1.0) {
@@ -264,22 +265,13 @@ SCM scm_report_feasible (population *pop)
 {
   SCM list = SCM_EOL;
   int i, j, k;
-  for (i=0; i<popsize; i++) {
-    if (pop->ind[i].constr_violation == 0.0 && pop->ind[i].rank==1) {
+  for (i = 0; i < popsize; i++) {
+    if (pop->ind[i].constr_violation == 0.0 
+        && pop->ind[i].rank == 1) {
       SCM objective;
       SCM genome;
-      objective = scm_c_make_vector(nobj, SCM_UNSPECIFIED);
-      for (j=0; j<nobj; j++) {
-        scm_c_vector_set_x(objective, j, scm_from_double(pop->ind[i].obj[j]));
-      }
-
-      genome = scm_c_make_vector(nreal, SCM_UNSPECIFIED);
-      if (nreal!=0) {
-        for (j=0; j<nreal; j++) {
-          scm_c_vector_set_x(genome, j, scm_from_double(pop->ind[i].xreal[j]));
-        }
-      }
-
+      objective = scm_c_array_to_vector(nobj,  pop->ind[i].obj);
+      genome    = scm_c_array_to_vector(nreal, pop->ind[i].xreal);
       // Add it to the list.
       list = scm_cons(scm_cons(genome, objective), list);
     }

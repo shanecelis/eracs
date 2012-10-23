@@ -1,9 +1,20 @@
+;; quadruped.scm
 (use-modules (ice-9 receive)
+             (oop goops)
              (emacsy emacsy))
 (define pi (acos -1))
-;; Original #(0 1 10)
-;; #(1 3 3) is a good position too.
-;; OR #(4 4 3)
+
+(define-class <quadruped> ()
+  (bodies #:getter bodies #:init-keyword #:bodies)
+  (joints #:getter joints #:init-keyword #:joints)
+  (controller #:accessor controller #:init-keyword #:controller)
+  (sensors #:accessor sensors)
+  ;(target-angles #:accessor target-angles)
+  ;(active-joints #:accessor active-joints)
+  
+  )
+
+
 
 (define (make-boxy-cylinder pos radius length alignment)
   (let ((dims (make-vector 3 (* 2 radius))))
@@ -11,45 +22,46 @@
     (make-box pos dims)))
 
 (define (make-quadruped-robot)
-        (let* ((nth list-ref)
-               (body (make-box #(0 1 0) #(1 .2 1)))
-               (legs (list (make-boxy-cylinder #(1    1  0  ) .1 1 1)
-                           (make-boxy-cylinder #(1.5 .5  0  ) .1 1 2)
-                           (make-boxy-cylinder #(0    1 -1  ) .1 1 3)
-                           (make-boxy-cylinder #(0   .5 -1.5) .1 1 2) 
-                           (make-boxy-cylinder #(-1   1  0  ) .1 1 1)
-                           (make-boxy-cylinder #(-1.5 .5 0  ) .1 1 2)
-                           (make-boxy-cylinder #(0    1  1  ) .1 1 3)
-                           (make-boxy-cylinder #(0   .5  1.5) .1 1 2)))
-               (joints (list (make-hinge body (nth legs 0)
-                                         #(.5 0 0) #(-.5 0  0)
-                                         #(0 0 -1) #(0   0 -1))
-                             (make-hinge (nth legs 0) (nth legs 1)
-                                         #(.5 0 0) #(0 0.5  0)
-                                         #(0 0 -1) #(0   0 -1))
-                             (make-hinge body (nth legs 2)
-                                         #(0  0 -.5) #(0  0 .5)
-                                         #(-1 0   0) #(-1 0  0))
-                             (make-hinge (nth legs 2) (nth legs 3)
-                                         #(0  0 -.5) #(0 0.5  0)
-                                         #(-1 0   0) #(-1  0  0))
-                             (make-hinge body (nth legs 4)
-                                         #(-.5 0 0) #(.5 0  0)
-                                         #(0   0 1) #(0  0  1))
-                             (make-hinge (nth legs 4) (nth legs 5)
-                                         #(-.5 0 0) #(0 0.5  0)
-                                         #(0   0 1) #(0   0  1))
-                             (make-hinge body (nth legs 6)
-                                         #(0  0 .5) #(0  0 -.5)
-                                         #(1 0   0) #(1 0  0))
-                             (make-hinge (nth legs 6) (nth legs 7)
-                                         #(0  0 .5) #(0 0.5  0)
-                                         #(1 0   0) #(1  0  0)))))
-          (cons (cons body legs) joints)))
+  (let* ((nth list-ref)
+         (body (make-box #(0 1 0) #(1 .2 1)))
+         (legs (list (make-boxy-cylinder #(1    1  0  ) .1 1 1)
+                     (make-boxy-cylinder #(1.5 .5  0  ) .1 1 2)
+                     (make-boxy-cylinder #(0    1 -1  ) .1 1 3)
+                     (make-boxy-cylinder #(0   .5 -1.5) .1 1 2) 
+                     (make-boxy-cylinder #(-1   1  0  ) .1 1 1)
+                     (make-boxy-cylinder #(-1.5 .5 0  ) .1 1 2)
+                     (make-boxy-cylinder #(0    1  1  ) .1 1 3)
+                     (make-boxy-cylinder #(0   .5  1.5) .1 1 2)))
+         (joints (list (make-hinge body (nth legs 0)
+                                   #(.5 0 0) #(-.5 0  0)
+                                   #(0 0 -1) #(0   0 -1))
+                       (make-hinge (nth legs 0) (nth legs 1)
+                                   #(.5 0 0) #(0 0.5  0)
+                                   #(0 0 -1) #(0   0 -1))
+                       (make-hinge body (nth legs 2)
+                                   #(0  0 -.5) #(0  0 .5)
+                                   #(-1 0   0) #(-1 0  0))
+                       (make-hinge (nth legs 2) (nth legs 3)
+                                   #(0  0 -.5) #(0 0.5  0)
+                                   #(-1 0   0) #(-1  0  0))
+                       (make-hinge body (nth legs 4)
+                                   #(-.5 0 0) #(.5 0  0)
+                                   #(0   0 1) #(0  0  1))
+                       (make-hinge (nth legs 4) (nth legs 5)
+                                   #(-.5 0 0) #(0 0.5  0)
+                                   #(0   0 1) #(0   0  1))
+                       (make-hinge body (nth legs 6)
+                                   #(0  0 .5) #(0  0 -.5)
+                                   #(1 0   0) #(1 0  0))
+                       (make-hinge (nth legs 6) (nth legs 7)
+                                   #(0  0 .5) #(0 0.5  0)
+                                   #(1 0   0) #(1  0  0)))))
+    ;(cons (cons body legs) joints)
+    (make <quadruped> #:bodies (cons body legs) #:joints joints)))
 
 (define robot (make-quadruped-robot))
-(define bodies car)
-(define joints cdr)
+;; (define bodies car)
+;; (define joints cdr)
 
 (map #.\ (sim-add-body (current-sim) %1) (bodies robot))
 (map #.\ (sim-add-constraint (current-sim) %1) (joints robot))
@@ -67,8 +79,7 @@
 (define (make-contact-responder index)
   (lambda ()
     (set! (touch-sensors-acc index) #t)
-    (vector-set! touch-sensors index #t)
-    ))
+    (vector-set! touch-sensors index #t)))
 
 (for-each (lambda (body index)
             (set-contact-func! body (make-contact-responder index)))
@@ -169,9 +180,14 @@
       (for-each touch-sensors-update (range 0 8))))
 
 (define (distal-touch-sensors)
-  (list->vector (map (lambda (i) (vector-ref touch-sensors (+ 2 (* i 2)))) (range 0 3))))
+  (list->vector 
+   (map (lambda (i) (vector-ref touch-sensors (+ 2 (* i 2)))) (range 0 3))))
 
 (define nn-time-period 10.)
+
+(define (robot-time)
+  (sim-time (sim eracs-buffer)))
+
 
 (define (nn-input)
   (let* ((time (/ (mod (robot-time) nn-time-period) 
@@ -203,39 +219,43 @@
   (nn-run fann-brain (nn-input)))
 
 (define (my-physics-tick)
-;  (physics-clear-scene)
-
   (if (not (paused? eracs-buffer))
-   (with-buffer eracs-buffer
-                (sim-tick (current-sim))
-                (physics-update-scene (current-sim))
-                ;; Update brain.
-                ;; (when (= 0 (mod tick-count 120))
-                ;;   (physics-add-scene (current-sim)))
-                (when (= 0 (mod tick-count 10))
-                  ;; Run the brain.
-                  (let ((new-angles (current-brain tick-count)))
-                    (for-each (lambda (i) 
-                                (set! (target-angles-acc i) 
-                                      (vector-ref new-angles i)))
-                              (range 0 7))))
-                ;; Actuate joints with desired angles.
-                (for-each 
-                 #.\ (actuate-joint %1 (if %3 %2 #f))
-                 (joints robot)
-                 (vector->list target-angles)
-                 (vector->list active-joints))
+      (with-buffer eracs-buffer
+       ;; Update the simulation.
+       (sim-tick (current-sim))
+       ;; Update the visualization.
+       (physics-update-scene (current-sim))
+       ;; Update brain.
+       ;; (when (= 0 (mod tick-count 120))
+       ;;   (physics-add-scene (current-sim)))
+       (when (= 0 (mod tick-count 10))
+         ;; Run the brain.
+         (let ((new-angles (current-brain tick-count)))
+           (for-each (lambda (i) 
+                       (set! (target-angles-acc i) 
+                             (vector-ref new-angles i)))
+                     (range 0 7))))
+       ;; Actuate joints with desired angles.
+       (for-each 
+        #.\ (actuate-joint %1 (if %3 %2 #f))
+        (joints robot)
+        (vector->list target-angles)
+        (vector->list active-joints))
 
-                (touch-sensors-update)
-                ;; Reset the touch sensors.
-                (vector-fill! touch-sensors #f)
+       (touch-sensors-update)
+       ;; Reset the touch sensors.
+       (vector-fill! touch-sensors #f)
 
-                (incr! tick-count))))
+       (incr! tick-count))))
+
+(define-method (robot-tick (robot <quadruped>))
+  
+  )
 
 (add-hook! physics-tick-hook #.\ (my-physics-tick))
 
-(define-interactive (osc-set-target-angles 
-                     #:optional (event this-command-event))
+(define-interactive 
+  (osc-set-target-angles #:optional (event this-command-event))
   (let ((parsed-path (string-tokenize (osc-path event) 
                                        (char-set-delete char-set:graphic #\/)))
          (values (osc-values event))
@@ -250,7 +270,8 @@
                 (kbd (format #f "osc-2-target-angles-~a" %)) 
                 'osc-set-target-angles) (range 1 8))
 
-(define-interactive (osc-set-active-joints #:optional (event this-command-event))
+(define-interactive 
+  (osc-set-active-joints #:optional (event this-command-event))
   (let ((parsed-path (string-tokenize (osc-path event) 
                                        (char-set-delete char-set:graphic #\/)))
          (values (osc-values event))

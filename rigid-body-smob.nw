@@ -280,18 +280,26 @@ SCM_DEFINE (scm_get_position,
 {
   scm_assert_smob_type(rigid_body_tag, rb_smob);
   struct rigid_body *rb = (struct rigid_body*) SCM_SMOB_DATA(rb_smob);
-  return btVector3_to_vector(rb->body->getCenterOfMassPosition());
+  return btVector3_to_vector3(rb->body->getCenterOfMassPosition());
 }
 <<Helper Functions>>=
-
-
 SCM btVector3_to_vector(btVector3 vector) {
   SCM v = scm_c_make_vector(4, SCM_UNDEFINED);
   for (int i = 0; i < 4; i++)
     scm_vector_set_x(v, scm_from_int(i), scm_from_double(vector[i]));
   return v;
 }
-@ \subsection{Handling Collisions}
+@ 
+
+<<Helper Functions>>=
+SCM btVector3_to_vector3(btVector3 vector) {
+  SCM v = scm_c_make_vector(3, SCM_UNDEFINED);
+  for (int i = 0; i < 3; i++)
+    scm_c_vector_set_x(v, i, scm_from_double(vector[i]));
+  return v;
+}
+@
+\subsection{Handling Collisions}
 
 <<file:rigid-body-smob.cpp>>=
 

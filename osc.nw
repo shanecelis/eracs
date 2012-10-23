@@ -4,6 +4,16 @@ Open Sound Control (OSC) is a network protocol defined ostensibly to
 control sound devices using a GUI.  However, it can be used for
 anything.  In our case, we'll use it to control our robot.  
 
+<<file:osc.scm>>=
+(define-module (osc)
+ #:use-module (ice-9 optargs))
+
+(load-extension "./libguile-osc.dylib" "init_osc")
+
+(export last-osc-client send-osc-message start-osc-server stop-osc-server)
+@ 
+
+
 Our needs for OSC are pretty modest, so this won't expose the full
 capabilities of the \verb|liblo| library.  We just want to start an
 OSC server and handle the events in Scheme.
@@ -25,15 +35,8 @@ void init_osc(void);
 #include <lo/lo.h>
 #endif
 #include <libguile.h>
-<<+ Initialize submodules.>>=
-
-  init_osc();
-<<+ Include submodules.>>=
-
-<<+ Begin C Header Guard.>>
-#include "osc.h"
-<<+ End C Header Guard.>>
-@ \subsection{Start OSC Server}
+@ 
+\subsection{Start OSC Server}
 
 <<State>>=
 
@@ -101,7 +104,7 @@ int osc_quit_handler(const char *path, const char *types, lo_arg **argv, int arg
   return 0;
 }
 @ \subsection{Send OSC Message}
-\end{multicols}
+%\end{multicols}
 <<Primitives>>=
 
 SCM_DEFINE (send_osc_message, "send-osc-message", 3, 0, 1,
@@ -173,7 +176,7 @@ SCM_DEFINE (send_osc_message, "send-osc-message", 3, 0, 1,
   else
     return SCM_BOOL_T;
 }
-@ \begin{multicols}{2}
+@ %\begin{multicols}{2}
 
 \subsection{Receive OSC Messages}
 
@@ -206,7 +209,7 @@ int osc_handler(const char *path, const char *types, lo_arg **argv,
   scm_with_guile(guile_osc_handler, (void *)&c);
   return 0;
 }
-@ \end{multicols}
+@ %\end{multicols}
 <<Helper Functions>>=
 
 void *guile_osc_handler(void *context) 
@@ -292,7 +295,7 @@ void *guile_osc_handler(void *context)
              result);
   return 0;
 }
-@ \begin{multicols}{2}
+@ %\begin{multicols}{2}
 \subsection{Convenience Functionality}
 
 OSC happens over UDP, so there is no persistent connection.  However,
