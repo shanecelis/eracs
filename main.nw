@@ -21,13 +21,15 @@ int main(int argc, char** argv) {
   scm_c_primitive_load("util.scm"); 
   <<+ Load scheme files.>>
 
-  <<Process arguments.>>
+  //<Process arguments.>>
 
   <<Open window.>>
   /* Callbacks must be setup after window is open. 
      (Learned that one the hard way.) */
   render_init(SCREEN_WIDTH, SCREEN_HEIGHT);
   <<Setup callbacks.>>
+
+  <<Process arguments.>>
 
   <<Load personal configuration.>>
 
@@ -45,7 +47,7 @@ if (glfwInit() != GL_TRUE) {
   fprintf(stderr, "error: Unable to initialize GLFW.\n");
   return 1;
 }
-//glfwEnable(GLFW_AUTO_POLL_EVENTS); /* No explicit call to glfwPollEvents() */
+glfwDisable(GLFW_AUTO_POLL_EVENTS); /* No explicit call to glfwPollEvents() */
 @ GLFW can currently only handle one window, which I think is an odd
 restriction.  The same is true for Simple DirectMedia Library (SDL).
 (Surprisingly, GLUT can handle multiple open windows.)
@@ -297,7 +299,8 @@ while (! quitp) {
   //printf("BEGIN PHYSICS HOOK\n");
   emacsy_run_hook_0("physics-tick-hook"); 
   //printf("END PHYSICS HOOK\n");
-  fflush(stdout);
+  //printf(".");
+  //fflush(stdout);
   render();
   glfwSwapBuffers(); 
   glfwPollEvents();

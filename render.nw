@@ -87,7 +87,13 @@ void render(void)
 static unsigned int frame_count = 0;
 static double start_time = vl::Time::currentTime(); 
 if (frame_count != 0) {
-  render_fps = (double) frame_count/(vl::Time::currentTime() - start_time);
+  double time = (vl::Time::currentTime() - start_time);
+  render_fps = (double) frame_count/time;
+  if (time > 1.0) {
+    frame_count = 0;
+    start_time = vl::Time::currentTime(); 
+  }
+    
 }
 frame_count++;
 <<file:render.cpp>>=

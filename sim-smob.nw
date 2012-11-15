@@ -22,6 +22,10 @@ We want to be able to instantiate a physics simulator.
 struct sim {
   btDynamicsWorld *world;
   double elapsed_time;
+  btBroadphaseInterface*  broadphase;
+  btCollisionDispatcher*  dispatcher;
+  btConstraintSolver*     solver;
+  btDefaultCollisionConfiguration* collisionConfiguration;
 };
 
 SCM wrap_sim(btDynamicsWorld* world);
@@ -53,6 +57,15 @@ static size_t free_sim (SCM sim_smob)
   struct sim *sim = (struct sim *) SCM_SMOB_DATA (sim_smob);
   if (sim->world)
     delete sim->world;
+  if (sim->broadphase)
+    delete sim->broadphase;
+  if (sim->dispatcher)
+    delete sim->dispatcher;
+  if (sim->solver)
+    delete sim->solver;
+  if (sim->collisionConfiguration)
+    delete sim->collisionConfiguration;
+
   scm_gc_free (sim, sizeof (struct sim), "sim");
   return 0;
 }
@@ -115,6 +128,11 @@ SCM wrap_sim(btDynamicsWorld* btdw)
   /* Step 2: Initialize it with straight code.
    */
   s->world = btdw;
+  s->broadphase = NULL;
+  s->dispatcher = NULL;
+  s->solver = NULL;
+  s->collisionConfiguration = NULL;
+
   /* Step 3: Create the smob.
    */
   SCM_NEWSMOB (smob, sim_tag, s);
@@ -133,8 +151,8 @@ Now let's allow ourselves to create this C object from Scheme.
 
 <<Includes>>=
 #include "physics.h"
+@ 
 <<file:sim-smob.cpp>>=
-
 SCM_DEFINE (scm_make_sim, "make-sim", 0, 0, 0,
             (),
             "Make a physics simulation.")
@@ -153,11 +171,18 @@ SCM_DEFINE (scm_make_sim, "make-sim", 0, 0, 0,
         m_solver = new btSequentialImpulseConstraintSolver;
 
         world = new btDiscreteDynamicsWorld(m_dispatcher,
-                                      m_broadphase,
-                                      m_solver,
-                                      m_collisionConfiguration);
+                                            m_broadphase,
+                                            m_solver,
+                                            m_collisionConfiguration);
 
-  return wrap_sim(world);
+
+  SCM smob = wrap_sim(world);
+  struct sim* sim = unwrap_sim(smob);
+  sim->broadphase = m_broadphase;
+  sim->dispatcher = m_dispatcher;
+  sim->solver = m_solver;
+  sim->collisionConfiguration = m_collisionConfiguration;
+  return smob;
 }
 <<Primitives>>=
 SCM_DEFINE (scm_sim_tick, "sim-tick", 1, 1, 0,

@@ -26,19 +26,19 @@
 
 (define (on-robot-macro-termination)
   (button-set! "/2/play" #f)
-  (osc-set! "/2/time-slider" 0)
+  ;;(osc-set! "/2/time-slider" 0)
   (if (and playing? (not (null? robot-macros)))
       ;; play it again.
       ;; doing this causes a vm-error with an unresumable continuation.
       ;(play-robot)
       #f))
 
-(define (while-playing time)
-  (format #t "while-playing ~a\n" time)
-  (osc-set! "/2/time-slider" (/ time robot-macro-time-max)))
+;; (define (while-playing time)
+;;   (format #t "while-playing ~a\n" time)
+;;   (osc-set! "/2/time-slider" (/ time robot-macro-time-max)))
 
 ;; Using an extra lambda so while-playing can be redefined.
-(add-hook! executing-temporal-kbd-macro-hook #.\ (while-playing %))
+;; (add-hook! executing-temporal-kbd-macro-hook #.\ (while-playing %))
 
 (define* (shift-time-for-kbd-macro! macro #:optional (time-offset 0))
   (for-each #.\ (slot-set! % 'time (- (time %) time-offset)) macro)
@@ -55,10 +55,25 @@
 (define last-nn-training-values '())
 
 (define (record-nn-training-values)
-  (cons! (cons (nn-input) (nn-output)) 
-              last-nn-training-values))
+  (when (= 0 (mod (tick-count robot) controller-update-frequency))
+    (cons! (cons (nn-input robot) (nn-output robot)) 
+           last-nn-training-values)))
 
-(define-interactive (export-nn-training-values #:optional (filename (read-from-minibuffer "Filename: ")))
+(define (triangle-basis x)
+  "This is a triangular basis element.  To produce whatever other kind
+of triangle basis use the following transformation: (*
+height (triangle-basis (/ (- x origin) base)))"
+  (max 0 (if (>= x 0)
+                      (- 1 (* 2 x))
+                      (+ 1 (* 2 x)))))
+
+(define* (triangle-basis* x #:optional (origin 0) (height 1) (base 1))
+  "This is a triangular basis element of a particular height, base
+length, and origin."
+  (* height (triangle-basis (/ (- x origin) base))))
+
+(define-interactive (export-nn-training-values 
+                     #:optional (filename (read-from-minibuffer "Filename: ")))
   (call-with-output-file filename 
     (lambda (port)
       (format port "~a ~a ~a~%" 
@@ -70,9 +85,10 @@
                   (format port "~{~a ~}~%" (vector->list (cdr in-out))))
                 last-nn-training-values))))
 
-(define-interactive (train-nn #:optional (training-values last-nn-training-values))
+(define-interactive (train-nn 
+                     #:optional (training-values last-nn-training-values))
   (let ((mse 
-          (nn-train-epoch fann-brain 
+          (nn-train-epoch (nn-brain robot) 
                           (map car training-values) 
                           (map cdr training-values)
                           5000
@@ -80,26 +96,30 @@
                           )))
     (message "Trained NN 2 had an MSE of ~a" mse)))
 
+;; Maybe I want something like this:
+;; (controller->time-series
+;; (time-series->controller
+
 (define-interactive record-robot 
   (let ((record-start #f)) ;; This is how you get a static variable
                            ;; scoped within one function.
     (lambda* (#:optional (start? #t))
              (when start?
-               (let ((prev-brain current-brain))
-                (set! current-brain low-level-brain)
+               (let ((prev-brain (controller robot)))
+                (set! (controller robot) low-level-brain)
                 (set! record-start (emacsy-time))
                 (kmacro-start-macro)
                 (emacsy-event (make <dummy-event>)) ; Add a dummy event to
                                         ; preserve the start time.
-                (osc-set! "/2/time-slider" 0.)
+                ;(osc-set! "/2/time-slider" 0.)
                 (set! last-nn-training-values '())
                 (add-hook! physics-tick-hook record-nn-training-values)
                 (block-until 
                  #.\ (let ((time (- (emacsy-time) record-start)))
-                       (osc-set! "/2/time-slider" (/ time robot-macro-time-max))
+                       ;(osc-set! "/2/time-slider" (/ time robot-macro-time-max))
                        (or (not defining-kbd-macro?) (> time robot-macro-time-max))))
                 (record-button-set! #f)
-                (set! current-brain prev-brain)
+                (set! (controller robot) prev-brain)
                 (remove-hook! physics-tick-hook record-nn-training-values)))
              (when defining-kbd-macro?
                (kmacro-end-macro)
@@ -137,10 +157,42 @@
                              (cdr robot-macros))
                            (begin
                              (message "No macros to erase.")
-                             '())))
-    (osc-set! "/2/time-slider" 0)))
+                             '())))))
 
+(define-interactive (goto-time #:optional (arg #f))
+  (let ((new-time (read-time arg)))
+   (time-loop-value-set! robot new-time)
+   (message "Controller time ~1,2f" new-time)))
 
-(define-key eracs-mode-map (kbd "osc-2-play")   'osc-play)
-(define-key eracs-mode-map (kbd "osc-2-record") 'osc-record)
-(define-key eracs-mode-map (kbd "osc-2-erase")  'osc-erase)
+(define-interactive (read-time #:optional (value #f))
+  "Read the a [0, 1] time from user through either the current OSC
+event or an input."
+  (if value
+      value
+      (if (is-a? this-command-event <osc-event>)
+          (car (osc-values this-command-event))
+          ;; Must ask the user directly.
+          (read-from-string (read-from-minibuffer (format #f "Goto time (current time ~1,2f): " (time-loop-value robot)))))))
+
+(define-interactive (continue-runloop #:optional (event this-command-event))
+  (if (is-a? event <osc-event>)
+      (if (button-on? (car (osc-values event)))
+          (time-loop-value-set! robot #f)
+          (time-loop-value-set! robot (time-loop-value robot)))
+      ;; What to do? Ask? No. Just continue running.
+      (time-loop-value-set! robot #f)))
+
+(define ap-recording? #f)
+(define-interactive (ap-record #:optional (event this-command-event))
+  (set! ap-recording? (button-on? (car (osc-values event)))))
+
+(define-interactive (ap-erase)
+  (set! active-preferences-training '()))
+
+;(define-key eracs-mode-map (kbd "osc-2-play")   'osc-play)
+(define-key eracs-mode-map (kbd "osc-2-play")   'continue-runloop)
+(define-key eracs-mode-map (kbd "osc-2-record") 'ap-record)
+;(define-key eracs-mode-map (kbd "osc-2-record") 'osc-record)
+;(define-key eracs-mode-map (kbd "osc-2-erase")  'osc-erase)
+(define-key eracs-mode-map (kbd "osc-2-erase")  'ap-erase)
+(define-key eracs-mode-map (kbd "osc-2-time-slider")  'goto-time)

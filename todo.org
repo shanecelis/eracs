@@ -34,5 +34,19 @@
   (osc-push reg)
   (osc-pull reg)
   
-  
-802-846-4119 voter registration
+* DEMO
+  M-x switch-to-brain ap-brain
+
+  Hit record, move a leg.
+
+  Train the NN.
+
+  M-x ap-train
+
+  Optimize in NSGA-II.
+
+  M-x optimize 10
+
+  Start over.
+
+  M-x switch-to-brain ap-brain

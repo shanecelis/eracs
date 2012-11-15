@@ -7,7 +7,9 @@
 ;; mid-level-nn-brain
 
 (use-modules ((rnrs) #:select (vector-map vector-for-each mod))
-             (emacsy emacsy))
+             (emacsy emacsy)
+             (nsga2)
+             )
 
 (define (neuron-count->matrix-size node-counts)
   "Adds a bias weight to each layer except the output layer."
@@ -38,49 +40,67 @@
   (vector-map mutate-gene weights))
 
 (define-interactive (randomize-brain)
-  (set-nn-weights! (random-brain)))
+  (set-nn-weights! robot (random-brain)))
 
 (define-interactive (clear-brain)
-  (set-nn-weights! (make-vector gene-count 0.)))
+  (set-nn-weights! robot (make-vector gene-count 0.)))
 
 (define (evaluate-robot weights)
-  (set-nn-weights! weights)
+  (set-nn-weights! robot weights)
   (eval-robot))
 
-(define (robot-time)
-  (sim-time (sim eracs-buffer)))
+(define eval-robot-time 20.) ;; 20 simulated seconds
 
-
-(define eval-robot-time 10.) ;; 10 simulated seconds
+(define (eval-robot-headless weights)
+  (let* ((robot (make-quadruped-robot))
+         (sim (make-sim))
+         (start-position #f)
+         (start-time #f)
+         (start-tick tick-count))
+    (set-nn-weights! robot weights)
+    (sim-add-robot sim robot)
+    (sim-add-ground-plane sim)
+    (set! direction 'right)
+    (set! (controller robot) run-nn-brain)
+    (set! start-position (robot-position robot))
+    (while (< (sim-time sim) eval-robot-time)
+      ;(message "Simulating ~a" (sim-time sim))
+      (sim-tick sim)
+      (robot-tick robot)
+      
+      )
+    (let* ((pos (robot-position robot))
+           (fitness (- (vector-ref start-position 0) (vector-ref pos 0))))
+     (message "Fitness ~a tick-count ~a sim-time ~a." fitness (tick-count robot) (sim-time sim))
+     (sim-remove-robot sim robot)
+     fitness)))
 
 (define-interactive (eval-robot)
   ;; One problem was the robot's brain updates at 10 Hz which depends
   ;; on the tick-count.  Resetting the tick-count so that evaluations
   ;; are deterministic.  Doesn't fix it entirely, but does help.
-  (set! tick-count 0)
-  (let ((original-brain current-brain)
+  ;(set! (tick-count robot) 0)
+  (let ((original-brain (controller robot))
         (start-position #f)
-        (start-time (robot-time))
-        (start-tick tick-count))
-    
-    (set! current-brain nn-brain)
-    (vector-fill! touch-sensors #f)
+        (start-time (robot-time robot))
+        (start-tick (tick-count robot)))
     (set! direction 'right)
     (restart-physics)
+    (set! (controller robot) nn-brain)
     (sim-time-set! (sim eracs-buffer) 0.0)
     (set! start-time 0.0)
-    (set! start-position (get-robot-position))
+    (set! start-position (robot-position))
     (block-until (lambda () 
-                  (> (- (robot-time) start-time) eval-robot-time))) 
-    (let* ((pos (get-robot-position))
+                  (> (- (robot-time robot) start-time) eval-robot-time))) 
+    (let* ((pos (robot-position))
            (fitness (- (vector-ref start-position 0) (vector-ref pos 0))))
-      (set! current-brain original-brain)
-      (message "Fitness ~a tick-count ~a sim-time ~a." fitness (- tick-count start-tick) (- (robot-time) start-time))
+      (set! (controller robot) original-brain)
+      (message "Fitness ~a tick-count ~a sim-time ~a." fitness (- (tick-count robot) start-tick) (- (robot-time robot) start-time))
       fitness)))
 
 (define-interactive (osc-noop)
- #f
-  )
+ #f)
+
 (define-key eracs-mode-map (kbd "osc-ping") 'osc-noop)
 
 (define-interactive
@@ -91,7 +111,7 @@
                      (begin 
                        (set! first-time #f) 
                        (random-brain))
-                     (get-nn-weights)))
+                     (get-nn-weights robot)))
         (parent-fitness (evaluate-robot parent))
         (child #f)
         (child-fitness 0))
@@ -107,5 +127,27 @@
       (loop (1+ generation))
       (begin (evaluate-robot parent))))))
 
-(define-interactive (optimize)
-  (hill-climber))
+(define-interactive
+  (optimize #:optional (max-generations (read-from-string (read-from-minibuffer "max-generations: "))))
+  (message "nsga-ii: starting")
+  (let ((results #f))
+    (set! results (nsga-ii-search (lambda (weights)
+                                    (vector (eval-robot-headless weights)))
+                                  #:objective-count 1
+                                  #:gene-count 504
+                                  #:population-count 4
+                                  #:generation-count max-generations
+                                  #:seed-individual (get-nn-weights robot)
+                                  ))
+    ;(emacsy-event (make <key-event> #:command-char #\a))
+    (message "Feasible fitnesses ~a" (map cdr results))
+    (set-nn-weights! robot (caar results))
+    (set! (controller robot) run-nn-brain)
+    ))
+
+
+
+
+
+
+
