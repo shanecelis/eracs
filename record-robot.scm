@@ -140,7 +140,6 @@ length, and origin."
 
 (add-hook! kbd-macro-termination-hook on-robot-macro-termination)
 
-
 (define-interactive (osc-play #:optional (event this-command-event))
   (set! playing? (button-on? (car (osc-values event))))
   (play-robot playing?))
@@ -151,13 +150,15 @@ length, and origin."
 
 (define-interactive (osc-erase #:optional (event this-command-event))
   (when (button-on? (car (osc-values event)))
-    (set! robot-macros (if (pair? robot-macros)
-                           (begin 
-                             (message "Erase 1 macro; ~a macros left.\n" (1- (length robot-macros)))
-                             (cdr robot-macros))
-                           (begin
-                             (message "No macros to erase.")
-                             '())))))
+    (set! robot-macros 
+          (if (pair? robot-macros)
+              (begin 
+                (message "Erased 1 macro; ~a macros left.\n" 
+                         (1- (length robot-macros)))
+                (cdr robot-macros))
+              (begin
+                (message "No macros to erase.")
+                '())))))
 
 (define-interactive (goto-time #:optional (arg #f))
   (let ((new-time (read-time arg)))
@@ -187,7 +188,8 @@ event or an input."
   (set! ap-recording? (button-on? (car (osc-values event)))))
 
 (define-interactive (ap-erase)
-  (set! active-preferences-training '()))
+  (set! active-preferences-training '())
+  (set! active-preferences-splines (make-splines)))
 
 ;(define-key eracs-mode-map (kbd "osc-2-play")   'osc-play)
 (define-key eracs-mode-map (kbd "osc-2-play")   'continue-runloop)

@@ -1,0 +1,172 @@
+% linear-spline.nw
+
+\section{Linear Spline}
+
+This is a linear spline that I wanted to use to capture time series.
+Here is the essential idea captured in a diagram.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=5.0in,angle=-90]{linear-spline-diagram.jpg} 
+  \caption[Short Label]{\label{linear-spline-diagram}Caption}
+\end{figure}
+
+<<file:linear-spline.scm>>=
+;; linear-spline.scm
+(define-module (linear-spline)
+  #:use-module (debugging assert)
+  #:use-module (oop goops)
+  #:use-module (infix)
+  #:use-module (vector-math)
+  #:use-module (gnuplot plot)
+  #:export (<linear-spline> 
+            domain
+            spline-ref
+            spline-set!
+            plot
+            spline-fill!
+            spline-domain-vector
+            spline-range-vector
+            ))
+
+(define-class <linear-spline> ()
+  (h #:getter h #:init-keyword #:step-size #:init-form 0.1)
+  (domain #:getter domain #:init-keyword #:domain #:init-form '(0. 1.))
+  (xs #:accessor spline-range-vector #:getter xs))
+
+(define-method (initialize (ls <linear-spline>) initargs)
+  (next-method)
+  (let* ((domain-size (apply - (reverse (domain ls))))
+         ;; plus 2 to be inclusive
+         (vector-count (+ 2 (inexact->exact (ceiling (/ domain-size (h ls)))))))
+    (slot-set! ls 'xs (make-vector vector-count 0.))))
+
+
+(define-method (spline-ref (ls <linear-spline>) t)
+  (let ((min (car (domain ls)))
+        (max (cadr (domain ls))))
+   (assert (: t >= min)
+           (: t <= max))
+   (let* ((i (inexact->exact (floor (/ (- t min) (h ls)))))
+          (p (/ (- (- t min) (* i (h ls))) (h ls))))
+     (+ (* (vector-ref (xs ls) (1+ i)) p)
+        (* (vector-ref (xs ls) i) (- 1. p))))))
+@ 
+
+We want to be able to set the spline arbitrarily, i.e., $\hat f(t) =
+x'$.  Let's assume that $t$ is in between the points $x_1$ and $x_2$.
+If $t$ fell right on top of the $x_1$, we'd merely set that one value.
+If it doesn't we have to choose which point to move or to move both.
+
+We will settle for moving whichever $x$ that requires it move less to
+satisfy $x'$.
+
+\begin{align}
+(a + x_1)(1 - p) + (b + x_2) p - x' &= 0 \\
+b &= \frac{x' - (a + x_1)(1 - p)}{p} - x_2\\
+a &= \frac{x' - (b + x_2)p}{1 - p} - x_1
+\end{align}
+
+If $a$ is less than $b$, we set $x_1$; otherwise, we set $x_2$.
+
+<<file:linear-spline.scm>>=
+(define-method (spline-set! (ls <linear-spline>) t x*)
+  (let* ((min (car (domain ls)))
+         (i (inexact->exact (floor (/ (- t min) (h ls)))))
+         (p (/ (- (- t min) (* i (h ls))) (h ls)))
+         (v (xs ls))
+         (x2 (: v @ i))
+         (x1 (: v @ (1 + i)))
+         (b (: (x* - (x1 * (1 - p))) / p - x2))
+         (a (: (x* - (x2 * p)) / (1 - p) - x1)))
+    ;(format #t "a ~a b ~a~%" a b)
+    (if (: a < b)
+        (: v @ i :=  x1 + a)
+        (: v @ (1 + i) :=  x2 + b))
+    ;(format #t "v ~a~%" v)
+    ))
+@ 
+
+<<test>>=
+(define ls (make <linear-spline>))
+(check (domain ls) => '(0. 1.))
+(check (h ls) => .1)
+(check (spline-ref ls 0.) => 0.)
+(check (spline-ref ls 0.5) => 0.)
+(check (spline-ref ls 0.4) => 0.)
+(spline-set! ls 0.5 1.0)
+(check (spline-ref ls 0.5) => 1.)
+(check (spline-ref ls 0.4) => 0.)
+(check (spline-ref ls 0.45) (=> =?) 0.5)
+@ 
+
+We also want to be able to plot these things easily.
+
+<<file:linear-spline.scm>>=
+(define-method (plot (ls <linear-spline>))
+  (let* ((d (domain ls))
+         (x (list->vector (range (car d) (cadr d) (h ls))))
+         (y (xs ls)))
+    (gnuplot-plot x y)))
+@ 
+
+Let's populate a linear spline with some arbitrary function.
+
+<<file:linear-spline.scm>>=
+(define-method (spline-domain-vector (ls <linear-spline>))
+  (let* ((d (domain ls))
+         (v (list->vector (range (car d) (+ (* 2 (h ls)) (cadr d)) (h ls)))))
+    v))
+
+@ 
+
+<<file:linear-spline.scm>>=
+(define-method (spline-fill! (ls <linear-spline>) f)
+  (let* ((x (spline-domain-vector ls))
+         (y (xs ls))
+         (n (vector-length y)))
+    ;(format #t "n ~a m ~a~%" n (vector-length x))
+    (for-each (lambda (i)
+                ;(format #t "i ~a " i)
+                (: y @ i := (begin (f (: x @ i))))) (range 0 (1- n)))))
+@ 
+
+<<test>>=
+(spline-fill! ls sin)
+(check (spline-ref ls 0.) => 0.)
+(check (spline-ref ls (: pi / 6)) (=> =?) (sin (: pi / 6)))
+@ 
+
+Let's test it with a different range.
+
+<<test>>=
+(define ls2 (make <linear-spline> #:domain '(-1. 1.)))
+(check (spline-ref ls2 0.) => 0.)
+(spline-set! ls2 0. 1.)
+(check (spline-ref ls2 0.) => 1.)
+(check (spline-ref ls2 0.05) (=> =?) 0.5)
+(check (spline-ref ls2 -0.05) (=> =?) 0.5)
+
+(spline-set! ls2 1. 1.)
+(check (spline-ref ls2 1.) => 1.)
+(check (spline-ref ls2 0.95) (=> =?) 0.5)
+
+(check-throw (spline-ref ls2 -100) => 'misc-error)
+(check-throw (spline-ref ls2 -1) => 'no-throw)
+(check-throw (spline-ref ls2 -1.1) => 'misc-error)
+
+<<file:linear-spline.test.scm>>=
+;; linear-spline.test.scm
+(use-modules (linear-spline)
+             (vector-math))
+(use-modules ((rnrs) #:select (vector-map vector-for-each mod)))
+(eval-when (compile load eval)
+           ;; Some trickery so we can test private procedures.
+           (module-use! (current-module) (resolve-module '(linear-spline))))
+
+<<+ Test Preamble>>
+<<test>>
+<<+ Test Postscript>>
+@
+ 
+% -*- mode: Noweb; noweb-code-mode: scheme-mode -*-

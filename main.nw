@@ -71,14 +71,23 @@ glfwSetWindowTitle("ERACS version $VERSION");
 
 @ \section{Process Arguments}
 
+<<Functions>>=
+void usage() 
+{
+  fprintf(stderr, "usage: eracs [-h] [-l file]\n");
+}
+@ 
+
 Our main program has the following options: ``-l FILE''.
 
 <<Process arguments.>>=
-
 int c;
-while ((c = getopt (argc, argv, "l:")) != -1)
+while ((c = getopt (argc, argv, "hl:")) != -1)
   switch (c)
   {
+  case 'h':
+    usage();
+    return 2;
   case 'l':
     if (access(optarg, R_OK) != -1)
       scm_c_primitive_load(optarg);
@@ -93,8 +102,10 @@ while ((c = getopt (argc, argv, "l:")) != -1)
 // next argument at argv[0]; good for new code.
 argc -= (optind - 1);
 argv += (optind - 1);
+@ 
 
-@ \section{Keyboard Input}
+
+\section{Keyboard Input}
 
 We need to handle key presses.  Mac OS X has a peculiar behavior here.
 When \verb|Alt-KEY| is pressed, sometimes accent characters are

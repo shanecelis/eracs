@@ -1,4 +1,4 @@
-% eracs.w
+% eracs.nw
  
 \documentclass[paper]{report}
 \newif\ifshowcode

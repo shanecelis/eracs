@@ -7,6 +7,16 @@
   - Probability of crossover of real variable? (0.6-1.0)
   - probability of mutation 1/nreal
   - distribution index for crossover
+* TODO fix error calculation
+* TODO decide on the units to be used throughout the app
+* TODO implement some measures
+  - [ ] robust
+  - [ ] energy efficiency
+  - [ ] stability
+  - [ ] drag
+  - [ ] eccentricity of path
+* TODO add labels to legends in gnuplot output.
+* TODO Gosh, do I want to somehow just use Mathematica here?
     
 ** What should the Scheme interface look like?
    Limit it to a real valued search.
@@ -33,7 +43,7 @@
   (osc-register reg path getter setter)
   (osc-push reg)
   (osc-pull reg)
-  
+
 * DEMO
   M-x switch-to-brain ap-brain
 

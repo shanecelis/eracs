@@ -21,15 +21,17 @@ LDFLAGS = $(GUILE_LDFLAGS) $(shell pkg-config libglfw --libs) -lVLCore -lVLGraph
 TARGET = eracs
 VERSION = 0.1
 
-LITSRCS = eracs.nw main.nw render.nw physics.nw primitive-procedures.nw vlref-smob.nw scene-smob.nw sim-smob.nw rigid-body-smob.nw osc.nw nn.nw physics-buffer.nw camera.nw boiler-plate.nw physics-ui.nw nsga2.nw
+LITSRCS = eracs.nw main.nw render.nw physics.nw primitive-procedures.nw vlref-smob.nw scene-smob.nw sim-smob.nw rigid-body-smob.nw osc.nw nn.nw physics-buffer.nw camera.nw boiler-plate.nw physics-ui.nw nsga2.nw linear-spline.nw
 
 TEXS := $(patsubst %.nw, %.tex, $(LITSRCS))
 
 DEFS := $(patsubst %.nw, %.defs, $(LITSRCS))
 
-SRCS = main.cpp render.cpp physics.cpp primitive-procedures.cpp vlref-smob.cpp scene-smob.cpp sim-smob.cpp rigid-body-smob.cpp nn.c dummy-opengl-context.cpp physics-buffer.scm camera.scm physics-ui.scm nsga2.c nsga2.scm osc.c osc.scm
+SRCS = main.cpp render.cpp physics.cpp primitive-procedures.cpp vlref-smob.cpp scene-smob.cpp sim-smob.cpp rigid-body-smob.cpp nn.c dummy-opengl-context.cpp physics-buffer.scm camera.scm physics-ui.scm nsga2.c nsga2.scm osc.c osc.scm linear-spline.scm
 
-TESTS = nsga2.test.scm vlref-smob.test.scm sim-smob.test.scm
+TESTS = nsga2.test.scm vlref-smob.test.scm sim-smob.test.scm linear-spline.test.scm
+
+TESTS = linear-spline.test.scm
 
 HDRS = render.h physics.h primitive-procedures.h vlref-smob.hpp scene-smob.h sim-smob.h rigid-body-smob.h osc.h nn.h dummy-opengl-context.hpp
 
@@ -59,8 +61,9 @@ NOTANGLE = $(TOP)/bin/mynotangle $@
 %.tex: %.nw all.defs
 	noweave -n -delay -indexfrom all.defs $< | cpif $@
 
-%-paper.tex: %.nw
-	noweave -x $< | cpif $@
+%.paper.nw: %.nw paper-wrapper.nw
+	cat paper-wrapper.nw > $@
+	echo "\\input{$$(basename -s .nw $<)} \\end{document}" >> $@
 
 %.c %.cpp %.h %.hpp: %.nw boiler-plate.nw
 	$(NOTANGLE) $(NOTANGLE_C_FLAGS) -R"file:$@" $^ 
@@ -173,3 +176,15 @@ test: eracs $(SRCS) $(TESTS) $(LIBS)
 	for test in $(TESTS); do \
 		 ./eracs -l $$test || exit 1; \
 	done
+
+linear-spline.scm: linear-spline.nw
+
+# To create a small PDF document for X.nw, add the following rule:
+#
+# X.paper.pdf: X.tex
+# 
+# Then one can create the X.paper.pdf.  See paper-wrapper.nw for LaTeX
+# environment that it creates.
+linear-spline.paper.pdf: linear-spline.tex
+
+osc.paper.pdf: osc.tex

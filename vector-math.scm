@@ -6,12 +6,17 @@
   #:export (vector-fold
             vector-norm
             vector-normalize
+            vector-min
+            vector-max
+            vector-bound
             vector+
             vector-
             vector*
             vector.
             vector-negate
+            vector-move!
             range
+            index-range
             make-matrix
             matrix.
             matrix*
@@ -47,6 +52,7 @@
   #:export-syntax ())
 
 
+;; XXX should return a vector?
 (define (vector-fold f init v)
   (fold f init (vector->list v)))
 
@@ -63,6 +69,16 @@
 (define (vector. a b)
   (vector-fold + 0 (vector-map * a b)))
 
+(define (vector-min a b)
+  (scalar-vector-fn min a b))
+
+(define (vector-max a b)
+  (scalar-vector-fn max a b))
+
+(define (vector-bound a b v)
+  "Bound the vector v between [a, b]."
+  (vector-min b (vector-max a v)))
+
 (define (scalar-vector-fn fn a b)
   (if (vector? a)
       (vector-map fn a b)
@@ -72,7 +88,7 @@
   (scalar-vector-fn + a b))
 
 ;; (define (vector+ a b)
-;;   (if (vector? a b)
+;;   (if (vector? a)
 ;;       (vector-map + a b)
 ;;       (vector-map (lambda (x) (+ a x)) b)))
 
@@ -97,8 +113,17 @@
       (range* m n (- inc) <)
       (range* m n inc >)))
 
+(define (index-range v)
+  (range 0 (1- (vector-length v))))
+
 (define* (vector-range m n #:optional (inc 1))
   (list->vector (range m n inc)))
+
+(define (vector-move! dest src)
+  "Copy src to dest."
+  (for-each (lambda (i)
+              (vector-set! dest i (vector-ref src i))
+              ) (range 0 (1- (vector-length dest)))))
 
 (define* (make-matrix m #:optional (n m) (fill 0))
   (vector-map (lambda (i) (make-vector n fill)) (vector-range 0 (1- m))))

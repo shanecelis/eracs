@@ -1,0 +1,9 @@
+\documentclass{article} 
+\usepackage{noweb} 
+\usepackage{graphicx} 
+\usepackage{amsmath} 
+\usepackage{float} 
+\begin{document}
+
+%\input{$FILE$}
+%\end{document}

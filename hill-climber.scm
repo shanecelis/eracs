@@ -9,6 +9,8 @@
 (use-modules ((rnrs) #:select (vector-map vector-for-each mod))
              (emacsy emacsy)
              (nsga2)
+             (vector-math)
+             (mathematica plot)
              )
 
 (define (neuron-count->matrix-size node-counts)
@@ -66,12 +68,37 @@
     (while (< (sim-time sim) eval-robot-time)
       ;(message "Simulating ~a" (sim-time sim))
       (sim-tick sim)
-      (robot-tick robot)
-      
-      )
+      (robot-tick robot))
     (let* ((pos (robot-position robot))
-           (fitness (- (vector-ref start-position 0) (vector-ref pos 0))))
-     (message "Fitness ~a tick-count ~a sim-time ~a." fitness (tick-count robot) (sim-time sim))
+           (xz-proj (vector 1. 0. 1.)) ;; Project only in the xz-plane (height displacement doesn't count.
+           (fitness (vector-norm (vector* xz-proj (vector- start-position pos)))))
+     (message "Fitness ~a tick-count ~a sim-time ~a." 
+              fitness (tick-count robot) (sim-time sim))
+     (sim-remove-robot sim robot)
+     (- fitness))))
+
+(define (eval-robot-to-target-headless weights)
+  (let* ((robot (make-quadruped-robot))
+         (sim (make-sim))
+         (start-position #f)
+         (start-time #f)
+         (start-tick tick-count)
+         (target-position #(0 1 -10))
+         )
+    (set-nn-weights! robot weights)
+    (sim-add-robot sim robot)
+    (sim-add-ground-plane sim)
+    (set! direction 'right)
+    (set! (controller robot) run-nn-brain)
+    (set! start-position (robot-position robot))
+    (while (< (sim-time sim) eval-robot-time)
+      (sim-tick sim)
+      (robot-tick robot))
+    (let* ((pos (robot-position robot))
+           (xz-proj (vector 1. 0. 1.)) ;; Project only in the xz-plane (height displacement doesn't count.
+           (fitness (vector-norm (vector* xz-proj (vector- target-position pos)))))
+     (message "Fitness ~a tick-count ~a sim-time ~a." 
+              fitness (tick-count robot) (sim-time sim))
      (sim-remove-robot sim robot)
      fitness)))
 
@@ -127,27 +154,110 @@
       (loop (1+ generation))
       (begin (evaluate-robot parent))))))
 
+(define (active-pref-error weights active-pref-training)
+  (let* ((nn (vector->nn weights neuron-count))
+         (error-squared-elements 
+          (map 
+           (lambda (ap-entry)
+             (match ap-entry
+               ((index joint-value t-offset joint-offset spread)
+                (let* ((output (nn-run nn (vector t-offset 1 1 1 1)))
+                       (diff (: (joint-value + joint-offset) - (output @ index)))
+                       (diffsq (* diff diff)))
+                  diffsq))
+               (_ #f)))
+         active-pref-training)))
+    ;; Sum them up.
+    (apply + error-squared-elements)))
+
+(define (two-obj-fitness weights) 
+  "Fitness objectives: 1) maximize distance from origin, and 2)
+minimize active preference error."
+  (vector (eval-robot-headless weights)
+          (active-pref-error weights active-preferences-training)))
+
+(define (target-object-fitness weights) 
+  "Fitness objectives: 1) minimize distance to target, and 2) minimize
+active preference error."
+  (vector (eval-robot-to-target-headless weights)
+          (active-pref-error weights active-preferences-training)))
+
+
+(define last-pareto-front (vector))
+(define last-pareto-front-index 0)
+(define last-seed-fitness #f)
 (define-interactive
   (optimize #:optional (max-generations (read-from-string (read-from-minibuffer "max-generations: "))))
+
   (message "nsga-ii: starting")
-  (let ((results #f))
-    (set! results (nsga-ii-search (lambda (weights)
-                                    (vector (eval-robot-headless weights)))
-                                  #:objective-count 1
+  (let* ((results #f)
+         (fitness-fn ;two-obj-fitness
+                     target-object-fitness
+                     )
+         (seed-weights (get-nn-weights robot))
+         (original-fitness (fitness-fn seed-weights)))
+    (set! results (nsga-ii-search fitness-fn
+                                  #:objective-count 2
                                   #:gene-count 504
                                   #:population-count 4
                                   #:generation-count max-generations
-                                  #:seed-individual (get-nn-weights robot)
-                                  ))
+                                  #:seed-individual seed-weights))
+    (set! last-seed-fitness original-fitness)
+    (set! last-pareto-front (list->vector (sort results (lambda (a b)
+                                             (: (cdr a) @ 0 > (cdr b) @ 0)))))
     ;(emacsy-event (make <key-event> #:command-char #\a))
     (message "Feasible fitnesses ~a" (map cdr results))
-    (set-nn-weights! robot (caar results))
-    (set! (controller robot) run-nn-brain)
-    ))
+    ;(gnuplot-newplot )
+    (set-pareto-front-index 0)
+    (plot-front)
+    (set! (controller robot) run-nn-brain)))
 
+(define-interactive (plot-front)
+    (define (raw-fitness->display-fitness fitness-vector)
+      (vector (- (: fitness-vector @ 0))
+              (: fitness-vector @ 1)))
+    (gnuplot "reset")
+    (gnuplot "set xlabel 'distance'")
+    (gnuplot "set ylabel 'active pref error'")
+    (let* ((results (vector->list last-pareto-front))
+           (points (map (compose vector->list cdr) results))
+           (sorted-points (sort points (lambda (a b)
+                                          (< (car a) (car b)))))
+           (flip-distance (map (lambda (point)
+                                 (cons (- (car point)) (cdr point))) 
+                               sorted-points)))
+      (format #t "~a" (list (vector->list (raw-fitness->display-fitness
+                                           last-seed-fitness))))
+      (mathematica (format #f "Show@@Block[{$DisplayFunction = Identity},{~{ListPlot[~a, Joined->True]~^,~}}]"
+                          (map list->mathematica-list* (list
+                                                        flip-distance
+                                                        (list (vector->list (raw-fitness->display-fitness
+                                                                             last-seed-fitness)))
+                                                        (list (vector->list 
+                                                               (raw-fitness->display-fitness 
+                                                                (cdr 
+                                                                 (: last-pareto-front @ last-pareto-front-index)))))))))
+      (gnuplot-plot-points 
+       flip-distance
+       (list (vector->list (raw-fitness->display-fitness
+                            last-seed-fitness)))
+       (list (vector->list 
+              (raw-fitness->display-fitness 
+               (cdr 
+                (: last-pareto-front @ last-pareto-front-index))))))))
 
+(define-interactive (set-pareto-front-index #:optional (index (read-from-string (read-from-minibuffer "index: "))))
+  (set! last-pareto-front-index (mod index (vector-length last-pareto-front)))
+  (restart-physics)
+  (set! (controller robot) run-nn-brain)
+  (set-nn-weights! robot (car (: last-pareto-front @ last-pareto-front-index)))
+  (plot-front))
 
+(define-interactive (next-individual)
+  (set-pareto-front-index (1+ last-pareto-front-index)))
 
+(define-interactive (prev-individual)
+  (set-pareto-front-index (1- last-pareto-front-index)))
 
-
-
+(define-key eracs-mode-map (kbd ".") 'next-individual)
+(define-key eracs-mode-map (kbd ",") 'prev-individual)
