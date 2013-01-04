@@ -250,7 +250,7 @@ SCM_DEFINE (scm_make_box_actor, "make-box-actor", 0, 3, 0,
 
 <<+ Initialize submodules.>>=
 init_vlref_type();
-@ 
+@
 <<+ Include submodules.>>=
 #include "vlref-smob.hpp"
 @

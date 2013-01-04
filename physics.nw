@@ -36,11 +36,15 @@ void physics_init() {
 define a new file called \verb|render_physics.cpp|, but that's
 probably overkill.  Let's just try doing it in this file.
 
+The default time step is 0.01666 $\approx 1/60$ to suit the default
+Frames Per Second (FPS).  It is not kept in sync with FPS because we
+need the results to be reproducible.
 <<file:physics.h>>=
-#define DEFAULT_TIME_STEP 0.1
+#define DEFAULT_TIME_STEP 0.01666
+//#define DEFAULT_TIME_STEP 0.1
 @ 
 <<Includes>>=
-
+#include "render.h"
 #include <vlGraphics/RenderingTree.hpp>
 #include <vlGraphics/Rendering.hpp>
 #include <vlGraphics/GeometryPrimitives.hpp>
@@ -56,11 +60,9 @@ uses an automatic memory management policy documented
 
 void physics_add_scene(btDynamicsWorld *world)
 {
-  extern vl::ref<vl::SceneManagerActorTree> scene_manager;
-  extern vl::ref<vl::Rendering> rendering;
   vl::ref<vl::SceneManagerActorTree> scene;
   //if (scene == NULL)
-    scene = scene_manager.get();
+    scene = gscene.scene_manager.get();
   
   <<Setup wireframe.>>
   <<Setup effect.>>
@@ -123,13 +125,13 @@ if (shape->getShapeType() == BOX_SHAPE_PROXYTYPE) {
     vl::ref<vl::Transform> old_transform;
     old_transform = (vl::Transform *) colObj->
       getCollisionShape()->getUserPointer();
-    if (has_child(rendering->transform()->childrenCount(),
-                  rendering->transform()->children(), 
+    if (has_child(gscene.rendering->transform()->childrenCount(),
+                  gscene.rendering->transform()->children(), 
                   old_transform.get())) 
-      rendering->transform()->eraseChild(old_transform.get());
+      gscene.rendering->transform()->eraseChild(old_transform.get());
   }
   colObj->getCollisionShape()->setUserPointer(vl_transform.get());
-  rendering->transform()->addChild(vl_transform.get());
+  gscene.rendering->transform()->addChild(vl_transform.get());
 } else {
   fprintf(stderr, "warning: cannot draw any shape except a box.\n");
 }
@@ -169,7 +171,7 @@ bool has_child(size_t n, vl::ref<vl::Transform> *children, vl::Transform *child)
 vl::ref<vl::Renderer> solid_renderer;
 vl::ref<vl::EdgeRenderer> edge_renderer;
 
-solid_renderer = rendering->renderer();
+solid_renderer = gscene.rendering->renderer();
 edge_renderer = new vl::EdgeRenderer;
 
 // we set the clear flags to be CF_CLEAR_DEPTH (by default is set to
@@ -182,7 +184,7 @@ edge_renderer->setClearFlags(vl::CF_CLEAR_DEPTH);
 edge_renderer->setFramebuffer(solid_renderer->framebuffer());
 // enqueue the EdgeRenderer in the rendering, will be executed after
 // mSolidRenderer
-rendering->renderers().push_back( edge_renderer.get() );
+gscene.rendering->renderers().push_back( edge_renderer.get() );
 
 // hidden line and crease options
 edge_renderer->setShowHiddenLines(true);
@@ -288,11 +290,10 @@ SCM_DEFINE (scm_physics_update_scene, "physics-update-scene", 1, 0, 0,
 
 void physics_clear_scene()
 {
-  extern vl::ref<vl::SceneManagerActorTree> scene_manager;
-  extern vl::ref<vl::Rendering> rendering;
+
   //scene_manager->tree()->eraseAllChildren();
-  scene_manager->tree()->actors()->clear();
-  rendering->transform()->eraseAllChildren();
+  gscene.scene_manager->tree()->actors()->clear();
+  gscene.rendering->transform()->eraseAllChildren();
 
   // rendering->sceneManagers()->clear();
   // rendering->sceneManagers()->push_back(scene_manager.get());

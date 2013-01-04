@@ -9,6 +9,7 @@
   - distribution index for crossover
 * TODO fix error calculation
 * TODO decide on the units to be used throughout the app
+* TODO implement emacsy based on coroutines
 * TODO implement some measures
   - [ ] robust
   - [ ] energy efficiency
@@ -60,3 +61,11 @@
   Start over.
 
   M-x switch-to-brain ap-brain
+* TODO after GECCO
+  - [ ] have backtraces go to logs
+  - [ ] get rid of noise in emacsy
+  - [ ] implement coroutines in Guile using [[http://www.lua.org/manual/5.2/manual.html][Lua API]] and [[http://wingolog.org/archives/2011/08/30/the-gnu-extension-language][this]] as a basis
+  - [ ] make debugging work in emacsy
+* TODO before GECCO
+  - [X] fix the scene since it's not displaying
+  - [ ] write up the gameplan low-level vs high-level 

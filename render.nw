@@ -1,18 +1,17 @@
+% -*- mode: Noweb; noweb-code-mode: c-mode -*-
 \section{Rendering}
 
 Now we want to actually implement the rendering.  This will mainly
 make use of the VL library.
 
 <<file:render.h>>=
+#include "scene-smob.h"
 
-#include <vlCore/glsl_math.hpp>
 void render_init(int w, int h);
 void render_setup_viewport(int w, int h);
 void render(void);
 void render_update_camera(void);
-extern vl::vec3 eye;
-extern vl::vec3 center;
-extern vl::vec3 up;
+extern struct scene gscene;
 <<file:render.cpp>>=
 
 <<+ Preamble>>
@@ -23,26 +22,28 @@ extern vl::vec3 up;
 <<State>>
 
 <<Functions>>
+@ 
+We have a global scene struct named [[gscene]].
 
 <<State>>=
-
-vl::ref<vl::RenderingTree> mainRendering;
+struct scene gscene;
+/*vl::ref<vl::RenderingTree> mainRendering;
 vl::ref<DummyOpenGLContext> glcontext;
 vl::ref<vl::SceneManagerActorTree> scene_manager;
 vl::ref<vl::Rendering> rendering;
 vl::vec3 eye        = vl::vec3(0,10,10); 
 vl::vec3 center     = vl::vec3(0,0,0);   
 vl::vec3 up         = vl::vec3(0,1,0);   
-double   render_fps = 0.;
+double   render_fps = 0.;*/
 <<Functions>>=
 
 void render_setup_viewport(int screen_width, int screen_height)
 {
-  rendering->camera()->viewport()->setWidth(screen_width);
-  rendering->camera()->viewport()->setHeight(screen_height - echo_area_height);
-  rendering->camera()->viewport()->setY(echo_area_height);
+  gscene.rendering->camera()->viewport()->setWidth(screen_width);
+  gscene.rendering->camera()->viewport()->setHeight(screen_height - echo_area_height);
+  gscene.rendering->camera()->viewport()->setY(echo_area_height);
 
-  //vl::ref<vl::Rendering> renderer3 = mainRendering->subRenderings()[0];
+  //vl::ref<vl::Rendering> renderer3 = gscene.main_rendering->subRenderings()[0];
   renderer3->camera()->viewport()->setWidth(screen_width);
   renderer3->camera()->viewport()->setHeight(echo_area_height);
   renderer3->camera()->viewport()->setX(0);
@@ -54,16 +55,18 @@ void render_init(int screen_width, int screen_height)
 {
   vl::ref<vl::Effect> effect;
 
-  glcontext = new DummyOpenGLContext;
-  mainRendering = new vl::RenderingTree();
-  scene_manager = new vl::SceneManagerActorTree;
-  rendering = new vl::Rendering();
+  gscene.main_rendering = new vl::RenderingTree();
+  gscene.scene_manager = new vl::SceneManagerActorTree;
+  gscene.rendering = new vl::Rendering();
   vl::vec4 background_color(61.f/255.f, 110.f/255.f, 203/255.f, 1.f);
-  rendering->camera()->viewport()->setClearColor(background_color);
-  rendering->renderer()->setFramebuffer(glcontext->framebuffer());
-  rendering->sceneManagers()->push_back(scene_manager.get());
-  mainRendering->subRenderings()->push_back(rendering.get());
+  gscene.rendering->camera()->viewport()->setClearColor(background_color);
+  gscene.rendering->renderer()->setFramebuffer(glcontext->framebuffer());
+  gscene.rendering->sceneManagers()->push_back(gscene.scene_manager.get());
+  gscene.main_rendering->subRenderings()->push_back(gscene.rendering.get());
   /* define the camera position and orientation */
+  gscene.eye        = vl::vec3(0,10,10); 
+  gscene.center     = vl::vec3(0, 0, 0);   
+  gscene.up         = vl::vec3(0, 1, 0);   
   render_update_camera();
   // Did reference fragment 'Setup cube.'
 
@@ -80,7 +83,7 @@ void render(void)
   <<Before render>>
   <<Calculate FPS.>>
 
-  mainRendering->render();  
+  gscene.main_rendering->render();  
 }
 <<Calculate FPS.>>=
 
@@ -88,7 +91,7 @@ static unsigned int frame_count = 0;
 static double start_time = vl::Time::currentTime(); 
 if (frame_count != 0) {
   double time = (vl::Time::currentTime() - start_time);
-  render_fps = (double) frame_count/time;
+  gscene.render_fps = (double) frame_count/time;
   if (time > 1.0) {
     frame_count = 0;
     start_time = vl::Time::currentTime(); 
@@ -99,8 +102,8 @@ frame_count++;
 <<file:render.cpp>>=
 
 void render_update_camera() {
-  vl::mat4 view_mat = vl::mat4::getLookAt(eye, center, up);
-  rendering->camera()->setViewMatrix( view_mat );
+  vl::mat4 view_mat = vl::mat4::getLookAt(gscene.eye, gscene.center, gscene.up);
+  gscene.rendering->camera()->setViewMatrix( view_mat );
 }
 @ %def render_update_camera
 <<Setup cube.>>=
@@ -109,7 +112,7 @@ void render_update_camera() {
   vl::ref<vl::Geometry> cube;
   /* Initialize scene. */
   cubeTransform = new vl::Transform;
-  rendering->transform()->addChild(cubeTransform.get());
+  gscene.rendering->transform()->addChild(cubeTransform.get());
   cube = vl::makeBox(vl::vec3(0,0,0), 10, 10, 10);
   cube->computeNormals();
 
@@ -122,7 +125,7 @@ void render_update_camera() {
   color.a() = 0.5;
   effect->shader()->gocMaterial()->setDiffuse(color);
 
-  scene_manager->tree()->addActor(cube.get(), 
+  gscene.scene_manager->tree()->addActor(cube.get(), 
                                   effect.get(), 
                                   cubeTransform.get());
 @ \subsection{Render Message or Echo Area}
@@ -175,7 +178,7 @@ vl::ref<vl::Rendering> renderer3;
   effect = new vl::Effect;
   effect->shader()->enable(vl::EN_BLEND);
   scene_manager_text->tree()->addActor( echo_area.get(), effect.get() );
-  mainRendering->subRenderings()->push_back(renderer3.get());
+  gscene.main_rendering->subRenderings()->push_back(renderer3.get());
 @ \begin{multicols}{2}
 
 <<State>>=
@@ -231,7 +234,7 @@ Now let's setup the modeline.
   vl::ref<vl::ActorTree> tree = new vl::ActorTree();
   tree->addActor(modeline.get(), 
                  effect.get());
-  scene_manager->tree()->addChild(tree.get());
+  gscene.scene_manager->tree()->addChild(tree.get());
 @ 
 <<Before render>>=
   modeline->setText(vl::String(emacsy_mode_line()));
@@ -246,7 +249,7 @@ minimally because I do not want to use VL's GUI abstraction layer.
 /* 
    DummyOpenGLContext implements the required abstract methods of
    OpenGLContext.  My use case is that I do not want to use VL's GUI
-   wrappers.  I want to use VL for rendering only.
+   wrappers.  I want to use VL for gscene.rendering only.
 */
 class DummyOpenGLContext : public vl::OpenGLContext {
 public: 
@@ -285,3 +288,14 @@ void DummyOpenGLContext::update() { }
 #include <vlGraphics/Text.hpp>
 #include <vlGraphics/FontManager.hpp>
 @
+\subsection{Scheme Primitives}
+
+One should be able to manipulate rendered objects in Scheme.  I want
+to keep this API small.  I don't want to even try to expose all the
+functionality VL provides.  It's sufficient for my purposes to be able
+to draw text and boxes.  Instead of making all the properties of these
+like color, texture, and lighting configurable, I'm going to make
+collections of properties available, so one would define the property
+in C++ but select it in Scheme.
+
+

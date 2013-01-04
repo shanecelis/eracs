@@ -6,12 +6,15 @@ collected.  We'll define two types of SMOBs: Scene, and
 constraint (or joint).  
 
 <<file:scene-smob.h>>=
-
+#ifndef _SCENE_SMOB_H_
+#define _SCENE_SMOB_H_
 #ifndef SCM_MAGIC_SNARFER
+
+#include "vl.h"
 #include <vlGraphics/RenderingTree.hpp>
-#include <vlGraphics/SceneManagerActorTree.hpp>
 #include <vlGraphics/Rendering.hpp>
 #include <vlGraphics/OpenGLContext.hpp>
+#include <vlGraphics/SceneManagerActorTree.hpp>
 #endif
 #include <libguile.h>
 
@@ -28,6 +31,8 @@ double render_fps;
 };
 
 void init_scene_type(void);
+void init_glcontext(void);
+#endif /* _SCENE_SMOB_H_ */
 @ %def scene
 <<file:scene-smob.cpp>>=
 
@@ -113,7 +118,7 @@ Guile.  That requires we keep a ``tag'' to identify our SMOB from
 others.
 
 <<State>>=
-
+vl::ref<vl::OpenGLContext> glcontext;
 static scm_t_bits scene_tag;
 <<Initialize.>>=
 
@@ -126,6 +131,12 @@ void init_scene_type(void)
   scm_set_smob_mark (scene_tag, mark_scene);
   scm_set_smob_free (scene_tag, free_scene);
   scm_set_smob_print (scene_tag, print_scene);
+}
+
+void init_glcontext()
+{
+  //if (! glcontext)
+    glcontext = new DummyOpenGLContext;
 }
 <<Primitives>>=
 
@@ -167,7 +178,6 @@ SCM_DEFINE (scm_make_scene, "make-scene", 0, 0, 0,
   return smob;  
 }
 <<+ Initialize submodules.>>=
-
 init_scene_type();
 <<+ Include submodules.>>=
 

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE log4c SYSTEM "">
+
+<log4c version="1.2.1">
+
+	<config>
+		<bufsize>0</bufsize>
+		<debug level="0"/>
+		<nocleanup>0</nocleanup>
+	</config>
+
+	<!-- default appenders ===================================== -->
+	<appender name="stdout" type="stream" layout="basic"/>
+	<appender name="stderr" type="stream" layout="dated"/>
+	<appender name="syslog" type="syslog" layout="basic"/>
+
+	<!-- default layouts ======================================= -->
+	<layout name="basic" type="basic"/>
+	<layout name="dated" type="dated"/>
+
+	<!-- root category ========================================= -->
+	<category name="root" priority="debug" appender="stdout"/>
+
+	<!-- my categories ========================================= -->
+	<category name="main.event" priority="notice" appender="stdout"/>
+
+<!--
+	<category name="main" priority="debug" appender="stdout"/>
+	<category name="emacsy" priority="debug" appender="stdout"/>
+	<category name=".eracs" priority="debug" appender="stdout"/>
+-->
+</log4c>

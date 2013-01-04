@@ -1,21 +1,46 @@
-
+; .eracs
+;
+; XXX Having dot files is probably a bad idea.  They should be more
+; explicit and visible.
 (use-modules (convenience-lambda)
              ((rnrs) #:select (vector-map vector-for-each mod))
              (system repl server)
              (zeroconf)
              (osc)
              (emacsy emacsy)
-             (statprof))
+             (statprof)
+             (logging))
+
+(mylog "main" pri-debug "what...")
 
 (let ((orig emacsy-mode-line))
   (set! emacsy-mode-line 
         (lambda ()
-          (format #f "~a FPS ~1,2f" (orig) (get-parameter 'FPS)))))
+          (format #f "~a FPS ~1,0f sim-time ~1,1f controller-time ~1,1f" 
+                  (orig) 
+                  (get-parameter 'FPS) 
+                  (let ((sim (current-sim))) (if sim (sim-time sim) 0.))
+                  (time-loop-value robot)))))
+
+(let ((orig message))
+  (set! message
+        (lambda args
+          (mylog "emacsy.message" pri-info (apply orig args)))))
+
+(set! emacsy-log-error (lambda (format-msg . args)
+                    (apply mylog "emacsy" pri-error format-msg args)))
+
+(set! emacsy-log-warning (lambda (format-msg . args)
+                    (apply mylog "emacsy" pri-warn  format-msg args)))
+
+(set! emacsy-log-info (lambda (format-msg . args)
+                    (apply mylog "emacsy" pri-info  format-msg args)))
+
 
 ; (use-modules (system vm trace))
 ; (trace-calls-to-procedure make-stack)
 (set! %load-hook (lambda (filename)
-                   (format #t "Loading ~a ...\n" filename)))
+                   (mylog "load" pri-debug "Loading ~a .." filename)))
 (define profile? #f)
 (define spawn-threads? #t)
 

@@ -8,34 +8,39 @@ export PKG_CONFIG_PATH := /usr/local/lib/pkgconfig
 GUILE_CFLAGS = $(shell pkg-config guile-2.0 --cflags)
 GUILE_LDFLAGS = $(shell pkg-config guile-2.0 --libs)
 
-EMACSY_LDFLAGS = /Users/shane/School/uvm/CSYS-395-evolutionary-robotics/bullet-2.79/Demos/GuileDemo/noweb-emacsy/libemacsy.a
+LOG4C_CFLAGS = -DWITH_LOG4C 
+LOG4C_LDFLAGS = -L/opt/local/lib -llog4c
+
+LIB_EMACSY = /Users/shane/School/uvm/CSYS-395-evolutionary-robotics/bullet-2.79/Demos/GuileDemo/noweb-emacsy/libemacsy.a
+
+EMACSY_LDFLAGS = $(LIB_EMACSY)
 
 EMACSY_CFLAGS = -I/Users/shane/School/uvm/CSYS-395-evolutionary-robotics/bullet-2.79/Demos/GuileDemo/noweb-emacsy
 
 FANN_LDFLAGS = -L/usr/local/lib -lm -ldoublefann  
 
-CPPFLAGS = -g $(GUILE_CFLAGS) $(EMACSY_CFLAGS) $(shell pkg-config bullet --cflags)
+CPPFLAGS = -ferror-limit=3 -g $(GUILE_CFLAGS) $(EMACSY_CFLAGS) $(shell pkg-config bullet --cflags) $(LOG4C_CFLAGS)
 
-LDFLAGS = $(GUILE_LDFLAGS) $(shell pkg-config libglfw --libs) -lVLCore -lVLGraphics $(EMACSY_LDFLAGS) -lstdc++ $(shell pkg-config bullet --libs) $(shell pkg-config liblo --libs) $(FANN_LDFLAGS)
+LDFLAGS = $(GUILE_LDFLAGS) $(shell pkg-config libglfw --libs) -lVLCore -lVLGraphics $(EMACSY_LDFLAGS) -lstdc++ $(shell pkg-config bullet --libs) $(shell pkg-config liblo --libs) $(FANN_LDFLAGS) $(LOG4C_LDFLAGS)
 
 TARGET = eracs
 VERSION = 0.1
 
-LITSRCS = eracs.nw main.nw render.nw physics.nw primitive-procedures.nw vlref-smob.nw scene-smob.nw sim-smob.nw rigid-body-smob.nw osc.nw nn.nw physics-buffer.nw camera.nw boiler-plate.nw physics-ui.nw nsga2.nw linear-spline.nw
+LITSRCS = eracs.nw main.nw render.nw physics.nw primitive-procedures.nw vlref-smob.nw scene-smob.nw sim-smob.nw rigid-body-smob.nw osc.nw nn.nw physics-buffer.nw camera.nw boiler-plate.nw physics-ui.nw nsga2.nw linear-spline.nw logging.nw
 
 TEXS := $(patsubst %.nw, %.tex, $(LITSRCS))
 
 DEFS := $(patsubst %.nw, %.defs, $(LITSRCS))
 
-SRCS = main.cpp render.cpp physics.cpp primitive-procedures.cpp vlref-smob.cpp scene-smob.cpp sim-smob.cpp rigid-body-smob.cpp nn.c dummy-opengl-context.cpp physics-buffer.scm camera.scm physics-ui.scm nsga2.c nsga2.scm osc.c osc.scm linear-spline.scm
+SRCS = main.cpp render.cpp physics.cpp primitive-procedures.cpp vlref-smob.cpp scene-smob.cpp sim-smob.cpp rigid-body-smob.cpp nn.c dummy-opengl-context.cpp physics-buffer.scm camera.scm physics-ui.scm nsga2.c nsga2.scm osc.c osc.scm linear-spline.scm logging.c scm-logging.c logging.scm
 
 TESTS = nsga2.test.scm vlref-smob.test.scm sim-smob.test.scm linear-spline.test.scm
 
 TESTS = linear-spline.test.scm
 
-HDRS = render.h physics.h primitive-procedures.h vlref-smob.hpp scene-smob.h sim-smob.h rigid-body-smob.h osc.h nn.h dummy-opengl-context.hpp
+HDRS = render.h physics.h primitive-procedures.h vlref-smob.hpp scene-smob.h sim-smob.h rigid-body-smob.h osc.h nn.h dummy-opengl-context.hpp vl.h logging.h scm-logging.h
 
-OBJS = main.o render.o physics.o primitive-procedures.o vlref-smob.o scene-smob.o sim-smob.o rigid-body-smob.o nn.o dummy-opengl-context.o
+OBJS = main.o render.o physics.o primitive-procedures.o vlref-smob.o scene-smob.o sim-smob.o rigid-body-smob.o nn.o dummy-opengl-context.o logging.o scm-logging.o
 
 BIBS = 
  
@@ -123,7 +128,7 @@ veryclean: clean
 preview: $(TARGET).pdf
 	open -a Skim.app $<
 
-$(TARGET): $(OBJS)
+$(TARGET): $(OBJS) $(LIB_EMACSY)
 	$(CC) $(LDFLAGS) $(OBJS) -o $(TARGET)
 
 $(TARGET).pdf: $(TEXS) 
@@ -135,6 +140,13 @@ main.cpp: main.nw eracs.nw
 
 dummy-opengl-context.hpp dummy-opengl-context.cpp: render.nw boiler-plate.nw
 	$(NOTANGLE) $(NOTANGLE_C_FLAGS) -R"file:$@" $^ 
+
+vl.h: main.nw boiler-plate.nw
+	$(NOTANGLE) $(NOTANGLE_C_FLAGS) -R"file:$@" $^ 
+
+scm-logging.h scm-logging.c: logging.nw boiler-plate.nw
+	$(NOTANGLE) $(NOTANGLE_C_FLAGS) -R"file:$@" $^ 
+
 
 physics.o: physics.cpp physics.cpp.x
 
@@ -152,7 +164,7 @@ nn.o: nn.c nn.c.x
 
 sim-smob.o: sim-smob.cpp sim-smob.cpp.x
 
-main.cpp: main.nw camera.nw nn.nw osc.nw physics-buffer.nw physics-ui.nw primitive-procedures.nw rigid-body-smob.nw scene-smob.nw sim-smob.nw vlref-smob.nw physics.nw
+main.cpp: main.nw camera.nw nn.nw osc.nw physics-buffer.nw physics-ui.nw primitive-procedures.nw rigid-body-smob.nw scene-smob.nw sim-smob.nw vlref-smob.nw physics.nw logging.nw
 
 # nn.h: nn.nw boiler-plate.nw 
 

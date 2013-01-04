@@ -1,10 +1,11 @@
+% -*- mode: Noweb; noweb-code-mode: c-mode -*-
 \section{The Main Function}
 
 It seems fitting that we should begin with the \verb|main| function.  
 
 <<Main>>=
-
 int main(int argc, char** argv) {
+  <<Setup logging.>>
   /* Initialize Guile. */
   scm_init_guile();
   scm_c_use_module("line-pragma"); 
@@ -16,21 +17,29 @@ int main(int argc, char** argv) {
   /* Initialize VL. */
   vl::VisualizationLibrary::init();
 
+  mylog("main", PRI_INFO, "Initialize submodules.");
   <<+ Initialize submodules.>>
 
+  mylog("main", PRI_INFO, "Load scheme files.");
   scm_c_primitive_load("util.scm"); 
   <<+ Load scheme files.>>
 
   //<Process arguments.>>
 
+  mylog("main", PRI_INFO, "Open window.");
   <<Open window.>>
+  mylog("main", PRI_INFO, "Initialize glcontext.");
+  init_glcontext();
+
   /* Callbacks must be setup after window is open. 
      (Learned that one the hard way.) */
+  mylog("main", PRI_INFO, "Initialize render module.");
   render_init(SCREEN_WIDTH, SCREEN_HEIGHT);
   <<Setup callbacks.>>
 
   <<Process arguments.>>
 
+  mylog("main", PRI_INFO, "Load personal configuration.");
   <<Load personal configuration.>>
 
   <<Run loop.>>
@@ -38,13 +47,14 @@ int main(int argc, char** argv) {
   /* physics_terminate(); */
   vl::VisualizationLibrary::shutdown();
   glfwTerminate();
+  <<Teardown logging.>>
   exit(0);
 }
 @ %def main
 <<Initialize GLFW.>>=
 
 if (glfwInit() != GL_TRUE) {
-  fprintf(stderr, "error: Unable to initialize GLFW.\n");
+  mylog("main", PRI_ERROR, "error: Unable to initialize GLFW.");
   return 1;
 }
 glfwDisable(GLFW_AUTO_POLL_EVENTS); /* No explicit call to glfwPollEvents() */
@@ -61,8 +71,8 @@ if (glfwOpenWindow(SCREEN_WIDTH, SCREEN_HEIGHT,
   /* depth, alpha, stencil bits */
                    16, 8, 8, 
                    GLFW_WINDOW) != GL_TRUE) {
-  fprintf(stderr, 
-          "error: Cannot create the OpenGL context and associated window.\n");
+  mylog("main", PRI_ERROR, 
+          "error: Cannot create the OpenGL context and associated window.");
   exit(2);
 }
 glfwSwapInterval(1);
@@ -120,7 +130,8 @@ bool key_pressed = true;
 
 <<Functions>>=
 extern "C" void GLFWCALL char_callback(int character, int action) {
-  wprintf(L"got char %lc (%d) with action %d, mod flags %d\n", character, character, action, get_modifier_key_flags()); 
+  mylog("main.event", PRI_DEBUG, "event char %lc (%d) with action %d, mod flags %d", character, character, action, get_modifier_key_flags());
+  //wprintf(L"got char %lc (%d) with action %d, mod flags %d\n", character, character, action, get_modifier_key_flags()); 
   if (key_pressed) {
     emacsy_key_event(character, get_modifier_key_flags()); 
     key_pressed = false;
@@ -130,7 +141,8 @@ extern "C" void GLFWCALL char_callback(int character, int action) {
 
 <<Functions>>=
 extern "C" void GLFWCALL key_callback(int key, int action) {
-  printf("got key %c (%d) action %d with mod flags %d\n", key, key, action, get_modifier_key_flags());
+  mylog("main.event", PRI_DEBUG, "key event %c (%d) action %d with mod flags %d", key, key, action, get_modifier_key_flags());
+  //printf("got key %c (%d) action %d with mod flags %d\n", key, key, action, get_modifier_key_flags());
   int modkey_flags = get_modifier_key_flags();
   if (action == GLFW_PRESS) {
     key_pressed = true;
@@ -219,7 +231,7 @@ extern "C" void GLFWCALL button_callback(int button, int action) {
   case GLFW_PRESS: ey_state = EY_MOUSE_BUTTON_DOWN; break;
   case GLFW_RELEASE: ey_state = EY_MOUSE_BUTTON_UP; break;
   default:
-    fprintf(stderr, "warning: neither mouse up nor down received.\n");
+    mylog("main.event", PRI_WARN, "warning: neither mouse up nor down received.");
     return;
   }
   switch(button) {
@@ -227,12 +239,13 @@ extern "C" void GLFWCALL button_callback(int button, int action) {
   case GLFW_MOUSE_BUTTON_MIDDLE: ey_button = 2; break;
   case GLFW_MOUSE_BUTTON_RIGHT : ey_button = 3; break;
   default:
-    fprintf(stderr, "warning: got mouse button %d.\n",
+    mylog("main.event", PRI_WARN, "warning: got mouse button %d.",
       button);
     return;
   }
   glfwGetMousePos(&x, &y);
-  printf("mouse event (%d, %d) state %d button %d mod flags %d\n",
+  mylog("main.event", PRI_DEBUG, 
+         "mouse event (%d, %d) state %d button %d mod flags %d",
          x, y, ey_state, ey_button, get_modifier_key_flags());
   emacsy_mouse_event(x, y, ey_state, ey_button, get_modifier_key_flags());
 }
@@ -245,7 +258,7 @@ glfwSetMouseButtonCallback(button_callback);
 
 <<Functions>>=
 extern "C" void GLFWCALL resize_callback(int w, int h) {
-  printf("Resizing\n");
+  mylog("main", PRI_DEBUG, "Resizing");
   render_setup_viewport(w, h);
   /* render(); */
   /* glfwSwapBuffers();  */
@@ -348,16 +361,8 @@ lightweight library.)
 #include <libguile.h>
 #include <emacsy.h>
 
-/* OpenGL/GLFW */
-#include <GL/mesa_gl.h>
-#include <GL/khronos_glext.h>
-#define GLFW_NO_GLU
-#include <GL/glfw.h>
-#include <GL/glu.h>
-#include <OpenGL/gl.h>
+#include "vl.h"
 
-/* VL */
-#include <vlCore/VisualizationLibrary.hpp>
 #include "render.h" 
 #include "primitive-procedures.h"
 
@@ -368,3 +373,42 @@ lightweight library.)
 #define SCREEN_HEIGHT 480
 #define SCREEN_DEPTH 8
 @
+
+Getting the right includes in the right order is tricky for VL due to
+detecting the OpenGL extensions.  Therefore, I've placed the proper
+includes in the file [[vl.h]].
+
+<<file:vl.h>>=
+#ifndef _VL_H_
+#define _VL_H_
+/* OpenGL/GLFW */
+#include <GL/mesa_gl.h> 
+#include <GL/khronos_glext.h> 
+#define GLFW_NO_GLU 
+#include <GL/glfw.h> 
+#include <GL/glu.h> 
+#include <OpenGL/gl.h> 
+
+/* VL */
+#include <vlCore/VisualizationLibrary.hpp>
+#endif
+@ 
+
+\subsection{Setup Logging}
+
+<<Setup logging.>>=
+if (log4c_init()) {
+    fprintf(stderr, "error: log4c_init() failed.");
+}
+@ 
+
+<<Teardown logging.>>=
+if (log4c_fini()) {
+    fprintf(stderr, "error: log4c_fini() failed.");
+}
+@ 
+
+<<Includes>>=
+#include "logging.h"
+#include "scm-logging.h"
+@ 
