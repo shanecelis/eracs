@@ -1,3 +1,4 @@
+% -*- mode: Noweb; noweb-code-mode: c-mode -*-
 \subsection{Simulation SMOB}
 
 We want to be able to instantiate a physics simulator.
@@ -16,6 +17,7 @@ We want to be able to instantiate a physics simulator.
 <<file:sim-smob.h>>=
 #ifndef SCM_MAGIC_SNARFER
 #include <btBulletDynamicsCommon.h>
+#include "util.h"
 #endif
 #include <libguile.h>
 
@@ -88,8 +90,11 @@ static int print_sim (SCM sim_smob, SCM port, scm_print_state *pstate)
 {
   struct sim *sim = (struct sim *) SCM_SMOB_DATA (sim_smob);
      
-  scm_puts ("#<sim ", port);
+  scm_puts ("#<sim time ", port);
   scm_display (scm_from_double(sim->elapsed_time), port);
+  scm_puts (", ", port);
+  scm_display (scm_from_double(sim->world->getNumCollisionObjects()), port);
+  scm_puts (" objects", port);
   scm_puts (">", port);
      
   /* Non-zero means success. */
@@ -223,10 +228,33 @@ SCM_DEFINE (scm_sim_time_set_x, "sim-time-set!", 2, 0, 0,
 @ Just a stop gap measure.
 
 <<Primitives>>=
+SCM_DEFINE (scm_sim_add_fixed_box, "sim-add-fixed-box", 3, 0, 0,
+            (SCM sim, SCM pos, SCM dims),
+            "Add a fixed box to the simulation.  It will not move.")
+{
+  btCollisionShape* groundShape;
+  btCollisionObject* fixedGround;
+  struct sim *s;
+  scm_assert_smob_type(sim_tag, sim);
+  s = (struct sim*) SCM_SMOB_DATA(sim);
+  groundShape = new btBoxShape(0.5 *vector_to_btVector3(dims));
+  groundShape->setUserPointer(NULL);
+  btTransform groundTransform;
+  groundTransform.setIdentity();
+  groundTransform.setOrigin(vector_to_btVector3(pos));
 
+  fixedGround = new btCollisionObject();
+  fixedGround->setCollisionShape(groundShape);
+  fixedGround->setWorldTransform(groundTransform);
+  s->world->addCollisionObject(fixedGround);
+  return SCM_BOOL_T;
+}
+@ 
+
+<<Primitives>>=
 SCM_DEFINE (scm_sim_add_ground_plane, "sim-add-ground-plane", 1, 0, 0,
             (SCM sim),
-            "Get the global physics simulator.")
+            "Add a fixed box to the simulation.  It will not move.")
 {
   btCollisionShape* groundShape;
   btCollisionObject* fixedGround;
@@ -235,11 +263,11 @@ SCM_DEFINE (scm_sim_add_ground_plane, "sim-add-ground-plane", 1, 0, 0,
   s = (struct sim*) SCM_SMOB_DATA(sim);
 
   groundShape = 
-    new btBoxShape(btVector3(btScalar(200.),btScalar(10.),btScalar(200.)));
+    new btBoxShape(btVector3((200.),(10.),(200.)));
   groundShape->setUserPointer(NULL);
   btTransform groundTransform;
   groundTransform.setIdentity();
-  groundTransform.setOrigin(btVector3(0,-10,0));
+  groundTransform.setOrigin(btVector3(0.,-10.,0.));
 
   fixedGround = new btCollisionObject();
   fixedGround->setCollisionShape(groundShape);
@@ -247,6 +275,7 @@ SCM_DEFINE (scm_sim_add_ground_plane, "sim-add-ground-plane", 1, 0, 0,
   s->world->addCollisionObject(fixedGround);
   return SCM_BOOL_T;
 }
+@
 <<file:sim-smob.cpp>>=
 
 <<Initialize.>>

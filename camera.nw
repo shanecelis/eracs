@@ -55,7 +55,7 @@ backward, up, and down with additional bindings \verb|C-i| and
 (define-interactive (backward-camera-z #:optional (n 1))
   (forward-camera-z (- n)))
 
-(set-buffer! eracs-buffer)
+(add-buffer! eracs-buffer)
 
 <<Load modules.>>=
 

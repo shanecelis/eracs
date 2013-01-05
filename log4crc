@@ -23,6 +23,7 @@
 
 	<!-- my categories ========================================= -->
 	<category name="main.event" priority="notice" appender="stdout"/>
+	<category name="zeroconf" priority="warn" appender="stdout"/>
 
 <!--
 	<category name="main" priority="debug" appender="stdout"/>

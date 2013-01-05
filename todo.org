@@ -68,4 +68,11 @@
   - [ ] make debugging work in emacsy
 * TODO before GECCO
   - [X] fix the scene since it's not displaying
-  - [ ] write up the gameplan low-level vs high-level 
+  - [X] write up the gameplan low-level vs high-level
+  - [ ] make physics objects unmoveable from scheme
+  - [ ] have some way of creating a scene of physical objects
+  - [ ] fix error calculation in active user preferences
+  - [ ] implement high-level waypoint fitness function
+  - [X] change the time units to actual seconds
+  - [ ] determine the spatial dimensional units.
+  - [ ] make the obstacles and target unmoveable

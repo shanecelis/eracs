@@ -1,4 +1,5 @@
 % -*- mode: Noweb; noweb-code-mode: c-mode -*-
+% -*- mode: Noweb; noweb-code-mode: c-mode -*-
 \section{The Main Function}
 
 It seems fitting that we should begin with the \verb|main| function.  
@@ -333,6 +334,10 @@ while (! quitp) {
     emacsy_flags & EY_QUIT_APPLICATION
     || ! glfwGetWindowParam(GLFW_OPENED);
   tick++;
+  if (glfwGetWindowParam(GLFW_ICONIFIED) || ! glfwGetWindowParam(GLFW_ACTIVE)) {
+    // Let's sleep a little bit.
+    glfwSleep(1./30.);
+  }
   //printf("END RUN LOOP\n");
 }
 

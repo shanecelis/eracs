@@ -7,6 +7,7 @@
              (infix)
              (linear-spline)
              (gnuplot plot)
+             (logging)
              )
 (define pi (acos -1))
 
@@ -100,11 +101,11 @@
                        (make-hinge (nth legs 6) (nth legs 7)
                                    #(0  0 .5) #(0 0.5  0)
                                    #(1 0   0) #(1  0  0))))
-         (target-body (make-box #(0 1 -10) #(1 1 1)))
-         (wall-body (make-box #(0 1 -5) #(10 1 1)))
+         (target-body (make-box #(0 1 -10) #(1  1 1)))
+         (wall-body   (make-box #(0 1 -5)  #(10 1 1)))
          
          (robot (make <quadruped> 
-                  #:bodies (append (cons body legs) (list target-body wall-body)
+                  #:bodies (append (cons body legs) ;(list target-body wall-body)
                                    
                                    ) 
                   #:joints joints
@@ -128,10 +129,20 @@
   (map #.\ (sim-remove-body sim %1) (bodies robot))
   (set! (in-sim robot) #f))
 
+(define (sim-add-ground-plane2 sim)
+  (sim-add-fixed-box sim #(0. -10. 0.) #(400. 20. 400.)))
+
 ;; Add the robot to the physics simulation.
 (define robot (make-quadruped-robot))
 (sim-add-robot (current-sim) robot)
-(sim-add-ground-plane (current-sim))
+(mylog "quadruped" pri-debug "current sim ~a" (current-sim))
+;(sim-add-ground-plane (current-sim))
+(sim-add-ground-plane2 (current-sim))
+;target-body 
+(sim-add-fixed-box (current-sim) #(0 1 -10) #(1  1 1))
+;wall-body
+(sim-add-fixed-box (current-sim) #(0 1 -5)  #(10 1 1))
+
 (physics-add-scene (current-sim))
 
 (define* (robot-position #:optional (my-robot robot))

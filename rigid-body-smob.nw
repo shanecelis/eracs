@@ -25,6 +25,15 @@ SCM wrap_rigid_body(btRigidBody* rb, char *name, SCM contact_func);
 void call_contact_func(SCM smob);
 void init_rigid_body_type(void);
 @ %def rigid_body
+
+Although [[vector_to_btVector3]] is implemented here.  It should be
+pulled out into a util.cpp file.
+
+<<file:util.h>>=
+#include <libguile.h>
+btVector3 vector_to_btVector3(SCM vector);
+@ 
+
 <<file:rigid-body-smob.cpp>>=
 
 <<+ Preamble>>
@@ -244,7 +253,6 @@ SCM_DEFINE (scm_sim_remove_body,
     return SCM_BOOL_F;
 }
 <<file:rigid-body-smob.cpp>>=
-
 <<Add rigid body to simulation.>>
 <<Remove rigid body from simulation.>>
 <<Helper Functions>>=
@@ -252,9 +260,9 @@ SCM_DEFINE (scm_sim_remove_body,
 btVector3 vector_to_btVector3(SCM vector) {
   btVector3 rgb;
   for (int i = 0; i < 3; i++)
-    rgb[i] = scm_to_double(scm_vector_ref(vector, scm_from_int(i)));
+    rgb[i] = scm_to_double(scm_c_vector_ref(vector, i));
   if (scm_c_vector_length(vector) == 4)
-    rgb[3] = scm_to_double(scm_vector_ref(vector, scm_from_int(3)));
+    rgb[3] = scm_to_double(scm_c_vector_ref(vector, 3));
   return rgb;
 }
 <<Includes>>=

@@ -11,12 +11,10 @@
              (statprof)
              (logging))
 
-(mylog "main" pri-debug "what...")
-
 (let ((orig emacsy-mode-line))
   (set! emacsy-mode-line 
         (lambda ()
-          (format #f "~a FPS ~1,0f sim-time ~1,1f controller-time ~1,1f" 
+          (format #f "~a FPS ~1,0f sim-time ~1,1f controller-time ~1,2f" 
                   (orig) 
                   (get-parameter 'FPS) 
                   (let ((sim (current-sim))) (if sim (sim-time sim) 0.))
@@ -35,6 +33,9 @@
 
 (set! emacsy-log-info (lambda (format-msg . args)
                     (apply mylog "emacsy" pri-info  format-msg args)))
+
+(set! emacsy-log-debug (lambda (format-msg . args)
+                    (apply mylog "emacsy" pri-debug  format-msg args)))
 
 
 ; (use-modules (system vm trace))
