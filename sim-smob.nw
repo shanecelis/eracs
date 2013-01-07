@@ -32,6 +32,8 @@ struct sim {
 
 SCM wrap_sim(btDynamicsWorld* world);
 
+int is_sim_p(SCM sim_smob);
+
 void init_sim_type(void);
 struct sim* unwrap_sim(SCM sim_smob);
 @ 
@@ -57,6 +59,7 @@ struct sim* unwrap_sim(SCM sim_smob);
 static size_t free_sim (SCM sim_smob)
 {
   struct sim *sim = (struct sim *) SCM_SMOB_DATA (sim_smob);
+  mylog("sim-smob", PRI_DEBUG, "freeing sim world 0x%x", sim->world);
   if (sim->world)
     delete sim->world;
   if (sim->broadphase)
@@ -119,6 +122,10 @@ void init_sim_type(void)
 }
 @ 
 <<file:sim-smob.cpp>>=
+int is_sim_p(SCM sim_smob) 
+{
+  return SCM_SMOB_PREDICATE(sim_tag, sim_smob);
+}
 SCM wrap_sim(btDynamicsWorld* btdw)
 {
   SCM smob;
@@ -156,7 +163,9 @@ Now let's allow ourselves to create this C object from Scheme.
 
 <<Includes>>=
 #include "physics.h"
+#include "logging.h"
 @ 
+
 <<file:sim-smob.cpp>>=
 SCM_DEFINE (scm_make_sim, "make-sim", 0, 0, 0,
             (),
@@ -189,6 +198,8 @@ SCM_DEFINE (scm_make_sim, "make-sim", 0, 0, 0,
   sim->collisionConfiguration = m_collisionConfiguration;
   return smob;
 }
+@ 
+
 <<Primitives>>=
 SCM_DEFINE (scm_sim_tick, "sim-tick", 1, 1, 0,
             (SCM sim, SCM time_step),

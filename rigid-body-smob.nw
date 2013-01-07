@@ -1,3 +1,4 @@
+% -*- mode: Noweb; noweb-code-mode: c-mode -*-
 \subsection{Rigid Body SMOB}
 
 SMOBs are simple objects that GNU Guile uses to wrap \verb|C/C++|
@@ -16,6 +17,7 @@ struct rigid_body {
   btRigidBody *body;
   btCollisionShape *shape;
   btDynamicsWorld *world;
+  SCM sim;
   SCM name;
   SCM contact_func;
 };
@@ -44,6 +46,8 @@ btVector3 vector_to_btVector3(SCM vector);
 
 <<Helper Functions>>
 
+<<Add rigid body to simulation.>>
+<<Remove rigid body from simulation.>>
 /* SMOB functions */
 <<Free>>
 <<Mark>>
@@ -55,11 +59,18 @@ and \verb|print|.
 
 static size_t free_rigid_body (SCM rigid_body_smob)
 {
-  struct rigid_body *rigid_body = (struct rigid_body *) SCM_SMOB_DATA (rigid_body_smob);
+  struct rigid_body *rigid_body;
+  rigid_body = (struct rigid_body *) SCM_SMOB_DATA (rigid_body_smob);
   if (rigid_body->body) {
-    if (rigid_body->world)
-      rigid_body->world->removeRigidBody(rigid_body->body);    
+    if (! scm_is_false(rigid_body->sim)) {
+      scm_sim_remove_body(rigid_body->sim, rigid_body_smob);
+    }
+    /* if (rigid_body->world) { */
+    /*   rigid_body->world->removeRigidBody(rigid_body->body);     */
+    /*   rigid_body->world = NULL; */
+    /* } */
     delete rigid_body->body;
+    rigid_body->body = NULL;
   }
   scm_gc_free (rigid_body, sizeof (struct rigid_body), "rigid_body");
   return 0;
@@ -72,11 +83,12 @@ live.
 
 static SCM mark_rigid_body (SCM rigid_body_smob)
 {
-  //fprintf(stderr, "mark_rigid_body\n");
   /* Mark the rigid_body's name and update function.  */
-  struct rigid_body *rigid_body = (struct rigid_body *) SCM_SMOB_DATA (rigid_body_smob);
+  struct rigid_body *rigid_body;
+  rigid_body = (struct rigid_body *) SCM_SMOB_DATA (rigid_body_smob);
      
   scm_gc_mark (rigid_body->name);
+  scm_gc_mark (rigid_body->sim);
   return (rigid_body->contact_func); // will recurse and mark these
      
   //return SCM_BOOL_F;
@@ -141,6 +153,7 @@ SCM wrap_rigid_body(btRigidBody* btrb, char* name, SCM contact_func)
    */
   rb->body = btrb;
   rb->world = NULL;
+  rb->sim = SCM_BOOL_F;
   //rb->body->forceActivationState(DISABLE_DEACTIVATION);
   if (name)
     rb->name = scm_from_locale_string(name);
@@ -160,13 +173,6 @@ SCM wrap_rigid_body(btRigidBody* btrb, char* name, SCM contact_func)
   SCM_NEWSMOB (smob, rigid_body_tag, rb);
   rb->body->setUserPointer(smob);
 
-     
-  /* Step 4: Finish the initialization.
-   */
-  //image->name = name;
-  // image->pixels =
-  //   scm_gc_malloc (width * height, "image pixels");
-     
   return smob;  
 }
 @ Now let's allow ourselves to create this C object from Scheme.
@@ -230,6 +236,8 @@ SCM_DEFINE (scm_sim_add_body,
   struct rigid_body *rb = (struct rigid_body*) SCM_SMOB_DATA(body);
   s->world->addRigidBody(rb->body);
   rb->world = s->world;
+  rb->sim = sim;
+  scm_gc_protect_object(rb->sim);
   return SCM_BOOL_T;
 }
 <<Remove rigid body from simulation.>>=
@@ -243,18 +251,22 @@ SCM_DEFINE (scm_sim_remove_body,
   struct sim *s = unwrap_sim(sim);
   scm_assert_smob_type(rigid_body_tag, body);
   struct rigid_body *rb = (struct rigid_body*) SCM_SMOB_DATA(body);
+  if (s->world != rb->world) {
+    mylog("rigid-body-smob", PRI_WARN, "sim-remove-body not given the same physics worlds.");
+    return SCM_BOOL_F;
+  }
   if (s->world) {
     s->world->removeRigidBody(rb->body);
     rb->body->getCollisionShape()->setUserPointer(NULL);
-    
+
     rb->world = NULL;
+    scm_gc_unprotect_object(rb->sim);
+    rb->sim = SCM_BOOL_F;
     return SCM_BOOL_T;
   } else
     return SCM_BOOL_F;
 }
-<<file:rigid-body-smob.cpp>>=
-<<Add rigid body to simulation.>>
-<<Remove rigid body from simulation.>>
+
 <<Helper Functions>>=
 
 btVector3 vector_to_btVector3(SCM vector) {
@@ -271,6 +283,7 @@ btVector3 vector_to_btVector3(SCM vector) {
 /* Headers we don't want snarfed. */
 #include "btBulletDynamicsCommon.h"
 #include "physics.h"
+#include "logging.h"
 #endif
 /* Headers we must have snarfed. */
 #include <libguile.h>
@@ -404,9 +417,13 @@ static size_t free_constraint (SCM constraint_smob)
 {
   struct constraint *constraint;
   constraint = (struct constraint *) SCM_SMOB_DATA (constraint_smob);
-  if (constraint->joint && constraint->world) {
-    constraint->world->removeConstraint(constraint->joint);    
+  if (constraint->joint) {
+    if (constraint->world) {
+      //constraint->world->removeConstraint(constraint->joint);
+      constraint->world = NULL;
+    }
     delete constraint->joint;
+    constraint->joint = NULL;
   }
   scm_gc_free (constraint, sizeof (struct constraint), "constraint");
   return 0;
@@ -569,10 +586,18 @@ SCM_DEFINE (scm_sim_remove_constraint, "sim-remove-constraint", 2, 0, 0,
 
   scm_assert_smob_type(constraint_tag, joint);
   c = (struct constraint*) SCM_SMOB_DATA(joint);
-  
-  s->world->removeConstraint(c->joint);
-  c->world = NULL;
-  return SCM_BOOL_T;
+  if (c->world != s->world) {
+    mylog("rigid-body-smob", 
+          PRI_WARN, 
+          "sim-remove-constraint: constraint world and sim world are different");
+    return SCM_BOOL_F;
+  } 
+  if (c->joint && c->world) {
+    c->world->removeConstraint(c->joint);
+    c->world = NULL;
+    return SCM_BOOL_T;
+  }
+  return SCM_BOOL_F;
 }
 @ \subsection{Actuate Joint}
 

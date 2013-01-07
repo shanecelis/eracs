@@ -66,13 +66,20 @@
   - [ ] get rid of noise in emacsy
   - [ ] implement coroutines in Guile using [[http://www.lua.org/manual/5.2/manual.html][Lua API]] and [[http://wingolog.org/archives/2011/08/30/the-gnu-extension-language][this]] as a basis
   - [ ] make debugging work in emacsy
+  - [ ] fix kill of all buffers bug
+  - [ ] fix extra renderers being added when physics-add-scene is called
+  - [ ] fix segfault when restart-physics is called
 * TODO before GECCO
   - [X] fix the scene since it's not displaying
   - [X] write up the gameplan low-level vs high-level
-  - [ ] make physics objects unmoveable from scheme
-  - [ ] have some way of creating a scene of physical objects
-  - [ ] fix error calculation in active user preferences
-  - [ ] implement high-level waypoint fitness function
+  - [X] make physics objects unmoveable from scheme
   - [X] change the time units to actual seconds
+  - [X] have some way of creating a scene of physical objects
+    init-scene
+  - [X] make the obstacles and target unmoveable
+  - [ ] implement high-level waypoint fitness function
   - [ ] determine the spatial dimensional units.
-  - [ ] make the obstacles and target unmoveable
+  - [ ] fix error calculation in active user preferences
+  - [ ] fix rigid body sim deletion race condition
+the physics sim may currently be deleted before the rigid bodies have
+been deleted. If that happens, bad things happen.

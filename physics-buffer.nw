@@ -8,8 +8,8 @@ We'd like to have a physics buffer for ERACS rather than a text buffer.
   (oop goops)
   (emacsy emacsy))
 
-(define-class <physics-buffer> (<buffer>)
-  (sim #:accessor sim #:init-keyword #:sim)
+(define-class-public <physics-buffer> (<buffer>)
+  (sim #:accessor sim #:init-keyword #:sim #:init-form (make-sim))
   (paused? #:accessor paused? #:init-value #f))
 
 (define (current-sim)
@@ -17,6 +17,5 @@ We'd like to have a physics buffer for ERACS rather than a text buffer.
     (sim (current-buffer))
     #f))
 <<+ Load scheme files.>>=
-
   scm_c_primitive_load("physics-buffer.scm");
 @ 

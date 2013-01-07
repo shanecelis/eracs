@@ -98,10 +98,13 @@ print_nn (SCM nn_smob, SCM port, scm_print_state *pstate)
   struct fann_connection *connections;
 
   nn = (struct nn *) SCM_SMOB_DATA (nn_smob);
-  scm_puts ("#<nn ", port);
+  scm_puts ("#<nn node-count ", port);
   scm_display(nn->node_count, port);
-  scm_newline(port);
   conn_count = fann_get_total_connections(nn->ann);
+  scm_puts (" connection-count ", port);
+  scm_display(scm_from_int(conn_count), port);
+  scm_newline(port);
+
   connections = (struct fann_connection*) 
     malloc(sizeof (struct fann_connection) * conn_count);
   fann_get_connection_array(nn->ann, connections);

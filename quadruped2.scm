@@ -7,16 +7,14 @@
              (infix)
              (linear-spline)
              (gnuplot plot)
-             (logging)
-             )
+             (logging))
 (define pi (acos -1))
 
 ;; (define* (robot-time #:optional (my-sim (current-sim)))
 ;;   (sim-time my-sim))
+(cons! <physics-buffer> buffer-classes)
 
 (define neuron-count '(5 16 16 8))
-
-;(define fann-brain (make-nn neuron-count))
 
 (define-class <quadruped> ()
   (bodies #:getter bodies #:init-keyword #:bodies)
@@ -36,8 +34,7 @@
 (define-method (reset-robot (robot <quadruped>))
   (vector-fill! (touch-sensors robot) #f)
   (vector-fill! (target-angles robot) 0.)
-  (vector-fill! (active-joints robot) #t)
-  )
+  (vector-fill! (active-joints robot) #t))
 
 (define (make-boxy-cylinder pos radius length alignment)
   (let ((dims (make-vector 3 (* 2 radius))))
@@ -132,17 +129,28 @@
 (define (sim-add-ground-plane2 sim)
   (sim-add-fixed-box sim #(0. -10. 0.) #(400. 20. 400.)))
 
-;; Add the robot to the physics simulation.
-(define robot (make-quadruped-robot))
-(sim-add-robot (current-sim) robot)
-(mylog "quadruped" pri-debug "current sim ~a" (current-sim))
-;(sim-add-ground-plane (current-sim))
-(sim-add-ground-plane2 (current-sim))
-;target-body 
-(sim-add-fixed-box (current-sim) #(0 1 -10) #(1  1 1))
-;wall-body
-(sim-add-fixed-box (current-sim) #(0 1 -5)  #(10 1 1))
+(define robot #f)
 
+(define (init-robot-scene sim)
+  ;; Add the robot to the physics simulation.
+  (let ((robot (make-quadruped-robot)))
+
+    (sim-add-robot sim robot)
+    ;(mylog "quadruped2" pri-debug "added quadruped to sim ~a" sim)
+    ;;(sim-add-ground-plane sim)
+    (sim-add-ground-plane2 sim)
+    robot))
+
+(define (init-robot-obstacle-scene sim)
+  ;;target-body 
+  (sim-add-fixed-box sim #(0 1 -10) #(1  1 1))
+  ;;wall-body
+  (sim-add-fixed-box sim #(0 1 -5)  #(10 1 1))
+  (init-robot-scene sim))
+
+(define init-scene init-robot-obstacle-scene)
+
+(set! robot (init-scene (current-sim)))
 (physics-add-scene (current-sim))
 
 (define* (robot-position #:optional (my-robot robot))
@@ -499,10 +507,14 @@
     (set! (controller robot) (assq-ref brains (string->symbol brain))))
 
 (define-interactive (restart-physics)
-  (sim-remove-robot (current-sim) robot)
-  (set! robot (make-quadruped-robot))
-  (sim-add-robot (current-sim) robot)
   (physics-clear-scene)
+  (set! (sim (current-buffer)) (make-sim))
+  (set! robot (init-scene (current-sim)))
   (physics-add-scene (current-sim))
+  ;; (sim-remove-robot (current-sim) robot)
+  ;; (set! robot (make-quadruped-robot))
+  ;; (sim-add-robot (current-sim) robot)
+  ;; (physics-clear-scene)
+  ;; (physics-add-scene (current-sim))
   ;(sim-time-set! (current-sim) 0.0)
   )

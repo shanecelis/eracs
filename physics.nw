@@ -39,6 +39,7 @@ probably overkill.  Let's just try doing it in this file.
 The default time step is 0.01666 $\approx 1/60$ to suit the default
 Frames Per Second (FPS).  It is not kept in sync with FPS because we
 need the results to be reproducible.
+
 <<file:physics.h>>=
 #define DEFAULT_TIME_STEP 0.01666
 //#define DEFAULT_TIME_STEP 0.1
@@ -52,7 +53,7 @@ need the results to be reproducible.
 #include <vlGraphics/SceneManagerActorTree.hpp>
 @ \subsection{Rendering Physical Objects}
 
-Let's add all visible objects in the physics engine to the scene.  VL
+Let\'s add all visible objects in the physics engine to the scene.  VL
 uses an automatic memory management policy documented
 \href{http://www.visualizationlibrary.org/documentation/pag_guide_memory.html}{here}.
 
@@ -62,26 +63,26 @@ void physics_add_scene(btDynamicsWorld *world)
 {
   vl::ref<vl::SceneManagerActorTree> scene;
   //if (scene == NULL)
-    scene = gscene.scene_manager.get();
+  scene = gscene.scene_manager.get();
   
   <<Setup wireframe.>>
   <<Setup effect.>>
   /* Used to include 'Setup solid renderer.'*/
 
 
-        btScalar        M[16];
-        const int       numObjects = world->getNumCollisionObjects();
-        for(int i = 0; i < numObjects; i++)     {
-                btCollisionObject* colObj = world->getCollisionObjectArray()[i];
-                btRigidBody*                 body = btRigidBody::upcast(colObj);
+  btScalar        M[16];
+  const int       numObjects = world->getNumCollisionObjects();
+  for(int i = 0; i < numObjects; i++) {
+    btCollisionObject* colObj = world->getCollisionObjectArray()[i];
+    btRigidBody*         body = btRigidBody::upcast(colObj);
     btCollisionShape*   shape = colObj->getCollisionShape();
-                if(body&&body->getMotionState()) {
-                        btDefaultMotionState* myMotionState;
+    if(body && body->getMotionState()) {
+      btDefaultMotionState* myMotionState;
       myMotionState = (btDefaultMotionState*) body->getMotionState();
-                        myMotionState->m_graphicsWorldTrans.getOpenGLMatrix(M);
-                } else {
-                        colObj->getWorldTransform().getOpenGLMatrix(M);
-                }
+      myMotionState->m_graphicsWorldTrans.getOpenGLMatrix(M);
+    } else {
+      colObj->getWorldTransform().getOpenGLMatrix(M);
+    }
     <<Add shape to scene.>>
   }
   /* Now update so the transformations are correct. */
@@ -96,10 +97,8 @@ SCM_DEFINE (scm_physics_add_scene, "physics-add-scene", 1, 0, 0,
   return SCM_UNSPECIFIED;
 }
 <<Includes>>=
-
 #include "sim-smob.h"
 <<Add shape to scene.>>=
-
 if (shape->getShapeType() == BOX_SHAPE_PROXYTYPE) {
   const btBoxShape* boxShape;
         btVector3 halfExtent;
@@ -136,7 +135,6 @@ if (shape->getShapeType() == BOX_SHAPE_PROXYTYPE) {
   fprintf(stderr, "warning: cannot draw any shape except a box.\n");
 }
 <<Helper Functions>>=
-
 bool has_child(size_t n, vl::ref<vl::Transform> *children, vl::Transform *child)
 {
   for(int i = 0; i < n; i++)
@@ -145,7 +143,6 @@ bool has_child(size_t n, vl::ref<vl::Transform> *children, vl::Transform *child)
   return false;
 }
 <<Setup effect.>>=
-
   // Setup the effect to be used to render the cube.
   vl::ref<vl::Effect> effect = new vl::Effect;
   // Enable depth test and lighting.
@@ -163,11 +160,9 @@ bool has_child(size_t n, vl::ref<vl::Transform> *children, vl::Transform *child)
   effect->shader()->gocMaterial()->setDiffuse(color );
 @
 <<Includes>>=
-
 #include <vlGraphics/EdgeRenderer.hpp>
 @
 <<Setup wireframe.>>=
-
 vl::ref<vl::Renderer> solid_renderer;
 vl::ref<vl::EdgeRenderer> edge_renderer;
 
