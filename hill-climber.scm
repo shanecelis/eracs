@@ -11,6 +11,7 @@
              (nsga2)
              (vector-math)
              (infix)
+             (srfi srfi-1)  ;; take
              (srfi srfi-11) ;; let-values
              (srfi srfi-26) ;; cut cute
              (mathematica plot))
@@ -63,83 +64,104 @@
   (set-nn-weights! robot weights)
   (eval-robot))
 
-(define eval-robot-time 20.) ;; 20 simulated seconds
+(define eval-robot-time 10.) ;; simulated seconds
 
 (define* (eval-robot-headless weights 
                               #:key 
                               (step-fn identity)
                               (begin-fn identity)
                               (end-fn identity))
-  "Evaluates a robot with the given NN weights and optionally calls a thunk f every time step."
-  (let* ((sim (make-sim))
-         (robot (init-scene sim))
-         (start-position #f)
-         (start-time #f)
-         (start-tick tick-count))
-    (set-nn-weights! robot weights)
-    (set! direction 'right)
-    (set! (controller robot) run-nn-brain)
-    (begin-fn robot)
-    (while (< (sim-time sim) eval-robot-time)
-      ;(message "Simulating ~a" (sim-time sim))
-      (sim-tick sim)
-      (robot-tick robot)
-      (step-fn robot))
-    (let ((fitness (end-fn robot)))
-      (sim-remove-robot sim robot)
-      fitness)
-    #;(let* ((pos (robot-position robot))
-           (xz-proj (vector 1. 0. 1.)) ;; Project only in the xz-plane (height displacement doesn't count.
-           (fitness (vector-norm (vector* xz-proj (vector- start-position pos)))))
-     (message "Fitness ~a tick-count ~a sim-time ~a." 
-              fitness (tick-count robot) (sim-time sim))
-     (sim-remove-robot sim robot)
-     (- fitness))))
+  "Evaluates a robot with the given NN weights. Calls hook functions
+if supplied."
+  (in-out 
+   (mylog "hill-climber" pri-trace "BEGIN eval-robot-headless")
+   (let* ((sim (make-sim))
+          (robot (init-scene sim))
+          (start-position #f)
+          (start-time #f)
+          (start-tick tick-count))
+     (set-nn-weights! robot weights)
+     (set! direction 'right)
+     (set! (controller robot) run-nn-brain)
+     (begin-fn robot)
+     (while (< (sim-time sim) eval-robot-time)
+       ;;(message "Simulating ~a" (sim-time sim))
+       (sim-tick sim)
+       (robot-tick robot)
+       (step-fn robot))
+     (let ((fitness (end-fn robot)))
+       (sim-remove-robot sim robot)
+       fitness))
+    (mylog "hill-climber" pri-trace "END eval-robot-headless")))
 
-(define (eval-robot-to-target-headless weights)
-  (let* ((sim (make-sim))
-         (robot (init-scene sim))
-         (start-position #f)
-         (start-time #f)
-         (start-tick tick-count)
-         (target-position #(0 1 -10)))
-    (set-nn-weights! robot weights)
-    (set! direction 'right)
-    (set! (controller robot) run-nn-brain)
-    (set! start-position (robot-position robot))
-    (while (< (sim-time sim) eval-robot-time)
-      (sim-tick sim)
-      (robot-tick robot))
-    (let* ((pos (robot-position robot))
-           (xz-proj (vector 1. 0. 1.)) ;; Project only in the xz-plane (height displacement doesn't count.
-           (fitness (vector-norm (vector* xz-proj (vector- target-position pos)))))
-     (message "Fitness ~a tick-count ~a sim-time ~a." 
-              fitness (tick-count robot) (sim-time sim))
-     (sim-remove-robot sim robot)
-     fitness)))
 
-(define-interactive (eval-robot)
-  ;; One problem was the robot's brain updates at 10 Hz which depends
-  ;; on the tick-count.  Resetting the tick-count so that evaluations
-  ;; are deterministic.  Doesn't fix it entirely, but does help.
-  ;(set! (tick-count robot) 0)
-  (let ((original-brain (controller robot))
-        (start-position #f)
-        (start-time (robot-time robot))
-        (start-tick (tick-count robot)))
-    (set! direction 'right)
-    (restart-physics)
-    (set! (controller robot) nn-brain)
-    (sim-time-set! (sim eracs-buffer) 0.0)
-    (set! start-time 0.0)
-    (set! start-position (robot-position))
-    (block-until (lambda () 
-                  (> (- (robot-time robot) start-time) eval-robot-time))) 
-    (let* ((pos (robot-position))
-           (fitness (- (vector-ref start-position 0) (vector-ref pos 0))))
-      (set! (controller robot) original-brain)
-      (message "Fitness ~a tick-count ~a sim-time ~a." fitness (- (tick-count robot) start-tick) (- (robot-time robot) start-time))
-      fitness)))
+(define-interactive (eval-robot-render
+                     #:optional 
+                     (weights (get-nn-weights robot)) 
+                     #:key 
+                     (begin-fn identity)
+                     (step-fn identity)
+                     (end-fn identity))
+  "Evaluates a robot with the given NN weights. Calls hook functions if
+supplied.  Renders this in a new buffer."
+  (in-out (mylog "hill-climber" pri-trace "BEGIN eval-robot-render")
+   (let ((buffer (switch-to-buffer "*eval-robot*" <physics-buffer>)))
+     (define (set-sim robot)
+       (set! (sim buffer) (in-sim robot))
+       (physics-clear-scene)
+       (physics-add-scene (current-sim))
+       (begin-fn robot))
+     (define (draw robot)
+       (physics-update-scene (current-sim))
+       (step-fn robot)
+       ;; Yield so that everything can be re-rendered.
+       (block-yield))
+     (define (end robot)
+       (set! (paused? buffer) #t)
+       (end-fn robot))
+     (eval-robot-headless weights 
+                          #:begin-fn set-sim 
+                          #:step-fn draw 
+                          #:end-fn end))
+   (mylog "hill-climber" pri-trace "END eval-robot-render")))
+
+(define-interactive (toggle-rendering)
+  (if (eq? (fluid-ref eval-robot-fluid) eval-robot-headless)
+      (begin (fluid-set! eval-robot-fluid eval-robot-render)
+             (message "Rendering turned on."))
+      (begin (fluid-set! eval-robot-fluid eval-robot-headless)
+             (message "Rendering turned off"))))
+
+(define eval-robot-fluid (make-fluid 
+                          eval-robot-headless
+                         ;eval-robot-render
+                          ))
+(define (eval-robot . args)
+  (apply (fluid-ref eval-robot-fluid) args))
+
+
+;; (define-interactive (eval-robot)
+;;   ;; One problem was the robot's brain updates at 10 Hz which depends
+;;   ;; on the tick-count.  Resetting the tick-count so that evaluations
+;;   ;; are deterministic.  Doesn't fix it entirely, but does help.
+;;   ;(set! (tick-count robot) 0)
+;;   (let ((original-brain (controller robot))
+;;         (start-position #f)
+;;         (start-time (robot-time robot))
+;;         (start-tick (tick-count robot)))
+;;     (set! direction 'right)
+;;     (restart-physics)
+;;     (set! (controller robot) run-nn-brain)
+;;     (sim-time-set! (sim eracs-buffer) 0.0)
+;;     (set! start-time 0.0)
+;;     (set! start-position (robot-position))
+;;     (block-until (lambda () 
+;;                   (> (- (robot-time robot) start-time) eval-robot-time))) 
+;;     (let* ((pos (robot-position))
+;;            (fitness (- (vector-ref start-position 0) (vector-ref pos 0))))
+;;       (set! (controller robot) original-brain)
+;;       (message "Fitness ~a tick-count ~a sim-time ~a." fitness (- (tick-count robot) start-tick) (- (robot-time robot) start-time))
+;;       fitness)))
 
 ;; no op
 (define-interactive (osc-noop)
@@ -189,7 +211,31 @@
     ;; Sum them up.
     (apply + error-squared-elements)))
 
-(define (two-obj-fitness weights) 
+(define fitness-functions (list ))
+
+(define-syntax-public define-fitness
+  (syntax-rules ()
+    ((define-fitness the-objectives (name . args) . body)
+     (begin (define-interactive (name . args)
+              . body)
+            (set-procedure-property! name 'objectives 'the-objectives)))))
+
+(define-fitness 
+  ((maximize "distance")
+   (minimize "active preference error"))
+  (test-two-obj-fitness weights)
+  #f)
+
+(define (fitness? func)
+  (and (objectives func) #t))
+
+(define (objectives fitness-func)
+  (procedure-property fitness-func 'objectives))
+
+(define-fitness
+  ((maximize "distance from origin")
+   (minimize "active preference error"))
+  (two-obj-fitness #:optional (weights (get-nn-weights robot))) 
   "Fitness objectives: 1) maximize distance from origin, and 2)
 minimize active preference error."
   (let ((start-position #f)
@@ -204,13 +250,16 @@ minimize active preference error."
         (message "Distance ~a tick-count ~a sim-time ~a." 
                  distance (tick-count robot) (sim-time (in-sim robot)))
         distance))
-    (vector (- (eval-robot-headless 
+    (vector (- (eval-robot 
                 weights 
                 #:begin-fn get-start
                 #:end-fn distance-from-origin))
             (active-pref-error weights active-preferences-training))))
 
-(define (target-object-fitness weights) 
+(define-fitness 
+  ((minimize "distance to target")
+   (minimize "active preference error"))
+  (target-object-fitness #:optional (weights (get-nn-weights robot))) 
   "Fitness objectives: 1) minimize distance to target, and 2) minimize
 active preference error."
   (let ((target-position #(0 1 -10))
@@ -223,10 +272,45 @@ active preference error."
         (message "Distance to target ~a tick-count ~a sim-time ~a." 
                  distance (tick-count robot) (sim-time (in-sim robot)))
         distance))
-    (vector (eval-robot-headless weights #:end-fn distance-to-target)
+    (vector (eval-robot weights #:end-fn distance-to-target)
             (active-pref-error weights active-preferences-training))))
 
-(define (target-object-fitness-averaging weights) 
+(define path '())
+
+(load "colors.scm")
+
+(define (map-sleazy f . args)
+  (let ((l (length (car args))))
+   (apply map f (car args) (map (cut take <> l) (cdr args)))))
+
+(define-interactive (draw-all-robot-paths)
+  (if last-pareto-front
+   (map (lambda (color weights) 
+          (draw-robot-path weights color))
+        (vector->list colors)
+        (append! (map car (vector->list last-pareto-front)) 
+                 (list last-seed-weights)))
+   (message "No pareto front available.")))
+
+(define-interactive (draw-robot-path #:optional 
+                         (weights (get-nn-weights robot))
+                         (color #(1. 1. 1. 1.)))
+  (let ((points '())
+        (capture-frequency 10)) ;; ticks
+    (define (capture-position robot)
+      (if (= (mod (robot-tick robot) capture-frequency) 0)
+          (cons! (robot-position robot) points)))
+    (eval-robot weights #:step-fn capture-position)
+    (cons! (add-line gscene points color) path)))
+
+(define-interactive (clear-path)
+  (for-each (cut remove-actor gscene <>) path)
+  (set! path '()))
+
+(define-fitness
+  ((minimize "distance to target")
+   (minimize "active preference error"))
+  (target-object-fitness-averaging weights) 
   "Fitness objectives: 1) minimize distance to target, and 2) minimize
 active preference error."
   (let ((target-position #(0 1 -10))
@@ -243,11 +327,51 @@ active preference error."
                 (message "Distance to target ~a tick-count ~a sim-time ~a." 
                          distance-avg (tick-count robot) (sim-time (in-sim robot)))
                 distance-avg))
-      (vector (eval-robot-headless weights 
+      (vector (eval-robot weights 
                                    #:step-fn accum
                                    #:end-fn report-and-message)
               (active-pref-error weights active-preferences-training)))))
 
+(define-interactive (target-test)
+  (with-fluids ((eval-robot-fluid eval-robot-render)) 
+    (target-object-fitness-averaging-two-obj)))
+
+(define-fitness
+  ((minimize "distance to target")
+   (minimize "distance to waypoint"))
+  (target-object-fitness-averaging-two-obj 
+   #:optional (weights (get-nn-weights robot))) 
+  "Fitness objectives: 1) minimize distance to target, and 2) minimize
+distance to waypoint."
+  (let ((target-position #(0 1 -10))
+        (waypoint-position #(7 1 -5))
+        (xz-proj (vector 1. 0. 1.)))
+    (define (distance-to-target robot)
+      (let* ((pos (robot-position robot))
+             ;; Project only in the xz-plane (height displacement doesn't count).
+             (distance (vector-norm (vector* xz-proj 
+                                             (vector- target-position pos)))))
+        distance))
+    (define (distance-to-waypoint robot)
+      (let* ((pos (robot-position robot))
+             ;; Project only in the xz-plane (height displacement doesn't count).
+             (distance (vector-norm (vector* xz-proj 
+                                             (vector- waypoint-position pos)))))
+        distance))
+    (let-values (((accum report) (make-averaging-fns distance-to-target))
+                 ((accum* report*) (make-averaging-fns distance-to-waypoint)))
+      (define (report-and-message robot)
+        (let ((distance-avg (report))
+              (distance*-avg (report*)))
+                (message "Distance to target ~a; distance to waypoint ~a." 
+                         distance-avg distance*-avg)
+                (vector distance-avg distance*-avg)))
+      (eval-robot weights 
+                           #:step-fn (lambda (robot) 
+                                       (accum robot)
+                                       (accum* robot))
+                           #:end-fn report-and-message))))
+;; XXX use case-lambda instead?
 (define (make-averaging-fns fn)
   "Accepts a fn that when evaluated will produce a real number.  Returns two values: 1) a consuming function, and 2) a reporting function"
   (let ((n 0)
@@ -263,11 +387,12 @@ active preference error."
 ;; Fitness objectives: 1) minimize distance to target, and 2) minimize
 ;; distance to waypoint.
 
-(define (normalized-distance start target current)
-  (/ (vector-norm (vector- current target))
-     (vector-norm (vector- start target))))
-
-(define (high-level-waypoint-fitness weights)
+(define-fitness
+  ((minimize "distance to target/waypoint"))
+  (high-level-waypoint-fitness #:optional (weights (get-nn-weights robot)))
+  (define (normalized-distance start target current)
+    (/ (vector-norm (vector- current target))
+       (vector-norm (vector- start target))))
   (let ((start-position #f)
         (target-position #(0 1 -10))
         (waypoint-position #(7 1 -5))
@@ -292,92 +417,180 @@ active preference error."
           (message "Reached waypoint")
           (set! approach-waypoint? #f)
           (set! leave-waypoint-position pos))
-        norm-distance))
+        (* (if approach-waypoint?
+               1
+               alpha) norm-distance)))
     (let-values (((accum report) (make-averaging-fns norm-distance-to-target)))
       (define (report-and-message robot)
         (let ((distance-avg (report)))
                 (message "Distance to target ~a tick-count ~a sim-time ~a." 
                          distance-avg (tick-count robot) (sim-time (in-sim robot)))
-                distance-avg))
-      (vector (eval-robot-headless weights 
-                                   #:begin-fn capture-start
-                                   #:step-fn accum
-                                   #:end-fn report-and-message)
-              ;(active-pref-error weights active-preferences-training)
-              ))))
-
+                (vector distance-avg)))
+      (eval-robot weights 
+                  #:begin-fn capture-start
+                  #:step-fn accum
+                  #:end-fn report-and-message))))
+(define last-fitness-func #f)
 (define last-pareto-front (vector))
 (define last-pareto-front-index 0)
 (define last-seed-fitness #f)
+(define last-seed-weights #f)
+(define fitness-functions (list
+                           two-obj-fitness
+                           target-object-fitness
+                           target-object-fitness-averaging
+                           high-level-waypoint-fitness
+                           target-object-fitness-averaging-two-obj))
 (define-interactive
   (optimize #:optional 
+            (fitness-fn
+             (let*-values
+                 (((to-string from-string) (object-tracker
+                                            (compose symbol->string procedure-name))))
+               (from-string (completing-read "Fitness function: " 
+                                           (map to-string fitness-functions)))))
             (max-generations 
-             (read-from-string (read-from-minibuffer "max-generations: "))))
-
+             (read-from-string (read-from-minibuffer "Generation count: "))))
   (message "nsga-ii: starting")
-  (let* ((results #f)
-         (fitness-fn 
+  (let* (#;(fitness-fn 
           ;two-obj-fitness
           ;target-object-fitness
           ;target-object-fitness-averaging
-          high-level-waypoint-fitness)
+          ;high-level-waypoint-fitness
+          target-object-fitness-averaging-two-obj
+          )
          (seed-weights (get-nn-weights robot))
-         (original-fitness (fitness-fn seed-weights)))
-    (set! results (nsga-ii-search fitness-fn
-                                  #:objective-count (vector-length original-fitness)
-                                  #:gene-count (neuron-count->weight-count neuron-count) ;504
-                                  #:population-count 4
-                                  #:generation-count max-generations
-                                  #:seed-individual seed-weights))
+         (original-fitness (with-fluids ((eval-robot-fluid eval-robot-headless))
+                             (fitness-fn seed-weights)))
+         (objective-count (vector-length original-fitness))
+         (results (with-fluids ((eval-robot-fluid eval-robot-headless))
+                    ;; XXX with-fluids not working past C boundary.
+                    (let ((state (current-dynamic-state)))
+                     (nsga-ii-search 
+                      (lambda args
+                        (with-dynamic-state 
+                         state 
+                         (lambda () (apply fitness-fn args))))
+                      #:objective-count objective-count
+                      #:gene-count (neuron-count->weight-count neuron-count) ;504
+                      #:population-count 4
+                      #:generation-count max-generations
+                      #:seed-individual seed-weights))
+                    )))
+    (set! last-fitness-func fitness-fn)
     (set! last-seed-fitness original-fitness)
-    (set! last-pareto-front (list->vector (sort results (lambda (a b)
-                                             (: (cdr a) @ 0 > (cdr b) @ 0)))))
-    ;(emacsy-event (make <key-event> #:command-char #\a))
+    (set! last-seed-weights seed-weights)
+    (set! last-pareto-front 
+          (list->vector (sort results (lambda (a b)
+                                        (: (cdr a) @ 0 > (cdr b) @ 0)))))
     (message "Feasible fitnesses ~a" (map cdr results))
     ;(gnuplot-newplot )
     (set-pareto-front-index 0)
     (plot-front)
     (set! (controller robot) run-nn-brain)))
 
-(define-interactive (plot-front)
-    (define (raw-fitness->display-fitness fitness-vector)
-      (vector (- (: fitness-vector @ 0))
-              (: fitness-vector @ 1)))
-    (gnuplot "reset")
-    (gnuplot "set xlabel 'distance'")
-    (gnuplot "set ylabel 'active pref error'")
-    (let* ((results (vector->list last-pareto-front))
-           (points (map (compose vector->list cdr) results))
-           (sorted-points (sort points (lambda (a b)
-                                          (< (car a) (car b)))))
-           (flip-distance (map (lambda (point)
-                                 (cons (- (car point)) (cdr point))) 
-                               sorted-points)))
-      (format #t "~a" (list (vector->list (raw-fitness->display-fitness
-                                           last-seed-fitness))))
-      (mathematica (format #f "Show@@Block[{$DisplayFunction = Identity},{~{ListPlot[~a, Joined->True]~^,~}}]"
-                          (map list->mathematica-list* (list
-                                                        flip-distance
-                                                        (list (vector->list (raw-fitness->display-fitness
-                                                                             last-seed-fitness)))
-                                                        (list (vector->list 
-                                                               (raw-fitness->display-fitness 
-                                                                (cdr 
-                                                                 (: last-pareto-front @ last-pareto-front-index)))))))))
-      (gnuplot-plot-points 
-       flip-distance
-       (list (vector->list (raw-fitness->display-fitness
-                            last-seed-fitness)))
-       (list (vector->list 
-              (raw-fitness->display-fitness 
-               (cdr 
-                (: last-pareto-front @ last-pareto-front-index))))))))
+(define ql-pid #f)
+(define (ql-show filename)
+  (when ql-pid
+      (kill ql-pid SIGINT)
+      (set! ql-pid #f))
+  (let ((pid (primitive-fork)))
+    (if (= pid 0)
+        ;; child
+        (begin
+          (display "CHILD!")
+          (execlp "ql" filename))
+        ;; parent
+        (set! ql-pid pid))))
 
-(define-interactive (set-pareto-front-index #:optional (index (read-from-string (read-from-minibuffer "index: "))))
+(define (my-sleep seconds)
+  (usleep (inexact->exact (* seconds 1000))))
+
+(define (preview filename)
+  "Show the file using Preview.app.  When called on a file that's already open, it will update what's shown.  Nice."
+  (catch 'system-error
+    (lambda ()
+      (system* "myexec" "open" "-ga" "Preview.app" filename)
+      (system* "myexec" "appswitch" "-fa" "preview")
+      (my-sleep 0.2)
+      (system* "myexec" "appswitch" "-a" "eracs"))
+    (lambda (key . args)
+      (mylog "hill-climber" pri-warn "Got system error"))))
+
+(define-method (sexp->mathematica (sexp <vector>))
+  (sexp->mathematica (vector->list sexp)))
+
+(define-method (sexp->mathematica (sexp <string>))
+  (format #f "\"~a\"" sexp))
+
+(define-method (sexp->mathematica (sexp <integer>))
+  (format #f "~d" sexp))
+
+(define-method (sexp->mathematica (sexp <real>))
+  (format #f "~f" sexp))
+
+;; (define-method (sexp->mathematica (sexp <symbol>))
+;;   (format #f "~a" (symbol->string sexp)))
+
+(define-method (sexp->mathematica (sexp <list>))
+  (format #f "{~{~a~^,~}}" (map sexp->mathematica sexp)))
+
+;; XXX need to handle display of fitness better.
+(define-interactive (plot-front)
+    ;; (gnuplot "reset")
+    ;; (gnuplot "set xlabel 'distance'")
+    ;; (gnuplot "set ylabel 'active pref error'")
+    (let* ((results (vector->list last-pareto-front))
+           (points (map cdr results))
+           ;; Sort by the first element.
+           (sorted-points (sort points (lambda (a b)
+                                          (< (: a @ 0) (: b @ 0)))))
+           (objectives (or (objectives last-fitness-func)
+                            '((minimize "objective 1")
+                              (minimize "objective 2")))))
+      
+          (define (raw-fitness->display-fitness fitness-vector)
+            (let* ((adjustment (map (lambda (obj) 
+                                      (case (car obj)
+                                        ((maximize) -1)
+                                        ((minimize) 1))) 
+                                    objectives)))
+              (vector* (list->vector adjustment) fitness-vector)))
+          
+          (mylog "hill-climber" pri-debug "GOT HERE")
+          
+      #;(format #t "~a" (list (vector->list (raw-fitness->display-fitness
+                                           last-seed-fitness))))
+      (mathematica 
+       (apply format #f "exportPDF[~a, Show[plotFrontAndPoint[~a, ~a, ~a], AxesLabel -> ~a]];" 
+              (map sexp->mathematica
+                   (list
+                    "tmp-plot2.pdf"
+                    (map raw-fitness->display-fitness
+                         sorted-points)
+                    (1+ last-pareto-front-index)
+                    (raw-fitness->display-fitness
+                     last-seed-fitness)
+                    (map cadr objectives)))))
+      (mylog "hill-climber" pri-debug "GOT HERE 2")
+      ;; Show the exported image.
+      ;(preview "tmp-plot.pdf")
+      (draw-all-robot-paths)
+      (preview "tmp-plot2.pdf")
+      ;(ql-show "tmp-plot.pdf")
+      ))
+
+(define-interactive 
+  (set-pareto-front-index 
+   #:optional 
+   (index 
+    (read-from-string (read-from-minibuffer "index: "))))
   (set! last-pareto-front-index (mod index (vector-length last-pareto-front)))
   (restart-physics)
   (set! (controller robot) run-nn-brain)
   (set-nn-weights! robot (car (: last-pareto-front @ last-pareto-front-index)))
+  (draw-robot-path (car (: last-pareto-front @ last-pareto-front-index))
+                   (: colors @ last-pareto-front-index))
   (plot-front))
 
 (define-interactive (next-individual)

@@ -9,14 +9,16 @@ make use of the VL library.
 
 void render_init(int w, int h);
 void render_setup_viewport(int w, int h);
-void render(void);
+void render_scene(struct scene*);
+void render();
 void render_update_camera(void);
-extern struct scene gscene;
+extern struct scene* gscene;
 <<file:render.cpp>>=
 
 <<+ Preamble>>
 #include "render.h"
 #include "dummy-opengl-context.hpp"
+#include <libguile.h>
 <<Includes>>
 
 <<State>>
@@ -26,24 +28,18 @@ extern struct scene gscene;
 We have a global scene struct named [[gscene]].
 
 <<State>>=
-struct scene gscene;
-/*vl::ref<vl::RenderingTree> mainRendering;
-vl::ref<DummyOpenGLContext> glcontext;
-vl::ref<vl::SceneManagerActorTree> scene_manager;
-vl::ref<vl::Rendering> rendering;
-vl::vec3 eye        = vl::vec3(0,10,10); 
-vl::vec3 center     = vl::vec3(0,0,0);   
-vl::vec3 up         = vl::vec3(0,1,0);   
-double   render_fps = 0.;*/
-<<Functions>>=
+struct scene *gscene;
+SCM scm_gscene;
+@ 
 
+<<Functions>>=
 void render_setup_viewport(int screen_width, int screen_height)
 {
-  gscene.rendering->camera()->viewport()->setWidth(screen_width);
-  gscene.rendering->camera()->viewport()->setHeight(screen_height - echo_area_height);
-  gscene.rendering->camera()->viewport()->setY(echo_area_height);
+  gscene->rendering->camera()->viewport()->setWidth(screen_width);
+  gscene->rendering->camera()->viewport()->setHeight(screen_height - echo_area_height);
+  gscene->rendering->camera()->viewport()->setY(echo_area_height);
 
-  //vl::ref<vl::Rendering> renderer3 = gscene.main_rendering->subRenderings()[0];
+  //vl::ref<vl::Rendering> renderer3 = gscene->main_rendering->subRenderings()[0];
   renderer3->camera()->viewport()->setWidth(screen_width);
   renderer3->camera()->viewport()->setHeight(echo_area_height);
   renderer3->camera()->viewport()->setX(0);
@@ -54,36 +50,51 @@ void render_setup_viewport(int screen_width, int screen_height)
 void render_init(int screen_width, int screen_height)
 {
   vl::ref<vl::Effect> effect;
-
-  gscene.main_rendering = new vl::RenderingTree();
-  gscene.scene_manager = new vl::SceneManagerActorTree;
-  gscene.rendering = new vl::Rendering();
-  vl::vec4 background_color(61.f/255.f, 110.f/255.f, 203/255.f, 1.f);
-  gscene.rendering->camera()->viewport()->setClearColor(background_color);
-  gscene.rendering->renderer()->setFramebuffer(glcontext->framebuffer());
-  gscene.rendering->sceneManagers()->push_back(gscene.scene_manager.get());
-  gscene.main_rendering->subRenderings()->push_back(gscene.rendering.get());
-  /* define the camera position and orientation */
-  gscene.eye        = vl::vec3(0,10,10); 
-  gscene.center     = vl::vec3(0, 0, 0);   
-  gscene.up         = vl::vec3(0, 1, 0);   
-  render_update_camera();
+  /* gscene = new scene; //(struct scene*) malloc(sizeof(struct scene)); */
+  /* gscene->main_rendering = new vl::RenderingTree(); */
+  /* gscene->scene_manager = new vl::SceneManagerActorTree; */
+  /* gscene->rendering = new vl::Rendering(); */
+  /* vl::vec4 background_color(61.f/255.f, 110.f/255.f, 203/255.f, 1.f); */
+  /* gscene->rendering->camera()->viewport()->setClearColor(background_color); */
+  /* gscene->rendering->renderer()->setFramebuffer(glcontext->framebuffer()); */
+  /* gscene->rendering->sceneManagers()->push_back(gscene->scene_manager.get()); */
+  /* gscene->main_rendering->subRenderings()->push_back(gscene->rendering.get()); */
+  /* /\* define the camera position and orientation *\/ */
+  /* gscene->eye        = vl::vec3(0,10,10);  */
+  /* gscene->center     = vl::vec3(0, 0, 0);    */
+  /* gscene->up         = vl::vec3(0, 1, 0); */
+  /* gscene->render_fps = 0.0; */
+  /* render_update_camera(); */
   // Did reference fragment 'Setup cube.'
+  <<Setup the SCM scene object.>>
 
   <<Setup echo area.>>
 
   <<Setup cursor.>>
 
   <<Setup modeline.>>
-}
-<<Functions>>=
 
-void render(void)
+}
+@ 
+
+<<Setup the SCM scene object.>>=
+  //scm_gscene = scm_wrap_scene(gscene);
+  scm_gscene = scm_make_scene();
+  gscene = unwrap_scene(scm_gscene);
+  scm_c_define("gscene", scm_gscene);
+  scm_permanent_object(scm_gscene);
+@ 
+<<Functions>>=
+void render()
+{
+  render_scene(gscene);
+}
+void render_scene(struct scene* scene)
 { 
   <<Before render>>
   <<Calculate FPS.>>
 
-  gscene.main_rendering->render();  
+  scene->main_rendering->render();  
 }
 <<Calculate FPS.>>=
 
@@ -91,7 +102,7 @@ static unsigned int frame_count = 0;
 static double start_time = vl::Time::currentTime(); 
 if (frame_count != 0) {
   double time = (vl::Time::currentTime() - start_time);
-  gscene.render_fps = (double) frame_count/time;
+  scene->render_fps = (double) frame_count/time;
   if (time > 1.0) {
     frame_count = 0;
     start_time = vl::Time::currentTime(); 
@@ -100,10 +111,9 @@ if (frame_count != 0) {
 }
 frame_count++;
 <<file:render.cpp>>=
-
 void render_update_camera() {
-  vl::mat4 view_mat = vl::mat4::getLookAt(gscene.eye, gscene.center, gscene.up);
-  gscene.rendering->camera()->setViewMatrix( view_mat );
+  vl::mat4 view_mat = vl::mat4::getLookAt(gscene->eye, gscene->center, gscene->up);
+  gscene->rendering->camera()->setViewMatrix( view_mat );
 }
 @ %def render_update_camera
 <<Setup cube.>>=
@@ -112,7 +122,7 @@ void render_update_camera() {
   vl::ref<vl::Geometry> cube;
   /* Initialize scene. */
   cubeTransform = new vl::Transform;
-  gscene.rendering->transform()->addChild(cubeTransform.get());
+  gscene->rendering->transform()->addChild(cubeTransform.get());
   cube = vl::makeBox(vl::vec3(0,0,0), 10, 10, 10);
   cube->computeNormals();
 
@@ -125,7 +135,7 @@ void render_update_camera() {
   color.a() = 0.5;
   effect->shader()->gocMaterial()->setDiffuse(color);
 
-  gscene.scene_manager->tree()->addActor(cube.get(), 
+  gscene->scene_manager->tree()->addActor(cube.get(), 
                                   effect.get(), 
                                   cubeTransform.get());
 @ \subsection{Render Message or Echo Area}
@@ -141,14 +151,17 @@ header file.
 <<State>>=
   vl::ref<vl::Text> echo_area;
   const int echo_area_height = 20; /* XXX this should be dynamic with font size */
-@ We'll refresh the state from Emacsy with each render.
+@ We will refresh the state from Emacsy with each render.
 
+\todo{This echo_area should be handled more carefully.  It needs to
+  deal with text that's too large (that can slow down the whole
+  program), and it needs to resize the minibuffer window when
+  necessary.}
 <<Before render>>=
   echo_area->setText(vl::String(emacsy_message_or_echo_area()));
 @ Setting up the echo area is a little complicated.
 
 <<State>>=
-
 vl::ref<vl::Rendering> renderer3;
 @ \end{multicols}
 <<Setup echo area.>>=
@@ -178,7 +191,7 @@ vl::ref<vl::Rendering> renderer3;
   effect = new vl::Effect;
   effect->shader()->enable(vl::EN_BLEND);
   scene_manager_text->tree()->addActor( echo_area.get(), effect.get() );
-  gscene.main_rendering->subRenderings()->push_back(renderer3.get());
+  gscene->main_rendering->subRenderings()->push_back(renderer3.get());
 @ \begin{multicols}{2}
 
 <<State>>=
@@ -200,7 +213,6 @@ vl::ref<vl::Rendering> renderer3;
                                        effect.get());
 @ 
 <<Before render>>=
-
   int point = emacsy_minibuffer_point();
   float font_width = 10.f;
   cursor->resetMatrix();
@@ -234,7 +246,7 @@ Now let's setup the modeline.
   vl::ref<vl::ActorTree> tree = new vl::ActorTree();
   tree->addActor(modeline.get(), 
                  effect.get());
-  gscene.scene_manager->tree()->addChild(tree.get());
+  gscene->scene_manager->tree()->addChild(tree.get());
 @ 
 <<Before render>>=
   modeline->setText(vl::String(emacsy_mode_line()));
@@ -249,7 +261,7 @@ minimally because I do not want to use VL's GUI abstraction layer.
 /* 
    DummyOpenGLContext implements the required abstract methods of
    OpenGLContext.  My use case is that I do not want to use VL's GUI
-   wrappers.  I want to use VL for gscene.rendering only.
+   wrappers.  I want to use VL for gscene->rendering only.
 */
 class DummyOpenGLContext : public vl::OpenGLContext {
 public: 
@@ -275,7 +287,6 @@ void DummyOpenGLContext::swapBuffers() { }
 void DummyOpenGLContext::makeCurrent() { }
 void DummyOpenGLContext::update() { }
 <<Includes>>=
-
 #include <vlCore/VisualizationLibrary.hpp>
 #include <vlCore/Time.hpp>
 #include <vlGraphics/Rendering.hpp>

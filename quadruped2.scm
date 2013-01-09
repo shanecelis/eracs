@@ -7,7 +7,9 @@
              (infix)
              (linear-spline)
              (gnuplot plot)
-             (logging))
+             (logging)
+             (srfi srfi-26) ;cut
+             )
 (define pi (acos -1))
 
 ;; (define* (robot-time #:optional (my-sim (current-sim)))
@@ -200,7 +202,7 @@
     (lambda (value) (vector-set! (touch-sensors robot) index value))))
  (range 0 8))
 
-(define nn-time-period 10.) ;; seconds?
+(define nn-time-period 2.) ;; seconds
 
 (define time-loop-param #f)
 
@@ -385,6 +387,36 @@
   (train-nn (ap->nn-training-values robot))
   (set! (controller robot) run-nn-brain))
 
+(define (noop . args)
+  #f)
+
+(define-interactive (toggle-draw-path)
+  (set! draw-path? (not draw-path?))
+  ;; delete the current one.
+  (draw-path)
+  (if draw-path?
+      (set! draw-path (make-line-drawing))
+      (set! draw-path noop)))
+
+(define draw-path noop)
+(define draw-path? #f)
+(define draw-path-frequency 10) ;ticks
+
+(define (make-line-drawing)
+  (let ((points '())
+        (actor #f))
+    (case-lambda 
+      ((point)
+       (cons! point points)
+       (if actor
+           (remove-actor gscene actor))
+       (set! actor (add-line gscene points #(1. 0. 0. 1.))))
+      (() 
+       (when actor 
+           (remove-actor gscene actor)
+           (set! actor #f))
+       (set! points '())))))
+
 (define (my-physics-tick)
   (if (not (paused? eracs-buffer))
       (with-buffer eracs-buffer
@@ -396,9 +428,11 @@
        ;; (when (= 0 (mod (tick-count robot) 120))
        ;;   (physics-add-scene (current-sim)))
        (robot-tick robot)
+       (if (and draw-path? (= 0 (mod (tick-count robot) draw-path-frequency)))
+           (draw-path (robot-position robot)))
        (osc-push osc-reg))))
 
-(define controller-update-frequency 10)
+(define controller-update-frequency 5) ; robot ticks
 
 (define-method (robot-tick (robot <quadruped>))
   ;; Update brain.
@@ -507,10 +541,14 @@
     (set! (controller robot) (assq-ref brains (string->symbol brain))))
 
 (define-interactive (restart-physics)
-  (physics-clear-scene)
-  (set! (sim (current-buffer)) (make-sim))
-  (set! robot (init-scene (current-sim)))
-  (physics-add-scene (current-sim))
+  (let ((weights (get-nn-weights robot)))
+    (physics-clear-scene)
+    (set! (sim (current-buffer)) (make-sim))
+    (set! robot (init-scene (current-sim)))
+    (set-nn-weights! robot weights)
+    (set! (controller robot) run-nn-brain)
+    (physics-add-scene (current-sim))
+    (draw-path))
   ;; (sim-remove-robot (current-sim) robot)
   ;; (set! robot (make-quadruped-robot))
   ;; (sim-add-robot (current-sim) robot)
@@ -518,3 +556,19 @@
   ;; (physics-add-scene (current-sim))
   ;(sim-time-set! (current-sim) 0.0)
   )
+
+(define lines '())
+
+(define-interactive (make-lines #:optional (n 1))
+  (define (rand)
+    (1- (random 2.)))
+  (define (crand)
+    (random 1.))
+  (repeat n
+   (cons! (add-line gscene (list #(0. 0. 0.) (vector (rand) (rand) (rand)))
+                    (vector (crand) (crand) (crand) (crand)))
+          lines)))
+
+(define-interactive (clear-lines)
+  (for-each (cut remove-actor gscene <>) lines)
+  (set! lines '()))

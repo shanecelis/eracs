@@ -11,6 +11,7 @@ We'd like to have a physics buffer for ERACS rather than a text buffer.
 (define-class-public <physics-buffer> (<buffer>)
   (sim #:accessor sim #:init-keyword #:sim #:init-form (make-sim))
   (paused? #:accessor paused? #:init-value #f))
+(export paused?)
 
 (define (current-sim)
   (if (is-a? (current-buffer) <physics-buffer>)

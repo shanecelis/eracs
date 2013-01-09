@@ -1,3 +1,4 @@
+% -*- mode: Noweb; noweb-code-mode: c-mode -*-
 \section{Fast Artificial Neural Network Integration}
 
 
@@ -8,7 +9,6 @@ SMOB.
 <<file:nn.h>>=
 
 <<+ Begin C Header Guard.>>
-
 struct nn {
 
   struct fann *ann;
@@ -41,6 +41,7 @@ init_nn_type();
 
 #ifndef SCM_MAGIC_SNARFER
 #include <doublefann.h>
+#include "util.h"
 #endif
 #include <libguile.h>
 #include "nn.h"
@@ -245,10 +246,10 @@ SCM_DEFINE (vector_to_nn, "vector->nn", 2, 0, 0,
   return nn_smob;
 }
 <<Helper Functions>>=
-
-int scm_c_length(SCM list) {
-  return scm_to_int(scm_length(list));
-}
+// int scm_c_length(SCM list) {
+//   return scm_to_int(scm_length(list));
+// }
+@ 
 <<Helper Functions>>=
 
 void vector_to_array(SCM vec, double *a) {

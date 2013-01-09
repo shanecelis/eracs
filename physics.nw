@@ -1,3 +1,4 @@
+% -*- mode: Noweb; noweb-code-mode: c-mode -*-
 \section{Physics}
 
 For the physics simulation in ERACS, we could be fancy and expose it
@@ -31,6 +32,7 @@ void physics_init() {
 
 <<Includes>>=
 #include "physics.h"
+#include "logging.h"
 #include <libguile.h>
 @ How to render anything?  Lots of things we could do.  I'm tempted to
 define a new file called \verb|render_physics.cpp|, but that's
@@ -63,9 +65,12 @@ void physics_add_scene(btDynamicsWorld *world)
 {
   vl::ref<vl::SceneManagerActorTree> scene;
   //if (scene == NULL)
-  scene = gscene.scene_manager.get();
-  
-  <<Setup wireframe.>>
+  scene = gscene->scene_manager.get();
+  static int wireframe_setup = 0;
+  if (! wireframe_setup) {
+    <<Setup wireframe.>>
+    wireframe_setup = 1;
+  }   
   <<Setup effect.>>
   /* Used to include 'Setup solid renderer.'*/
 
@@ -124,13 +129,14 @@ if (shape->getShapeType() == BOX_SHAPE_PROXYTYPE) {
     vl::ref<vl::Transform> old_transform;
     old_transform = (vl::Transform *) colObj->
       getCollisionShape()->getUserPointer();
-    if (has_child(gscene.rendering->transform()->childrenCount(),
-                  gscene.rendering->transform()->children(), 
+    if (has_child(gscene->rendering->transform()->childrenCount(),
+                  gscene->rendering->transform()->children(), 
                   old_transform.get())) 
-      gscene.rendering->transform()->eraseChild(old_transform.get());
+      gscene->rendering->transform()->eraseChild(old_transform.get());
   }
+  vl_transform->incReference();
   colObj->getCollisionShape()->setUserPointer(vl_transform.get());
-  gscene.rendering->transform()->addChild(vl_transform.get());
+  gscene->rendering->transform()->addChild(vl_transform.get());
 } else {
   fprintf(stderr, "warning: cannot draw any shape except a box.\n");
 }
@@ -166,7 +172,7 @@ bool has_child(size_t n, vl::ref<vl::Transform> *children, vl::Transform *child)
 vl::ref<vl::Renderer> solid_renderer;
 vl::ref<vl::EdgeRenderer> edge_renderer;
 
-solid_renderer = gscene.rendering->renderer();
+solid_renderer = gscene->rendering->renderer();
 edge_renderer = new vl::EdgeRenderer;
 
 // we set the clear flags to be CF_CLEAR_DEPTH (by default is set to
@@ -179,7 +185,7 @@ edge_renderer->setClearFlags(vl::CF_CLEAR_DEPTH);
 edge_renderer->setFramebuffer(solid_renderer->framebuffer());
 // enqueue the EdgeRenderer in the rendering, will be executed after
 // mSolidRenderer
-gscene.rendering->renderers().push_back( edge_renderer.get() );
+gscene->rendering->renderers().push_back( edge_renderer.get() );
 
 // hidden line and crease options
 edge_renderer->setShowHiddenLines(true);
@@ -201,8 +207,6 @@ edge_renderer->setShowCreases(true);
 edge_renderer->setShowHiddenLines(false);
 @
 <<Setup solid renderer.>>=
-
-
 // Load texture.
 vl::ref<vl::Texture> tex  = new vl::Texture("grid-texture.jpg", 
                                             vl::TF_UNKNOWN, 
@@ -242,24 +246,24 @@ their positions and orientations.
 
 <<file:physics.cpp>>=
 
-void physics_update_scene(btDynamicsWorld* world)
+  void physics_update_scene(btDynamicsWorld* world)
 {
-        btScalar        M[16];
-        const int       numObjects = world->getNumCollisionObjects();
-        for(int i = 0; i < numObjects; i++)     {
-                btCollisionObject* colObj = world->getCollisionObjectArray()[i];
-                btRigidBody*                 body = btRigidBody::upcast(colObj);
+  btScalar        M[16];
+  const int       numObjects = world->getNumCollisionObjects();
+  for(int i = 0; i < numObjects; i++) {
+    btCollisionObject* colObj = world->getCollisionObjectArray()[i];
+    btRigidBody*                 body = btRigidBody::upcast(colObj);
     vl::ref<vl::Transform> vl_transform;
 
-                if(body&&body->getMotionState()) {
-                        btDefaultMotionState* myMotionState;
+    if(body && body->getMotionState()) {
+      btDefaultMotionState* myMotionState;
       btTransform t;
       myMotionState = (btDefaultMotionState*)body->getMotionState();
       myMotionState->getWorldTransform(t);
       t.getOpenGLMatrix(M);
-                } else {
-                        colObj->getWorldTransform().getOpenGLMatrix(M);
-                }
+    } else {
+      colObj->getWorldTransform().getOpenGLMatrix(M);
+    }
     vl_transform = (vl::Transform*) 
       colObj->getCollisionShape()->getUserPointer();
     if (vl_transform) {
@@ -268,7 +272,7 @@ void physics_update_scene(btDynamicsWorld* world)
       vl_transform->setLocalMatrix( N );    
       //fprintf(stderr, "debug: Updated transform.\n");
     } else {
-      fprintf(stderr, "warning: Unable to update transform.\n");
+      mylog("physics", PRI_WARN, "Unable to update transform.");
     }
   }
 }
@@ -287,8 +291,8 @@ void physics_clear_scene()
 {
 
   //scene_manager->tree()->eraseAllChildren();
-  gscene.scene_manager->tree()->actors()->clear();
-  gscene.rendering->transform()->eraseAllChildren();
+  gscene->scene_manager->tree()->actors()->clear();
+  gscene->rendering->transform()->eraseAllChildren();
 
   // rendering->sceneManagers()->clear();
   // rendering->sceneManagers()->push_back(scene_manager.get());

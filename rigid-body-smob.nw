@@ -222,8 +222,11 @@ init_rigid_body_type();
 @ One can create a rigid body, but it doesn't do anything by itself.
 How does one add it to a physics simulation?  Let's write that next.
 
-<<Add rigid body to simulation.>>=
 
+When we add a body to a sim, we must take care that if both are
+garbage collected that the rigid body is collected first then the sim.
+This is handled by protecting the sim.
+<<Add rigid body to simulation.>>=
 SCM_DEFINE (scm_sim_add_body, 
             "sim-add-body", 
             2, 0, 0,
@@ -256,6 +259,7 @@ SCM_DEFINE (scm_sim_remove_body,
     return SCM_BOOL_F;
   }
   if (s->world) {
+    mylog("rigid-body-smob", PRI_DEBUG, "removing rigid body 0x%x from world 0x%x", rb->body, s->world);
     s->world->removeRigidBody(rb->body);
     rb->body->getCollisionShape()->setUserPointer(NULL);
 
@@ -265,6 +269,7 @@ SCM_DEFINE (scm_sim_remove_body,
     return SCM_BOOL_T;
   } else
     return SCM_BOOL_F;
+  scm_remember_upto_here_2 (sim, body);
 }
 
 <<Helper Functions>>=
@@ -335,6 +340,7 @@ void physics_call_contact_func(SCM rigid_body_smob)
       SCM result = scm_call_0(rb->contact_func);
     }
   }
+  scm_remember_upto_here_1 (rigid_body_smob);
 }
 <<file:rigid-body-smob.cpp>>=
 

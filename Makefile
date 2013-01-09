@@ -26,21 +26,21 @@ LDFLAGS = $(GUILE_LDFLAGS) $(shell pkg-config libglfw --libs) -lVLCore -lVLGraph
 TARGET = eracs
 VERSION = 0.1
 
-LITSRCS = eracs.nw main.nw render.nw physics.nw primitive-procedures.nw vlref-smob.nw scene-smob.nw sim-smob.nw rigid-body-smob.nw osc.nw nn.nw physics-buffer.nw camera.nw boiler-plate.nw physics-ui.nw nsga2.nw linear-spline.nw logging.nw
+LITSRCS = eracs.nw main.nw render.nw physics.nw primitive-procedures.nw vlref-smob.nw scene-smob.nw sim-smob.nw rigid-body-smob.nw osc.nw nn.nw physics-buffer.nw camera.nw boiler-plate.nw physics-ui.nw nsga2.nw linear-spline.nw logging.nw util.nw
 
 TEXS := $(patsubst %.nw, %.tex, $(LITSRCS))
 
 DEFS := $(patsubst %.nw, %.defs, $(LITSRCS))
 
-SRCS = main.cpp render.cpp physics.cpp primitive-procedures.cpp vlref-smob.cpp scene-smob.cpp sim-smob.cpp rigid-body-smob.cpp nn.c dummy-opengl-context.cpp physics-buffer.scm camera.scm physics-ui.scm nsga2.c nsga2.scm osc.c osc.scm linear-spline.scm logging.c scm-logging.c logging.scm
+SRCS = main.cpp render.cpp physics.cpp primitive-procedures.cpp vlref-smob.cpp scene-smob.cpp sim-smob.cpp rigid-body-smob.cpp nn.c dummy-opengl-context.cpp physics-buffer.scm camera.scm physics-ui.scm nsga2.c nsga2.scm osc.c osc.scm linear-spline.scm logging.c scm-logging.c logging.scm util.cpp
 
 TESTS = nsga2.test.scm vlref-smob.test.scm sim-smob.test.scm linear-spline.test.scm
 
-TESTS = linear-spline.test.scm
+TESTS = sim-smob.test.scm
 
 HDRS = render.h physics.h primitive-procedures.h vlref-smob.hpp scene-smob.h sim-smob.h rigid-body-smob.h osc.h nn.h dummy-opengl-context.hpp vl.h logging.h scm-logging.h util.h
 
-OBJS = main.o render.o physics.o primitive-procedures.o vlref-smob.o scene-smob.o sim-smob.o rigid-body-smob.o nn.o dummy-opengl-context.o logging.o scm-logging.o
+OBJS = main.o render.o physics.o primitive-procedures.o vlref-smob.o scene-smob.o sim-smob.o rigid-body-smob.o nn.o dummy-opengl-context.o logging.o scm-logging.o util.o
 
 BIBS = 
  
@@ -148,8 +148,8 @@ vl.h: main.nw boiler-plate.nw
 scm-logging.h scm-logging.c: logging.nw boiler-plate.nw
 	$(NOTANGLE) $(NOTANGLE_C_FLAGS) -R"file:$@" $^ 
 
-util.h: rigid-body-smob.nw boiler-plate.nw
-	$(NOTANGLE) $(NOTANGLE_C_FLAGS) -R"file:$@" $^ 
+# util.h: rigid-body-smob.nw boiler-plate.nw
+# 	$(NOTANGLE) $(NOTANGLE_C_FLAGS) -R"file:$@" $^ 
 
 
 physics.o: physics.cpp physics.cpp.x

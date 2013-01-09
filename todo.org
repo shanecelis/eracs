@@ -63,12 +63,19 @@
   M-x switch-to-brain ap-brain
 * TODO after GECCO
   - [ ] have backtraces go to logs
-  - [ ] get rid of noise in emacsy
+  - [ ] get rid of noise in emacsy (noise?) log noise?
   - [ ] implement coroutines in Guile using [[http://www.lua.org/manual/5.2/manual.html][Lua API]] and [[http://wingolog.org/archives/2011/08/30/the-gnu-extension-language][this]] as a basis
   - [ ] make debugging work in emacsy
   - [ ] fix kill of all buffers bug
-  - [ ] fix extra renderers being added when physics-add-scene is called
-  - [ ] fix segfault when restart-physics is called
+  - [X] fix extra renderers being added when physics-add-scene is called DOUBLE DRAWING!
+  - [X] fix segfault when restart-physics is called
+  - [ ] add universal argument C-u
+  - [X] fix vlref actors so that when they're garbage collected
+    They'll be removed from the scene.
+  - [ ] make a cut/cute that works with (cut + 1 (+ 1 <>)) Maybe.
+  - [ ] clear the echo area once other messages start to come.
+  - [ ] let the minibuffer resize when necessary
+  - [ ] viewport should be in window; scene should be in buffer
 * TODO before GECCO
   - [X] fix the scene since it's not displaying
   - [X] write up the gameplan low-level vs high-level
@@ -77,9 +84,14 @@
   - [X] have some way of creating a scene of physical objects
     init-scene
   - [X] make the obstacles and target unmoveable
-  - [ ] implement high-level waypoint fitness function
+  - [X] fix rigid body sim deletion race condition
+  - [X] implement high-level waypoint fitness function
+  - [X] fix problem when # of objectives /= 2
+  - [X] need to be able to see prior evaluations
+  - [X] plot fitness correctly: need to know what's being minimized
+    and maximized; need axes labels.
   - [ ] determine the spatial dimensional units.
   - [ ] fix error calculation in active user preferences
-  - [ ] fix rigid body sim deletion race condition
-the physics sim may currently be deleted before the rigid bodies have
-been deleted. If that happens, bad things happen.
+  - [ ] run some tests using the high level waypoint
+  - [ ] rename fitness functions so they can be more easily understood
+  - [ ] 

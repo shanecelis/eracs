@@ -59,12 +59,24 @@ SCM_DEFINE (scm_mylog_primitive, "mylog-primitive", 3, 0, 0,
   return SCM_UNSPECIFIED;
 }
 
+SCM_DEFINE (scm_log4c_reread, "log4c-reread", 0, 0, 0,
+            (),
+            "Reload log configuration file.")
+{
+  log4c_reread();
+  return SCM_UNSPECIFIED;
+}
+
+
 void init_logging_module(void *data)
 {
   scm_c_define_gsubr("mylog-primitive", 
                      3, 0, 0, 
                      scm_mylog_primitive); 
-  scm_c_export("mylog-primitive", NULL);
+  scm_c_define_gsubr("log4c-reread", 
+                     3, 0, 0, 
+                     scm_log4c_reread); 
+  scm_c_export("mylog-primitive", "log4c-reread", NULL);
 }
 
 void init_logging()

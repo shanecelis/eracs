@@ -1,3 +1,4 @@
+% -*- mode: Noweb; noweb-code-mode: c-mode -*-
 \subsection{Scene SMOB}
 
 SMOBs are simple objects that GNU Guile uses to wrap \verb|C/C++|
@@ -15,6 +16,7 @@ constraint (or joint).
 #include <vlGraphics/Rendering.hpp>
 #include <vlGraphics/OpenGLContext.hpp>
 #include <vlGraphics/SceneManagerActorTree.hpp>
+#include "vlref-smob.hpp"
 #endif
 #include <libguile.h>
 
@@ -32,6 +34,9 @@ double render_fps;
 
 void init_scene_type(void);
 void init_glcontext(void);
+struct scene* unwrap_scene(SCM scene);
+SCM scm_wrap_scene(struct scene*);
+SCM scm_make_scene();
 #endif /* _SCENE_SMOB_H_ */
 @ %def scene
 <<file:scene-smob.cpp>>=
@@ -44,7 +49,9 @@ void init_glcontext(void);
 
 <<Helper Functions>>
 
-/* SMOB functions */
+<<Functions>>
+
+/* SMOB Functions */
 <<Free>>
 <<Mark>>
 <<Print>>
@@ -53,6 +60,7 @@ void init_glcontext(void);
 
 <<Initialize.>>
 
+@ 
 <<Includes>>=
 
 #include <vlCore/VisualizationLibrary.hpp>
@@ -64,6 +72,7 @@ void init_glcontext(void);
 #include <vlGraphics/FontManager.hpp>
 #include <libguile.h>
 #include "dummy-opengl-context.hpp"
+#include "util.h"
 #include "scene-smob.h"
 @ All SMOBs must implement three functions: \verb|free|, \verb|mark| ,
 and \verb|print|.
@@ -139,14 +148,20 @@ void init_glcontext()
     glcontext = new DummyOpenGLContext;
 }
 <<Primitives>>=
-
+SCM scm_wrap_scene(struct scene *sc)
+{
+  SCM smob;
+  SCM_NEWSMOB (smob, scene_tag, sc);
+     
+  return smob;  
+}
+@
+<<Primitives>>=
 // XXX Rename this to make-box or include a parameter for shape.
 SCM_DEFINE (scm_make_scene, "make-scene", 0, 0, 0,
             (),
             "Make a scene.")
 {
-  SCM smob;
-  static int scene_count = 0;
   struct scene *sc;
      
   /* Step 1: Allocate the memory block.
@@ -156,30 +171,126 @@ SCM_DEFINE (scm_make_scene, "make-scene", 0, 0, 0,
      
   /* Step 2: Initialize it with straight code.
    */
-  if (! glcontext)
-    glcontext = new DummyOpenGLContext;
+  /* if (! glcontext) */
+  /*   glcontext = new DummyOpenGLContext; */
   sc->main_rendering = new vl::RenderingTree();
   sc->scene_manager = new vl::SceneManagerActorTree;
   sc->rendering = new vl::Rendering();
-  //vl::vec4 background_color(61.f/255.f, 110.f/255.f, 203/255.f, 1.f);
-  //sc->rendering->camera()->viewport()->setClearColor(background_color);
+  vl::vec4 background_color(61.f/255.f, 110.f/255.f, 203/255.f, 1.f);
+  sc->rendering->camera()->viewport()->setClearColor(background_color);
   sc->rendering->renderer()->setFramebuffer(glcontext->framebuffer());
   sc->rendering->sceneManagers()->push_back(sc->scene_manager.get());
   sc->main_rendering->subRenderings()->push_back(sc->rendering.get());
-  sc->eye = vl::vec3(0,10,10);
+  sc->eye    = vl::vec3(0,10,10);
   sc->center = vl::vec3(0,0,0); 
-  sc->up = vl::vec3(0,1,0);
+  sc->up     = vl::vec3(0,1,0);
   sc->render_fps = 0.0;
-  scene_count++;
-  /* Step 3: Create the smob.
-   */
-  SCM_NEWSMOB (smob, scene_tag, sc);
-     
-  return smob;  
+  
+  return scm_wrap_scene(sc);
 }
+@ 
+
+\todo{XXX This should check if the vlref is an actor.}
+<<Primitives>>=
+SCM_DEFINE (scm_remove_actor, "remove-actor", 2, 0, 0,
+            (SCM scene, SCM actor),
+            "Remove actor from the scene.")
+{
+    struct scene *sc = unwrap_scene(scene);
+    struct vlref *ref = unwrap_vlref(actor);
+    sc->scene_manager->tree()->eraseActor((vl::Actor *) ref->object);
+    return SCM_UNSPECIFIED;
+}
+@ 
+
+
+<<Primitives>>=
+<<Cleanup Hook>>
+
+SCM_DEFINE (scm_add_line, "add-line", 2, 1, 0,
+            (SCM scene, SCM points, SCM color),
+            "Add a line to the scene; return actor. Expects a scene object, a list of size three vectors, and a size 4 vector for color optionally.")
+  // displays a closed or open path, with or without points
+//  vl::Actor* showPath(const std::vector<vl::fvec3>& ctrl_points, const vl::fvec4& color, bool points=false, bool loop=false)
+{
+    struct scene *sc = unwrap_scene(scene);
+    // Simple effect
+    vl::vec4 colorx;
+    if (SCM_UNBNDP(color)) {
+      colorx = vl::white;
+    } else {
+      colorx = vector_to_vl_vec4(color);
+    }
+    vl::ref<vl::Effect> effect = new vl::Effect;
+    effect->shader()->enable(vl::EN_DEPTH_TEST);
+    effect->shader()->gocPointSize()->set(4);
+    effect->shader()->gocColor()->setValue(colorx);
+
+    // Generates the line/points geometry.
+    vl::ref<vl::Geometry>   geom       = new vl::Geometry;
+    vl::ref<vl::ArrayFloat3> vert_array = new vl::ArrayFloat3;
+    geom->setVertexArray( vert_array.get() );
+    size_t i = 0;
+    size_t len = scm_c_length(points);
+    std::vector<vl::vec3> v(len);
+    //vert_array->resize(len);
+    while (i < len && scm_is_pair(points)) {
+      SCM value = scm_car(points);
+      v[i] = vector_to_vl_vec3(value);
+      points = scm_cdr(points);
+      i++;
+    }
+    vert_array->initFrom(v);
+    
+    //vert_array->initFrom(ctrl_points);
+    geom->drawCalls()->push_back(
+      new vl::DrawArrays(vl::PT_LINE_STRIP, 0, (int)vert_array->size()));
+//    if (points) 
+//      geom->drawCalls()->push_back(new vl::DrawArrays(vl::PT_POINTS, 0, (int)vert_array->size()));
+
+    // Adds the geometry to the scene
+    SCM actor = scm_c_wrap_vlref(sc->scene_manager->tree()->addActor( geom.get(), effect.get(), NULL), "actor", "line");
+    <<Add a cleanup hook.>>
+    return actor;
+  }
+@ 
+
+<<Add a cleanup hook.>>=
+struct vlref* vlref = unwrap_vlref(actor);
+scm_c_hook_add(&(vlref->before_free_hook), remove_actor_hook, (void *)scene, 1);
+@ 
+
+<<Cleanup Hook>>=
+void *remove_actor_hook(void *hook_data, void *func_data, void *data)
+{
+  SCM scene = (SCM) func_data;
+  SCM actor = (SCM) data;
+  scm_remove_actor(scene, actor);
+  return (void *)1;
+}
+
+
+
+
 <<+ Initialize submodules.>>=
 init_scene_type();
 <<+ Include submodules.>>=
 
 #include "scene-smob.h"
+#include "vlref-smob.hpp"
 @ 
+
+<<Functions>>=
+struct scene* unwrap_scene(SCM scene_smob)
+{
+  scm_assert_smob_type(scene_tag, scene_smob);
+  return (struct scene*) SCM_SMOB_DATA(scene_smob);
+}
+@
+
+\subsection{Drawing State}
+
+I want to try to minimize the amount of ``stuff'' I have to do in
+these primitive functions.  For instance, I don't want to do a lot of
+argument handling.  
+

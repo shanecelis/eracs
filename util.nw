@@ -1,0 +1,44 @@
+/section{Utility Functions}
+
+A dumping ground for general purpose things.
+
+<<file:util.cpp>>=
+#include "util.h"
+
+size_t scm_c_length(SCM list) {
+  return scm_to_int(scm_length(list));
+}
+
+vl::vec4 vector_to_vl_vec4(SCM vector) {
+  vl::vec4 v;
+  for (int i = 0; i < 4; i++)
+    v[i] = scm_to_double(scm_vector_ref(vector, scm_from_int(i)));
+  return v;
+}
+@
+
+<<file:util.h>>=
+#ifndef _UTIL2_H_
+#define _UTIL2_H_
+#include <libguile.h>
+<<+ Begin C Header Guard.>>
+
+size_t scm_c_length(SCM list);
+
+<<+ End C Header Guard.>>
+#ifdef __cplusplus
+
+#ifndef SCM_MAGIC_SNARFER
+#include <btBulletDynamicsCommon.h>
+#include "vl.h"
+#include <vlCore/Vector3.hpp>
+#include <vlCore/Vector4.hpp>
+#endif
+
+btVector3 vector_to_btVector3(SCM vector);
+vl::vec3 vector_to_vl_vec3(SCM vector);
+vl::vec4 vector_to_vl_vec4(SCM vector);
+#endif
+
+#endif
+@

@@ -5,7 +5,8 @@ managmentment scheme.  So as not to upset it, I'm going to wrap it in
 a SMOB.
 
 <<file:vlref-smob.hpp>>=
-
+#ifndef _VLREF_SMOB_HPP_
+#define _VLREF_SMOB_HPP_
 #ifndef SCM_MAGIC_SNARFER
 #include <vlGraphics/Actor.hpp>
 #endif
@@ -15,13 +16,15 @@ struct vlref {
   SCM type;
   vl::Object *object;
   SCM name;
-
+  scm_t_c_hook before_free_hook;
 };
 
 void init_vlref_type(void);
 SCM scm_c_wrap_vlref(vl::Object *object, const char *type, const char *name);
 struct vlref* unwrap_vlref(SCM smob);
+#endif
 @ %def vlref
+
 <<file:vlref-smob.cpp>>=
 
 <<+ Preamble>>
@@ -57,6 +60,9 @@ and \verb|print|.
 static size_t free_vlref (SCM vlref_smob)
 {
   struct vlref *vlref = (struct vlref *) SCM_SMOB_DATA (vlref_smob);
+
+  scm_c_hook_run(&(vlref->before_free_hook), vlref_smob);
+  
   if (vlref->object) {
     vlref->object->decReference();
     vlref->object = NULL;
@@ -157,7 +163,7 @@ SCM scm_c_wrap_vlref(vl::Object *object, const char *type, const char *name)
 
   vr->type = scm_from_locale_string(type);
   vr->name = scm_from_locale_string(name);
-
+  scm_c_hook_init(&(vr->before_free_hook), NULL, SCM_C_HOOK_NORMAL);
 
   vr->object = object;
   vr->object->incReference();
@@ -232,6 +238,7 @@ SCM_DEFINE (scm_make_box_actor, "make-box-actor", 0, 3, 0,
   actor->actorEventCallbacks()->push_back( new vl::DepthSortCallback );
 
   sc->type = scm_c_string_to_symbol("actor");
+  //sc->name = scm_c_string_to_symbol("box");
   sc->object = actor.get();
   sc->object->incReference();
      

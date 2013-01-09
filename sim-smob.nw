@@ -14,6 +14,12 @@ We want to be able to instantiate a physics simulator.
   (check-true (< (vector-ref (get-position body) 1) 0.)))
 @ 
 
+<<test>>=
+(let ((sim (make-sim)))
+  (sim-tick sim)
+  (check-true #t))
+@ 
+
 <<file:sim-smob.h>>=
 #ifndef SCM_MAGIC_SNARFER
 #include <btBulletDynamicsCommon.h>
@@ -159,7 +165,7 @@ struct sim* unwrap_sim(SCM sim_smob)
   return (struct sim*) SCM_SMOB_DATA(sim_smob);
 }
 @ %def unwrap_sim
-Now let's allow ourselves to create this C object from Scheme.
+Now lets allow ourselves to create this C object from Scheme.
 
 <<Includes>>=
 #include "physics.h"
@@ -172,24 +178,25 @@ SCM_DEFINE (scm_make_sim, "make-sim", 0, 0, 0,
             "Make a physics simulation.")
 {
   btDynamicsWorld* world;
-        btBroadphaseInterface*  m_broadphase;
-        btCollisionDispatcher*  m_dispatcher;
-        btConstraintSolver*     m_solver;
-        btDefaultCollisionConfiguration* m_collisionConfiguration;
+  btBroadphaseInterface*  m_broadphase;
+  btCollisionDispatcher*  m_dispatcher;
+  btConstraintSolver*     m_solver;
+  btDefaultCollisionConfiguration* m_collisionConfiguration;
 
-        m_collisionConfiguration = new btDefaultCollisionConfiguration();
-        m_dispatcher = new btCollisionDispatcher(m_collisionConfiguration);
-        btVector3 worldAabbMin(-10000,-10000,-10000);
-        btVector3 worldAabbMax(10000,10000,10000);
-        m_broadphase = new btAxisSweep3 (worldAabbMin, worldAabbMax);
-        m_solver = new btSequentialImpulseConstraintSolver;
+  m_collisionConfiguration = new btDefaultCollisionConfiguration();
+  m_dispatcher = new btCollisionDispatcher(m_collisionConfiguration);
+  btVector3 worldAabbMin(-10000,-10000,-10000);
+  btVector3 worldAabbMax(10000,10000,10000);
+  m_broadphase = new btAxisSweep3 (worldAabbMin, worldAabbMax);
+  m_solver = new btSequentialImpulseConstraintSolver;
 
-        world = new btDiscreteDynamicsWorld(m_dispatcher,
-                                            m_broadphase,
-                                            m_solver,
-                                            m_collisionConfiguration);
+  world = new btDiscreteDynamicsWorld(m_dispatcher,
+                                      m_broadphase,
+                                      m_solver,
+                                      m_collisionConfiguration);
 
 
+  mylog("sim-smob", PRI_DEBUG, "Making sim 0x%x", world);
   SCM smob = wrap_sim(world);
   struct sim* sim = unwrap_sim(smob);
   sim->broadphase = m_broadphase;
@@ -210,8 +217,11 @@ SCM_DEFINE (scm_sim_tick, "sim-tick", 1, 1, 0,
   btScalar dt = SCM_UNBNDP(time_step) 
     ? DEFAULT_TIME_STEP 
     : scm_to_double(time_step);
-  s->world->stepSimulation(dt);
-  s->elapsed_time += dt;
+  if (s->world) {
+    s->world->stepSimulation(dt);
+    s->elapsed_time += dt;
+  }
+  scm_remember_upto_here_1 (sim);
   return scm_from_double(s->elapsed_time);
 }
 @ 
@@ -261,6 +271,24 @@ SCM_DEFINE (scm_sim_add_fixed_box, "sim-add-fixed-box", 3, 0, 0,
   return SCM_BOOL_T;
 }
 @ 
+
+<<test>>=
+(let ((sim (make-sim)))
+  (sim-tick sim)
+  (check-true #t)
+  (sim-add-fixed-box sim #(0. 0. 0.) #(1. 1. 1.))
+  (sim-tick sim)
+  (check-true #t)
+  (sim-add-fixed-box sim #(2. 2. 0.) #(1. 1. 1.))
+  (sim-tick sim)
+  (check-true #t)
+  (sim-add-fixed-box sim #(2. 2. 0.) #(1. 1. 1.))
+  (sim-tick sim)
+  (check-true #t)
+; (check (format #f "~a" sim) => "")
+)
+@ 
+
 
 <<Primitives>>=
 SCM_DEFINE (scm_sim_add_ground_plane, "sim-add-ground-plane", 1, 0, 0,

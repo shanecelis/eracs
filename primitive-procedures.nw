@@ -74,7 +74,7 @@ SCM_DEFINE (get_parameter, "get-parameter", 1, 0, 0,
 {
   char *str = scm_to_locale_string(scm_symbol_to_string(name));
   if (strcmp("FPS", str) == 0) {
-    return scm_from_double(gscene.render_fps);
+    return scm_from_double(gscene->render_fps);
   } else if (strcmp("window-width", str) == 0) {
     int width, height;
     glfwGetWindowSize(&width, &height);
@@ -84,11 +84,11 @@ SCM_DEFINE (get_parameter, "get-parameter", 1, 0, 0,
     glfwGetWindowSize(&width, &height);
     return scm_from_int(height);
   } else if (strcmp("camera-position", str) == 0) {
-    return vl_vec3_to_vector(gscene.eye);
+    return vl_vec3_to_vector(gscene->eye);
   } else if (strcmp("camera-target", str) == 0) {
-    return vl_vec3_to_vector(gscene.center);
+    return vl_vec3_to_vector(gscene->center);
   } else if (strcmp("camera-up", str) == 0) {
-    return vl_vec3_to_vector(gscene.up);
+    return vl_vec3_to_vector(gscene->up);
   } else if (strcmp("pause", str) == 0) {
     return SCM_BOOL_F;
   } else
@@ -118,15 +118,15 @@ SCM_DEFINE (set_parameter_x, "set-parameter!", 2, 0, 0,
     /* demoApp.touches[index] = v; */
     return SCM_UNSPECIFIED;
   } else if (strcmp("camera-target", str) == 0) {
-    gscene.center = vector_to_vl_vec3(value);
+    gscene->center = vector_to_vl_vec3(value);
     render_update_camera();
     return SCM_UNSPECIFIED;
   } else if (strcmp("camera-position", str) == 0) {
-    gscene.eye =  vector_to_vl_vec3(value);
+    gscene->eye =  vector_to_vl_vec3(value);
     render_update_camera();
     return SCM_UNSPECIFIED;
   } else if (strcmp("camera-up", str) == 0) {
-    gscene.up = vector_to_vl_vec3(value);
+    gscene->up = vector_to_vl_vec3(value);
     render_update_camera();
     return SCM_UNSPECIFIED;
   } else if (strcmp("pause", str) == 0) {

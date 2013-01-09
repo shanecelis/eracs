@@ -1,0 +1,564 @@
+(* Content-type: application/vnd.wolfram.mathematica *)
+
+(*** Wolfram Notebook File ***)
+(* http://www.wolfram.com/nb *)
+
+(* CreatedBy='Mathematica 9.0' *)
+
+(*CacheID: 234*)
+(* Internal cache information:
+NotebookFileLineBreakTest
+NotebookFileLineBreakTest
+NotebookDataPosition[       157,          7]
+NotebookDataLength[     19429,        555]
+NotebookOptionsPosition[     17281,        480]
+NotebookOutlinePosition[     17691,        498]
+CellTagsIndexPosition[     17648,        495]
+WindowFrame->Normal*)
+
+(* Beginning of Notebook Content *)
+Notebook[{
+Cell["\<\
+This file contains functions used by ERACS to plot the pareto front.\
+\>", "Text",
+ CellChangeTimes->{{3.566668476727962*^9, 3.5666684968375177`*^9}}],
+
+Cell[CellGroupData[{
+
+Cell["Functions", "Title",
+ InitializationGroup->True,
+ CellChangeTimes->{{3.566668867070174*^9, 3.566668868189876*^9}}],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"<<", "\"\<.mathrc\>\""}], ";"}]], "Input",
+ CellChangeTimes->{{3.566670894895896*^9, 3.5666708981756144`*^9}}],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"colorData", " ", "=", " ", 
+   RowBox[{"ColorData", "[", "3", "]"}]}], ";"}]], "Input",
+ InitializationGroup->True,
+ CellChangeTimes->{{3.566667623748003*^9, 3.566667630508278*^9}, {
+  3.566673481976871*^9, 3.566673482088015*^9}, {3.5666735227409563`*^9, 
+  3.566673522820801*^9}}],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"dpi", " ", "=", " ", "72"}], ";"}]], "Input",
+ CellChangeTimes->{{3.566669575028104*^9, 3.5666695848576612`*^9}}],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"myMarkerSize", " ", "=", " ", 
+   RowBox[{".4", " ", "dpi"}]}], ";"}]], "Input",
+ CellChangeTimes->{{3.56666956067881*^9, 3.566669581745479*^9}, {
+  3.566669614309537*^9, 3.566669614419533*^9}}],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"circle", "[", "]"}], " ", ":=", " ", 
+  RowBox[{"Graphics", "[", 
+   RowBox[{
+    RowBox[{"Circle", "[", "]"}], ",", " ", 
+    RowBox[{"ImageSize", " ", "\[Rule]", " ", "myMarkerSize"}]}], 
+   "]"}]}]], "Input",
+ InitializationGroup->True,
+ CellChangeTimes->{{3.5666681197212973`*^9, 3.5666681423513412`*^9}, {
+   3.5666682153393297`*^9, 3.5666682220516977`*^9}, 3.566668522556459*^9, {
+   3.566669334520597*^9, 3.566669334745152*^9}, {3.566669591885331*^9, 
+   3.566669600833137*^9}}],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"box", "[", "]"}], " ", ":=", " ", 
+  RowBox[{"Graphics", "[", 
+   RowBox[{
+    RowBox[{"{", 
+     RowBox[{
+      RowBox[{"EdgeForm", "[", "Black", "]"}], ",", " ", "Transparent", ",", 
+      " ", 
+      RowBox[{"Rectangle", "[", "]"}]}], "}"}], ",", " ", 
+    RowBox[{"ImageSize", "\[Rule]", "myMarkerSize"}]}], "]"}]}]], "Input",
+ CellChangeTimes->{{3.566669428401555*^9, 3.5666694588325567`*^9}, {
+  3.56666951951015*^9, 3.566669544567861*^9}, {3.566669603982785*^9, 
+  3.566669607296809*^9}}],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"plotFront", "[", 
+   RowBox[{"points_", ",", " ", 
+    RowBox[{"index_:", "1"}]}], "]"}], " ", ":=", " ", 
+  RowBox[{"Module", "[", 
+   RowBox[{
+    RowBox[{"{", 
+     RowBox[{"p1", ",", " ", "p2", ",", " ", "p3"}], "}"}], ",", 
+    "\[IndentingNewLine]", 
+    RowBox[{
+     RowBox[{"p1", " ", "=", " ", 
+      RowBox[{"ListPlot", "[", 
+       RowBox[{"points", ",", " ", 
+        RowBox[{"Joined", " ", "\[Rule]", "True"}], ",", " ", 
+        RowBox[{"PlotLegends", " ", "\[Rule]", " ", 
+         RowBox[{"LineLegend", "[", 
+          RowBox[{"{", "\"\<front\>\"", "}"}], "]"}]}], ",", " ", 
+        RowBox[{"PlotRangePadding", " ", "\[Rule]", " ", 
+         RowBox[{"Scaled", "[", ".1", "]"}]}]}], "]"}]}], ";", 
+     "\[IndentingNewLine]", 
+     RowBox[{"p2", " ", "=", " ", 
+      RowBox[{"ListPlot", "[", 
+       RowBox[{
+        RowBox[{"Map", "[", 
+         RowBox[{"List", ",", " ", "points"}], "]"}], ",", " ", 
+        RowBox[{"PlotStyle", " ", "\[Rule]", " ", 
+         RowBox[{"Map", "[", 
+          RowBox[{"colorData", ",", " ", 
+           RowBox[{"Range", "[", 
+            RowBox[{"Length", "[", "points", "]"}], "]"}]}], "]"}]}], ",", 
+        "\[IndentingNewLine]", 
+        RowBox[{"PlotMarkers", " ", "\[Rule]", " ", 
+         RowBox[{"{", 
+          RowBox[{"Automatic", ",", " ", "Large"}], "}"}]}], ",", " ", 
+        RowBox[{"PlotLegends", " ", "\[Rule]", " ", 
+         RowBox[{"Map", "[", 
+          RowBox[{"ToString", ",", 
+           RowBox[{"Range", "[", 
+            RowBox[{"Length", "[", "points", "]"}], "]"}]}], "]"}]}]}], 
+       "]"}]}], ";", "\[IndentingNewLine]", 
+     RowBox[{"p3", " ", "=", " ", 
+      RowBox[{"ListPlot", "[", 
+       RowBox[{
+        RowBox[{"{", 
+         RowBox[{"points", "[", 
+          RowBox[{"[", "index", "]"}], "]"}], "}"}], ",", 
+        "\[IndentingNewLine]", 
+        RowBox[{"PlotMarkers", " ", "\[Rule]", " ", 
+         RowBox[{"{", 
+          RowBox[{"circle", "[", "]"}], "}"}]}], ",", " ", 
+        RowBox[{"PlotLegends", " ", "\[Rule]", " ", 
+         RowBox[{"{", "\"\<current\>\"", "}"}]}], ",", " ", 
+        RowBox[{"PlotStyle", " ", "\[Rule]", " ", "Black"}]}], "]"}]}], ";", 
+     "\[IndentingNewLine]", 
+     RowBox[{"Show", "[", 
+      RowBox[{"p1", ",", "p2", ",", " ", "p3"}], "]"}]}]}], "]"}]}]], "Input",\
+
+ InitializationGroup->True,
+ CellChangeTimes->{{3.5666673854267263`*^9, 3.566667398607095*^9}, {
+   3.566667575398411*^9, 3.566667648435369*^9}, {3.566667690487506*^9, 
+   3.566667818573413*^9}, {3.56666794052726*^9, 3.566667946379867*^9}, {
+   3.5666679851505823`*^9, 3.5666680239025993`*^9}, {3.5666681474026947`*^9, 
+   3.566668186140193*^9}, {3.5666682399435368`*^9, 3.5666682535899477`*^9}, {
+   3.566668361941474*^9, 3.566668387994216*^9}, {3.566668499705975*^9, 
+   3.566668545729582*^9}, {3.566673254006523*^9, 3.566673254087268*^9}, {
+   3.5666732880181503`*^9, 3.566673296442457*^9}, {3.566673360613474*^9, 
+   3.5666733620526237`*^9}, {3.566675122340349*^9, 3.566675136902876*^9}, 
+   3.5666771037510853`*^9}],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"plotPoint", "[", 
+   RowBox[{"point_", ",", " ", 
+    RowBox[{"opts", ":", 
+     RowBox[{"OptionsPattern", "[", 
+      RowBox[{"Options", "[", "ListPlot", "]"}], "]"}]}]}], "]"}], " ", ":=", 
+  " ", 
+  RowBox[{"ListPlot", "[", 
+   RowBox[{
+    RowBox[{"{", "point", "}"}], ",", 
+    RowBox[{"PlotMarkers", " ", "\[Rule]", " ", 
+     RowBox[{"{", 
+      RowBox[{"Automatic", ",", " ", "Large"}], "}"}]}], ",", " ", 
+    RowBox[{"Evaluate", "[", 
+     RowBox[{"FilterRules", "[", 
+      RowBox[{
+       RowBox[{"{", "opts", "}"}], ",", 
+       RowBox[{"Options", "[", "ListPlot", "]"}]}], "]"}], "]"}]}], 
+   "]"}]}]], "Input",
+ InitializationGroup->True,
+ CellChangeTimes->{{3.566668553548122*^9, 3.566668614952757*^9}, {
+   3.5666694833483143`*^9, 3.566669484769837*^9}, 3.566669758470368*^9, {
+   3.566669833896822*^9, 3.566669861208544*^9}, 3.566669999265312*^9, {
+   3.566670479539816*^9, 3.566670485100177*^9}, {3.566670545763935*^9, 
+   3.566670578525696*^9}, {3.566670624303815*^9, 3.5666706270647793`*^9}, {
+   3.566670730676466*^9, 3.566670738538939*^9}}],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"plotFrontAndPoint", "[", 
+   RowBox[{"points_", ",", " ", "index_", ",", " ", "lastPoint_"}], "]"}], 
+  " ", ":=", "\[IndentingNewLine]", 
+  RowBox[{"Show", "[", 
+   RowBox[{
+    RowBox[{"{", 
+     RowBox[{
+      RowBox[{"plotFront", "[", 
+       RowBox[{"points", ",", " ", "index"}], "]"}], ",", " ", 
+      RowBox[{"plotPoint", "[", 
+       RowBox[{"lastPoint", ",", " ", 
+        RowBox[{"PlotLegends", " ", "\[Rule]", 
+         RowBox[{"{", "\"\<previous\>\"", "}"}]}], ",", " ", 
+        RowBox[{"PlotStyle", " ", "\[Rule]", " ", 
+         RowBox[{"{", 
+          RowBox[{"colorData", "[", " ", 
+           RowBox[{"1", "+", 
+            RowBox[{"Length", "[", "points", "]"}]}], "]"}], "}"}]}]}], 
+       "]"}]}], "}"}], ",", " ", 
+    RowBox[{"PlotRange", " ", "\[Rule]", " ", "All"}]}], "]"}]}]], "Input",
+ CellChangeTimes->{{3.5666692337789392`*^9, 3.566669306832315*^9}, {
+  3.566669648895755*^9, 3.566669687759651*^9}, {3.56666971953516*^9, 
+  3.5666697245454073`*^9}, {3.566670425000394*^9, 3.566670442836013*^9}, {
+  3.566670687366123*^9, 3.56667071864977*^9}, {3.5666707509017963`*^9, 
+  3.566670765388403*^9}, {3.56667083021624*^9, 3.56667083525174*^9}, {
+  3.566677472021985*^9, 3.5666774918542747`*^9}, {3.566677588749239*^9, 
+  3.566677613138873*^9}, {3.566677673798365*^9, 3.566677676603018*^9}}],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"exportPDF", "[", 
+   RowBox[{"filename_", ",", " ", "expr_"}], "]"}], " ", ":=", " ", 
+  RowBox[{"Export", "[", 
+   RowBox[{"filename", ",", " ", "expr", ",", " ", 
+    RowBox[{"ImageSize", " ", "\[Rule]", 
+     RowBox[{"2", "  ", "pdfImageSize"}]}]}], "]"}]}]], "Input",
+ CellChangeTimes->{{3.566670904293923*^9, 3.566670929326342*^9}, {
+  3.5667092842132893`*^9, 3.566709284521559*^9}}],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"mathematicaToSexp", "[", "x_RGBColor", "]"}], " ", ":=", " ", 
+  RowBox[{"(", 
+   RowBox[{"\"\<#\>\"", "<>", 
+    RowBox[{"mathematicaToSexp", "[", 
+     RowBox[{"Apply", "[", 
+      RowBox[{"List", ",", 
+       RowBox[{"Append", "[", 
+        RowBox[{"x", ",", "1."}], "]"}]}], "]"}], "]"}]}], ")"}]}]], "Input",
+ CellChangeTimes->{{3.5666738282872343`*^9, 3.5666738650151453`*^9}, {
+  3.566673902044753*^9, 3.566673915041318*^9}, {3.566673993804326*^9, 
+  3.566673998479389*^9}, {3.566676988184971*^9, 3.566676988793456*^9}}],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"mathematicaToSexp", "[", "x_List", "]"}], " ", ":=", " ", 
+  RowBox[{"(", 
+   RowBox[{"\"\<(\>\"", " ", "<>", " ", 
+    RowBox[{"StringJoin", "[", 
+     RowBox[{"Riffle", "[", 
+      RowBox[{
+       RowBox[{"Map", "[", 
+        RowBox[{"mathematicaToSexp", ",", "x"}], "]"}], ",", " ", 
+       "\"\< \>\""}], "]"}], "]"}], "<>", " ", "\"\<)\>\""}], 
+   ")"}]}]], "Input",
+ CellChangeTimes->{{3.566673550134989*^9, 3.566673586239148*^9}, {
+  3.566673649392057*^9, 3.566673689089868*^9}, {3.566676990581791*^9, 
+  3.566676991131531*^9}}],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"mathematicaToSexp", "[", "x_Real", "]"}], " ", ":=", " ", 
+  RowBox[{"ToString", "[", "x", "]"}]}]], "Input",
+ CellChangeTimes->{{3.5666736932601833`*^9, 3.56667372405448*^9}}],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"mathematicaToSexp", "[", "x_Integer", "]"}], " ", ":=", " ", 
+  RowBox[{"ToString", "[", "x", "]"}]}]], "Input",
+ CellChangeTimes->{{3.566673800118145*^9, 3.5666738008915167`*^9}, {
+  3.56667527646426*^9, 3.566675277059321*^9}}]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["Demo", "Title",
+ CellChangeTimes->{{3.566668874377976*^9, 3.566668874764379*^9}}],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+  "SetDirectory", "[", 
+   "\"\</Users/shane/School/uvm/CSYS-395-evolutionary-robotics/noweb-eracs\>\"\
+", "]"}], ";"}]], "Input",
+ CellChangeTimes->{{3.566675512130168*^9, 3.566675527537121*^9}}],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"exportColorData", "[", "filename_", "]"}], " ", ":=", " ", 
+  RowBox[{"Export", "[", 
+   RowBox[{"filename", ",", 
+    RowBox[{"\"\<(define colors #\>\"", "<>", 
+     RowBox[{"mathematicaToSexp", "[", 
+      RowBox[{"Map", "[", 
+       RowBox[{"colorData", ",", " ", 
+        RowBox[{"Range", "[", "10", "]"}]}], "]"}], "]"}], " ", "<>", " ", 
+     "\"\<)\>\""}], ",", " ", "\"\<Text\>\""}], "]"}]}]], "Input",
+ CellChangeTimes->{{3.566675330623972*^9, 3.56667540392498*^9}, 
+   3.5666754999517*^9, {3.5666755885653963`*^9, 3.5666755905130367`*^9}, {
+   3.566675630150669*^9, 3.566675641399238*^9}, {3.566675690013598*^9, 
+   3.5666756959388933`*^9}, {3.566675890279261*^9, 3.5666759412932053`*^9}}],
+
+Cell[BoxData[
+ RowBox[{"\"\<what\>\"", " ", ">>", " ", "\"\<colors.scm\>\""}]], "Input",
+ CellChangeTimes->{{3.56667556972869*^9, 3.5666755758611403`*^9}, {
+  3.566675617761814*^9, 3.5666756183370943`*^9}}],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"exportColorData", "[", "\"\<colors.scm\>\"", "]"}], ";"}]], "Input",\
+
+ CellChangeTimes->{{3.566675386632818*^9, 3.566675394337376*^9}, 
+   3.566675503175652*^9}],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"Directory", "[", "]"}]], "Input",
+ CellChangeTimes->{{3.5666755061471367`*^9, 3.5666755072815237`*^9}}],
+
+Cell[BoxData["\<\"/Users/shane/School/uvm/CSYS-395-evolutionary-robotics/\
+noweb-eracs\"\>"], "Output",
+ CellChangeTimes->{3.5666755077333117`*^9, 3.566675599010988*^9}]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"mathematicaToSexp", "[", 
+   RowBox[{"Map", "[", 
+    RowBox[{"colorData", ",", " ", 
+     RowBox[{"Range", "[", "10", "]"}]}], "]"}], "]"}], "//", 
+  "FullForm"}]], "Input",
+ CellChangeTimes->{{3.5666739274313383`*^9, 3.5666739646298237`*^9}, {
+  3.566674143019565*^9, 3.566674157493123*^9}}],
+
+Cell[BoxData[
+ TagBox[
+  StyleBox[
+   "\"\<(#(0. 0. 0. 1.) #(0.996078 0.360784 0.027451 1.) #(0.996078 0.988235 \
+0.0352941 1.) #(0.541176 0.713725 0.027451 1.) #(0.145098 0.435294 0.384314 \
+1.) #(0.00784314 0.509804 0.929412 1.) #(0.152941 0.113725 0.490196 1.) \
+#(0.470588 0.262745 0.584314 1.) #(0.890196 0.0117647 0.490196 1.) #(0.905882 \
+0.027451 0.129412 1.))\>\"",
+   ShowSpecialCharacters->False,
+   ShowStringCharacters->True,
+   NumberMarks->True],
+  FullForm]], "Output",
+ CellChangeTimes->{{3.566673942500111*^9, 3.566673965064826*^9}, 
+   3.566674003612849*^9, {3.566674145038967*^9, 3.566674157822101*^9}}]
+}, Open  ]],
+
+Cell[BoxData[
+ RowBox[{"SetOptions", "[", 
+  RowBox[{
+   RowBox[{"InputNotebook", "[", "]"}], ",", 
+   RowBox[{"AutoGeneratedPackage", "\[Rule]", "Automatic"}]}], "]"}]], "Input",\
+
+ CellChangeTimes->{{3.566669213293379*^9, 3.566669213302739*^9}}],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"Dynamic", "[", 
+  RowBox[{"Show", "[", 
+   RowBox[{
+    RowBox[{"plotFrontAndPoint", "[", 
+     RowBox[{"testFront", ",", " ", "2", ",", " ", 
+      RowBox[{"{", 
+       RowBox[{
+        RowBox[{"-", "1"}], ",", 
+        RowBox[{"-", "1"}]}], "}"}]}], "]"}], ",", " ", 
+    RowBox[{"AxesLabel", " ", "\[Rule]", " ", 
+     RowBox[{"{", 
+      RowBox[{"\"\<hi\>\"", ",", " ", "\"\<bye\>\""}], "}"}]}]}], "]"}], 
+  "]"}]], "Input",
+ CellChangeTimes->{{3.566667667196065*^9, 3.5666676708870163`*^9}, {
+  3.566667786310337*^9, 3.566667787749501*^9}, {3.566668304067194*^9, 
+  3.566668321190193*^9}, {3.566669280046295*^9, 3.566669291230563*^9}, {
+  3.566676745170372*^9, 3.566676745293663*^9}, {3.566677455769157*^9, 
+  3.566677457496797*^9}}],
+
+Cell[BoxData[
+ DynamicBox[ToBoxes[
+   Show[
+    $CellContext`plotFrontAndPoint[$CellContext`testFront, 2, {-1, -1}], 
+    AxesLabel -> {"hi", "bye"}], StandardForm],
+  ImageSizeCache->{440., {113., 118.}}]], "Output",
+ CellChangeTimes->{3.5666692935667562`*^9, 3.5666697085902357`*^9, 
+  3.566670491735135*^9, 3.566670553605177*^9, 3.566676745954021*^9, 
+  3.5666774580301037`*^9}]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"Dynamic", "[", 
+  RowBox[{"plotPoint", "[", 
+   RowBox[{"{", 
+    RowBox[{"1", ",", "3"}], "}"}], "]"}], "]"}]], "Input",
+ CellChangeTimes->{{3.566668581864337*^9, 3.566668601290113*^9}, 
+   3.5666706141134853`*^9}],
+
+Cell[BoxData[
+ DynamicBox[ToBoxes[
+   $CellContext`plotPoint[{1, 3}], StandardForm],
+  ImageSizeCache->{360., {114., 118.}}]], "Output",
+ CellChangeTimes->{3.566668601795702*^9, 3.566670614736744*^9}]
+}, Open  ]],
+
+Cell[BoxData[""], "Input",
+ CellChangeTimes->{{3.56666796981315*^9, 3.566667977847661*^9}}],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"testFront", " ", "=", " ", 
+  RowBox[{"{", 
+   RowBox[{
+    RowBox[{"{", 
+     RowBox[{"1", ",", " ", "2"}], "}"}], ",", " ", 
+    RowBox[{"{", 
+     RowBox[{"3", ",", "6"}], "}"}], ",", " ", 
+    RowBox[{"{", 
+     RowBox[{"5", ",", " ", "9"}], "}"}]}], "}"}]}]], "Input",
+ CellChangeTimes->{{3.566667655546399*^9, 3.5666676777097683`*^9}}],
+
+Cell[BoxData[
+ RowBox[{"{", 
+  RowBox[{
+   RowBox[{"{", 
+    RowBox[{"1", ",", "2"}], "}"}], ",", 
+   RowBox[{"{", 
+    RowBox[{"3", ",", "6"}], "}"}], ",", 
+   RowBox[{"{", 
+    RowBox[{"5", ",", "9"}], "}"}]}], "}"}]], "Output",
+ CellChangeTimes->{{3.566667666580991*^9, 3.5666676782311897`*^9}}]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"Dynamic", "[", 
+  RowBox[{"plotFront", "[", 
+   RowBox[{"testFront", ",", " ", "3"}], "]"}], "]"}]], "Input",
+ CellChangeTimes->{{3.566667667196065*^9, 3.5666676708870163`*^9}, {
+  3.566667786310337*^9, 3.566667787749501*^9}, {3.566668377427352*^9, 
+  3.5666683819268827`*^9}}],
+
+Cell[BoxData[
+ DynamicBox[ToBoxes[
+   $CellContext`plotFront[$CellContext`testFront, 3], StandardForm],
+  ImageSizeCache->{433., {109., 114.}}]], "Output",
+ CellChangeTimes->{{3.566667671357814*^9, 3.566667679705159*^9}, {
+  3.566667767456892*^9, 3.566667788173647*^9}, {3.566668378494606*^9, 
+  3.5666683824433517`*^9}}]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"Dynamic", "[", 
+  RowBox[{"Show", "[", 
+   RowBox[{
+    RowBox[{"plotFront", "[", "testFront", "]"}], ",", " ", 
+    RowBox[{"AxesLabel", " ", "\[Rule]", " ", 
+     RowBox[{"{", 
+      RowBox[{"\"\<hi\>\"", ",", " ", "\"\<bye\>\""}], "}"}]}]}], "]"}], 
+  "]"}]], "Input",
+ CellChangeTimes->{{3.566667667196065*^9, 3.5666676708870163`*^9}, {
+  3.566667786310337*^9, 3.566667787749501*^9}, {3.566668304067194*^9, 
+  3.566668321190193*^9}}],
+
+Cell[BoxData[
+ DynamicBox[ToBoxes[
+   Show[
+    $CellContext`plotFront[$CellContext`testFront], 
+    AxesLabel -> {"hi", "bye"}], StandardForm],
+  ImageSizeCache->{433., {112., 116.}}]], "Output",
+ CellChangeTimes->{3.566668321902269*^9}]
+}, Open  ]]
+}, Open  ]]
+},
+AutoGeneratedPackage->Automatic,
+WindowSize->{740, 752},
+WindowMargins->{{Automatic, 5}, {28, Automatic}},
+ShowSelection->True,
+FrontEndVersion->"9.0 for Mac OS X x86 (32-bit, 64-bit Kernel) (November 20, \
+2012)",
+StyleDefinitions->"Default.nb"
+]
+(* End of Notebook Content *)
+
+(* Internal cache information *)
+(*CellTagsOutline
+CellTagsIndex->{}
+*)
+(*CellTagsIndex
+CellTagsIndex->{}
+*)
+(*NotebookFileOutline
+Notebook[{
+Cell[557, 20, 160, 3, 30, "Text"],
+Cell[CellGroupData[{
+Cell[742, 27, 120, 2, 92, "Title",
+ InitializationGroup->True],
+Cell[865, 31, 145, 3, 28, "Input"],
+Cell[1013, 36, 316, 7, 28, "Input",
+ InitializationGroup->True],
+Cell[1332, 45, 148, 3, 28, "Input"],
+Cell[1483, 50, 229, 5, 28, "Input"],
+Cell[1715, 57, 520, 12, 28, "Input",
+ InitializationGroup->True],
+Cell[2238, 71, 530, 13, 46, "Input"],
+Cell[2771, 86, 3054, 68, 182, "Input",
+ InitializationGroup->True],
+Cell[5828, 156, 1098, 26, 63, "Input",
+ InitializationGroup->True],
+Cell[6929, 184, 1351, 28, 80, "Input"],
+Cell[8283, 214, 423, 9, 46, "Input"],
+Cell[8709, 225, 562, 12, 46, "Input"],
+Cell[9274, 239, 570, 14, 46, "Input"],
+Cell[9847, 255, 211, 4, 28, "Input"],
+Cell[10061, 261, 263, 5, 28, "Input"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[10361, 271, 87, 1, 92, "Title"],
+Cell[10451, 274, 231, 6, 46, "Input"],
+Cell[10685, 282, 734, 14, 80, "Input"],
+Cell[11422, 298, 206, 3, 28, "Input"],
+Cell[11631, 303, 197, 5, 28, "Input"],
+Cell[CellGroupData[{
+Cell[11853, 312, 127, 2, 28, "Input"],
+Cell[11983, 316, 169, 2, 28, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[12189, 323, 328, 8, 28, "Input"],
+Cell[12520, 333, 623, 13, 108, "Output"]
+}, Open  ]],
+Cell[13158, 349, 247, 6, 28, "Input"],
+Cell[CellGroupData[{
+Cell[13430, 359, 762, 18, 46, "Input"],
+Cell[14195, 379, 381, 8, 248, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[14613, 392, 239, 6, 28, "Input"],
+Cell[14855, 400, 200, 4, 247, "Output"]
+}, Open  ]],
+Cell[15070, 407, 91, 1, 28, "Input"],
+Cell[CellGroupData[{
+Cell[15186, 412, 365, 10, 28, "Input"],
+Cell[15554, 424, 298, 9, 28, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[15889, 438, 301, 6, 28, "Input"],
+Cell[16193, 446, 321, 6, 240, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[16551, 457, 461, 11, 28, "Input"],
+Cell[17015, 470, 238, 6, 245, "Output"]
+}, Open  ]]
+}, Open  ]]
+}
+]
+*)
+
+(* End of internal cache information *)

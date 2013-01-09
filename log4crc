@@ -19,11 +19,12 @@
 	<layout name="dated" type="dated"/>
 
 	<!-- root category ========================================= -->
-	<category name="root" priority="debug" appender="stdout"/>
+	<category name="root" priority="trace" appender="stdout"/>
 
 	<!-- my categories ========================================= -->
 	<category name="main.event" priority="notice" appender="stdout"/>
 	<category name="zeroconf" priority="warn" appender="stdout"/>
+	<!-- <category name="sim-smob" priority="warn" appender="stdout"/> -->
 
 <!--
 	<category name="main" priority="debug" appender="stdout"/>
