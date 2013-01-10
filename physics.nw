@@ -33,7 +33,7 @@ void physics_init() {
 #ifndef SCM_MAGIC_SNARFER 
 #include "physics.cpp.x" 
 #endif
-  //scm_c_eval_string("(display (current-module))");
+  scm_c_eval_string("(display (current-module))");
 }
 @ Let's include the necessary headers from Bullet.
 
@@ -69,7 +69,7 @@ uses an automatic memory management policy documented
 <<file:physics.cpp>>=
 void physics_add_scene(btDynamicsWorld *world)
 {
-  scene_add_physics(gscene, world);
+  scene_add_physics(scm_c_current_scene(), world);
 }
 
 void scene_add_physics(struct scene* scene, btDynamicsWorld *world)
@@ -104,14 +104,15 @@ void scene_add_physics(struct scene* scene, btDynamicsWorld *world)
   scene_update_physics(scene, world);
   //physics_update_scene(world);
 }
-SCM_DEFINE (scm_physics_add_scene, "physics-add-scene", 1, 0, 0,
-            (SCM sim),
-            "Add all the objects into the scene.")
-{
-  struct sim *s = unwrap_sim(sim);
-  physics_add_scene(s->world);
-  return SCM_UNSPECIFIED;
-}
+
+/* SCM_DEFINE (scm_physics_add_scene, "physics-add-scene", 1, 0, 0, */
+/*             (SCM sim), */
+/*             "Add all the objects into the scene.") */
+/* { */
+/*   struct sim *s = unwrap_sim(sim); */
+/*   physics_add_scene(s->world); */
+/*   return SCM_UNSPECIFIED; */
+/* } */
 
 SCM_DEFINE (scm_scene_add_physics, "scene-add-physics", 2, 0, 0,
             (SCM scene, SCM sim),
@@ -268,7 +269,7 @@ their positions and orientations.
 <<file:physics.cpp>>=
 void physics_update_scene(btDynamicsWorld* world) 
 {
-  scene_update_physics(gscene, world);
+  scene_update_physics(scm_c_current_scene(), world);
 }
 
 void scene_update_physics(struct scene* scene, btDynamicsWorld *world)
@@ -311,20 +312,20 @@ SCM_DEFINE (scm_scene_update_physics, "scene-update-physics", 2, 0, 0,
   scene_update_physics(sc, s->world);
   return SCM_UNSPECIFIED;
 }
-SCM_DEFINE (scm_physics_update_scene, "physics-update-scene", 1, 0, 0,
-            (SCM sim),
-            "Update the objects in the scene.")
-{
-  struct sim *s = unwrap_sim(sim);
-  physics_update_scene(s->world);
-  return SCM_UNSPECIFIED;
-}
+/* SCM_DEFINE (scm_physics_update_scene, "physics-update-scene", 1, 0, 0, */
+/*             (SCM sim), */
+/*             "Update the objects in the scene.") */
+/* { */
+/*   struct sim *s = unwrap_sim(sim); */
+/*   physics_update_scene(s->world); */
+/*   return SCM_UNSPECIFIED; */
+/* } */
 @ %def scm_physics_update_scene physics-update-scene
 <<file:physics.cpp>>=
 
 void physics_clear_scene()
 {
-  scene_clear_physics(gscene);
+  scene_clear_physics(scm_c_current_scene());
 }
 void scene_clear_physics(struct scene* scene)
 {
@@ -345,6 +346,7 @@ SCM_DEFINE (scm_scene_clear_physics, "scene-clear-physics", 1, 0, 0,
   return SCM_UNSPECIFIED;
 }
 
+/*
 SCM_DEFINE (scm_physics_clear_scene, "physics-clear-scene", 0, 0, 0,
             (),
             "Clear the scene.")
@@ -352,7 +354,7 @@ SCM_DEFINE (scm_physics_clear_scene, "physics-clear-scene", 0, 0, 0,
   physics_clear_scene();
   return SCM_UNSPECIFIED;
 }
-
+*/
 <<file:physics.cpp>>=
 <<Physics Initialize>>
 @ 

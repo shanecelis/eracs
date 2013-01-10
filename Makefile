@@ -15,7 +15,7 @@ LIB_EMACSY = /Users/shane/School/uvm/CSYS-395-evolutionary-robotics/noweb-eracs/
 
 EMACSY_LDFLAGS = $(LIB_EMACSY)
 
-EMACSY_CFLAGS = -I/Users/shane/School/uvm/CSYS-395-evolutionary-robotics/noweb-eracs/noweb-emacsy
+EMACSY_CFLAGS = -Inoweb-emacsy
 
 FANN_LDFLAGS = -L/usr/local/lib -lm -ldoublefann  
 
@@ -168,9 +168,11 @@ nn.o: nn.c nn.c.x
 
 sim-smob.o: sim-smob.cpp sim-smob.cpp.x
 
+render.o: render.cpp render.cpp.x
+
 # Must be careful here. This ends up inadvertently controlling the order in
 # which global chunks are concatenated.
-main.cpp: main.nw nn.nw osc.nw primitive-procedures.nw rigid-body-smob.nw scene-smob.nw physics-buffer.nw camera.nw physics-ui.nw sim-smob.nw vlref-smob.nw physics.nw logging.nw
+main.cpp: main.nw render.nw nn.nw osc.nw primitive-procedures.nw rigid-body-smob.nw scene-smob.nw physics-buffer.nw sim-smob.nw vlref-smob.nw physics.nw logging.nw camera.nw physics-ui.nw
 
 # nn.h: nn.nw boiler-plate.nw 
 
@@ -206,3 +208,6 @@ linear-spline.scm: linear-spline.nw
 linear-spline.paper.pdf: linear-spline.tex
 
 osc.paper.pdf: osc.tex
+
+debug: eracs
+	gdb --args ./eracs

@@ -5,6 +5,9 @@ Now we want to actually implement the rendering.  This will mainly
 make use of the VL library.
 
 <<file:render.h>>=
+#ifndef _RENDER_H_
+#define _RENDER_H_
+
 #include "scene-smob.h"
 
 void render_init(int w, int h);
@@ -14,7 +17,10 @@ void render();
 void scene_render(struct scene*);
 void render_update_camera(void);
 void scene_update_camera(struct scene*);
-extern struct scene* gscene;
+void scene_init();
+//extern struct scene* gscene;
+#endif /* _RENDER_H_ */
+
 <<file:render.cpp>>=
 
 <<+ Preamble>>
@@ -26,28 +32,61 @@ extern struct scene* gscene;
 <<State>>
 
 <<Functions>>
+
+<<Primitive>>
+
+<<Initialize>>
 @ 
 We have a global scene struct named [[gscene]].
 
 <<State>>=
 struct scene *gscene;
 struct scene *echo_scene;
+struct scene *mode_line_scene;
 SCM scm_gscene;
 SCM scm_echo_scene;
+SCM scm_mode_line_scene;
 @ 
 
 <<Functions>>=
 void render_setup_viewport(int screen_width, int screen_height)
 {
-  scene_set_viewport(gscene, 
-                     screen_width, screen_height - echo_area_height, 
-                     0, echo_area_height);
+  struct scene *scene = scm_c_current_scene();
+  if (scene)
+    scene_set_viewport(scene, 
+                       screen_width, 
+                       screen_height - echo_area_height - mode_line_height, 
+                       0, 
+                       echo_area_height + mode_line_height);
 
   scene_set_viewport(echo_scene, 
                      screen_width, echo_area_height, 
                      0, 0);
+
+  scene_set_viewport(mode_line_scene, 
+                     screen_width, mode_line_height, 
+                     0, echo_area_height);
+}
+@ 
+
+<<Primitive>>=
+SCM_DEFINE (scm_scene_set_viewport_x, "scene-set-viewport!", 
+           /* required args */ 5, 
+           /* optional args */ 0, 
+           /* rest args?    */ 0,
+            (SCM scene, SCM w, SCM h, SCM x, SCM y),
+            "Set the viewport of the scene.  Lower left corner is the origin.")
+{
+  scene_set_viewport(unwrap_scene(scene), 
+                     scm_to_int(w),
+                     scm_to_int(h),
+                     scm_to_int(x),
+                     scm_to_int(y));
+  return SCM_UNSPECIFIED;
 }
 
+
+<<Functions>>=
 void scene_set_viewport(struct scene* scene, int screen_width, int screen_height, int x, int y)
 {
   scene->rendering->camera()->viewport()->setWidth(screen_width);
@@ -71,11 +110,13 @@ void render_init(int screen_width, int screen_height)
 
   <<Setup the SCM echo scene.>>
 
+  <<Setup the SCM mode line scene.>>
+
   <<Setup echo area.>>
       
   <<Setup cursor.>>
 
-  <<Setup modeline.>>
+  <<Setup mode line.>>
 }
 @ 
 
@@ -93,12 +134,41 @@ void render_init(int screen_width, int screen_height)
   scm_c_define("echo_scene", scm_echo_scene);
   scm_permanent_object(scm_echo_scene);
 @ 
+
+<<Setup the SCM mode line scene.>>=
+  scm_mode_line_scene = scm_make_scene();
+  mode_line_scene = unwrap_scene(scm_mode_line_scene);
+  vl::vec4 background_color(90.f/255.f, 122.f/255.f, 186/255.f, 1.f);
+  mode_line_scene->rendering->camera()->viewport()->setClearColor(background_color);
+  scm_c_define("mode_line_scene", scm_mode_line_scene);
+  scm_permanent_object(scm_mode_line_scene);
+@ 
 <<Functions>>=
 void render()
 {
-  scene_render(gscene);
+  //scene_render(gscene);
+  struct scene* scene = scm_c_current_scene();
+  if (scene)
+    scene_render(scene);
+  scene_render(mode_line_scene);
   scene_render(echo_scene);
 }
+@
+
+<<Primitive>>=
+SCM_DEFINE (scm_scene_render, "scene-render", 
+           /* required args */ 1, 
+           /* optional args */ 0, 
+           /* rest args?    */ 0,
+            (SCM scene),
+            "Render the scene.")
+{
+  scene_render(unwrap_scene(scene));
+  return SCM_UNSPECIFIED;
+}
+
+
+<<Functions>>=
 void scene_render(struct scene* scene)
 { 
   //scene->rendering->renderer()->setFramebuffer(glcontext->framebuffer());
@@ -121,8 +191,21 @@ if (frame_count != 0) {
     
 }
 frame_count++;
-<<file:render.cpp>>=
+@ 
 
+<<Primitive>>=
+SCM_DEFINE (scm_scene_update_camera, "scene-update-camera", 
+           /* required args */ 1, 
+           /* optional args */ 0, 
+           /* rest args?    */ 0,
+            (SCM scene),
+            "Update the camera for the scene }.")
+{
+  scene_update_camera(unwrap_scene(scene));
+  return SCM_UNSPECIFIED;
+}
+@ 
+<<file:render.cpp>>=
 void scene_update_camera(struct scene *scene) {
   vl::mat4 view_mat = vl::mat4::getLookAt(scene->eye, scene->center, scene->up);
   scene->rendering->camera()->setViewMatrix( view_mat );
@@ -139,12 +222,15 @@ window as Emacs would typically do.  We'll need to include the Emacsy
 header file.
 
 <<Includes>>=
+#ifndef SCM_MAGIC_SNARFER
 #include <emacsy.h>
+#endif
 @ We'll keep the text as global state.
 
 <<State>>=
   vl::ref<vl::Text> echo_area;
   const int echo_area_height = 20; /* XXX this should be dynamic with font size */
+  const int mode_line_height = 20; /* XXX this should be dynamic with font size */
 @ We will refresh the state from Emacsy with each render.
 
 \todo{This echo_area should be handled more carefully.  It needs to
@@ -158,6 +244,7 @@ header file.
 <<State>>=
 vl::ref<vl::Rendering> renderer3;
 @ \end{multicols}
+
 <<Setup echo area.>>=
   vl::ref<vl::Font> font;
   font = vl::defFontManager()->acquireFont("/Library/Fonts/Andale Mono.ttf", 
@@ -216,36 +303,35 @@ vl::ref<vl::Rendering> renderer3;
     cursor->translate(((float)point - 1.25f) * font_width, 0.f, 0.f);
   else
     cursor->translate(-100.f, 0.f, 0.f);
-@ \subsection{Render Modeline}
-Now let's setup the modeline.  
+@ \subsection{Render Mode Line}
+Now let's setup the mode line.  
 
 <<State>>=
-  vl::ref<vl::Text> modeline;
+  vl::ref<vl::Text> mode_line;
 @ 
-<<Setup modeline.>>=
-
-  modeline = new vl::Text;
-  modeline->setFont(font.get());
-  modeline->setKerningEnabled(true);
-  modeline->setText(L"");
-  modeline->setMode(vl::Text2D);
-  modeline->setTextAlignment(vl::TextAlignJustify);
+<<Setup mode line.>>=
+  mode_line = new vl::Text;
+  mode_line->setFont(font.get());
+  mode_line->setKerningEnabled(true);
+  mode_line->setText(L"");
+  mode_line->setMode(vl::Text2D);
+  mode_line->setTextAlignment(vl::TextAlignJustify);
   alignment = vl::AlignBottom | vl::AlignLeft;
-  modeline->setAlignment(alignment);
-  modeline->setViewportAlignment(alignment);
-  modeline->setBorderEnabled(true);
-  modeline->setBackgroundEnabled(true);
-  modeline->setColor(vl::white);
+  mode_line->setAlignment(alignment);
+  mode_line->setViewportAlignment(alignment);
+  //mode_line->setBorderEnabled(true);
+  //mode_line->setBackgroundEnabled(true);
+  mode_line->setColor(vl::white);
   vl::fvec4 bg = vl::gray;
   bg.a() = 0.3;
-  modeline->setBackgroundColor(bg);
+  mode_line->setBackgroundColor(bg);
   vl::ref<vl::ActorTree> tree = new vl::ActorTree();
-  tree->addActor(modeline.get(), 
+  tree->addActor(mode_line.get(), 
                  effect.get());
-  gscene->scene_manager->tree()->addChild(tree.get());
+  mode_line_scene->scene_manager->tree()->addChild(tree.get());
 @ 
 <<Before render>>=
-  modeline->setText(vl::String(emacsy_mode_line()));
+  mode_line->setText(vl::String(emacsy_mode_line()));
 @ VL requires an OpenGLContext object.  I implement it extremely
 minimally because I do not want to use VL's GUI abstraction layer. 
 
@@ -305,4 +391,15 @@ like color, texture, and lighting configurable, I'm going to make
 collections of properties available, so one would define the property
 in C++ but select it in Scheme.
 
+<<Initialize>>=
+void scene_init() {
+#ifndef SCM_MAGIC_SNARFER 
+#include "render.cpp.x" 
+#endif
+}
+@ 
+
+<<+ Initialize submodules.>>=
+scene_init();
+@
 

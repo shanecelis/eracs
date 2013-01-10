@@ -64,7 +64,7 @@
   (set-nn-weights! robot weights)
   (eval-robot))
 
-(define eval-robot-time 40.) ;; simulated seconds
+(define eval-robot-time 10.) ;; simulated seconds
 
 (define* (eval-robot-headless weights 
                               #:key 
@@ -301,10 +301,10 @@ active preference error."
       (if (= (mod (robot-tick robot) capture-frequency) 0)
           (cons! (robot-position robot) points)))
     (eval-robot weights #:step-fn capture-position)
-    (cons! (add-line gscene points color) path)))
+    (cons! (add-line (current-scene) points color) path)))
 
 (define-interactive (clear-path)
-  (for-each (cut remove-actor gscene <>) path)
+  (for-each (cut remove-actor (current-scene) <>) path)
   (set! path '()))
 
 (define-fitness

@@ -17,6 +17,7 @@ constraint (or joint).
 #include <vlGraphics/OpenGLContext.hpp>
 #include <vlGraphics/SceneManagerActorTree.hpp>
 #include "vlref-smob.hpp"
+#include "render.h"
 #endif
 #include <libguile.h>
 
@@ -37,6 +38,8 @@ void init_glcontext(void);
 struct scene* unwrap_scene(SCM scene);
 SCM scm_wrap_scene(struct scene*);
 SCM scm_make_scene();
+SCM scm_current_scene();
+struct scene* scm_c_current_scene();
 #endif /* _SCENE_SMOB_H_ */
 @ %def scene
 <<file:scene-smob.cpp>>=
@@ -74,6 +77,7 @@ SCM scm_make_scene();
 #include "dummy-opengl-context.hpp"
 #include "util.h"
 #include "scene-smob.h"
+#include "logging.h"
 @ All SMOBs must implement three functions: \verb|free|, \verb|mark| ,
 and \verb|print|.
 
@@ -168,6 +172,7 @@ SCM_DEFINE (scm_make_scene, "make-scene", 0, 0, 0,
    */
   sc = (struct scene *)
     scm_gc_malloc (sizeof (struct scene), "scene");
+  mylog("scene-smob", PRI_DEBUG, "making scene 0x%x", sc);
      
   /* Step 2: Initialize it with straight code.
    */
@@ -176,14 +181,16 @@ SCM_DEFINE (scm_make_scene, "make-scene", 0, 0, 0,
   sc->rendering = new vl::Rendering();
   vl::vec4 background_color(61.f/255.f, 110.f/255.f, 203/255.f, 1.f);
   sc->rendering->camera()->viewport()->setClearColor(background_color);
-  if (glcontext)
-    sc->rendering->renderer()->setFramebuffer(glcontext->framebuffer());
+  sc->rendering->renderer()->setFramebuffer(glcontext->framebuffer());
   sc->rendering->sceneManagers()->push_back(sc->scene_manager.get());
   sc->main_rendering->subRenderings()->push_back(sc->rendering.get());
   sc->eye    = vl::vec3(0,10,10);
   sc->center = vl::vec3(0, 0, 0); 
   sc->up     = vl::vec3(0, 1, 0);
   sc->render_fps = 0.0;
+
+  // XXX Yuck
+  scene_set_viewport(sc, 640, 440, 0, 40);
   
   return scm_wrap_scene(sc);
 }
@@ -284,6 +291,31 @@ struct scene* unwrap_scene(SCM scene_smob)
 }
 @
 
+We want to be able to get the current scene of the buffer in C.
+
+<<Functions>>=
+SCM scm_current_scene()
+{
+    return scm_call_0(scm_c_public_ref("guile-user",
+                                       "current-scene"));
+}
+
+struct scene* scm_c_current_scene()
+{
+  SCM scene = scm_current_scene();
+  if (! scm_is_false(scene))
+    return unwrap_scene(scene);
+  else
+    return NULL;
+}
+@
+\subsection{Camera Manipulation}
+
+\todo{This is currently handled in primitive-procedures, but it should
+  be ripped out of there.}
+
+
+@ 
 \subsection{Drawing State}
 
 I want to try to minimize the amount of ``stuff'' I have to do in
@@ -303,10 +335,21 @@ We'd like to have a scene buffer for ERACS.
   (scene #:accessor scene #:init-keyword #:scene #:init-form (make-scene)))
 (export scene)
 
-(define (current-scene)
+(define-method (initialize (obj <scene-buffer>) initargs)
+  (next-method)
+  (if (scene obj)
+    (scene-set-viewport! (scene obj) 640 480 0 10)))
+
+(define-public (current-scene)
   (if (is-a? (current-buffer) <scene-buffer>)
     (scene (current-buffer))
     #f))
+
+(define-method-public (buffer-render (buffer <scene-buffer>))
+  (scene-render (scene buffer)))
+
+(define-method-public (buffer-render (buffer <buffer>))
+  (mylog "scene-smob.buffer-render" pri-debug "Don't know how to render buffer ~a" buffer))
 <<+ Load scheme files.>>=
   scm_c_primitive_load("scene-smob.scm");
 @ 

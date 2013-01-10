@@ -1,3 +1,4 @@
+% -*- mode: Noweb; noweb-code-mode: c-mode -*-
 \section{Primitive Scheme Procedures}
 
 Now we want to expose certain portions of our robot simulator to
@@ -73,8 +74,15 @@ SCM_DEFINE (get_parameter, "get-parameter", 1, 0, 0,
             "Get simulation parameter.")
 {
   char *str = scm_to_locale_string(scm_symbol_to_string(name));
+  struct scene *scene = NULL;
+  SCM scm_scene = scm_current_scene();
+  if (! scm_is_false(scm_scene))
+    scene = unwrap_scene(scm_scene);
   if (strcmp("FPS", str) == 0) {
-    return scm_from_double(gscene->render_fps);
+    if (scene)
+      return scm_from_double(scene->render_fps);
+    else
+      return scm_from_double(0.);
   } else if (strcmp("window-width", str) == 0) {
     int width, height;
     glfwGetWindowSize(&width, &height);
@@ -84,11 +92,20 @@ SCM_DEFINE (get_parameter, "get-parameter", 1, 0, 0,
     glfwGetWindowSize(&width, &height);
     return scm_from_int(height);
   } else if (strcmp("camera-position", str) == 0) {
-    return vl_vec3_to_vector(gscene->eye);
+    if (scene)
+      return vl_vec3_to_vector(scene->eye);
+    else
+      return SCM_BOOL_F;
   } else if (strcmp("camera-target", str) == 0) {
-    return vl_vec3_to_vector(gscene->center);
+    if (scene)
+      return vl_vec3_to_vector(scene->center);
+    else
+      return SCM_BOOL_F;
   } else if (strcmp("camera-up", str) == 0) {
-    return vl_vec3_to_vector(gscene->up);
+    if (scene)
+      return vl_vec3_to_vector(scene->up);
+    else
+      return SCM_BOOL_F;
   } else if (strcmp("pause", str) == 0) {
     return SCM_BOOL_F;
   } else
@@ -111,23 +128,32 @@ SCM_DEFINE (set_parameter_x, "set-parameter!", 2, 0, 0,
             "Set simulation parameter.")
 {
   char *str = scm_to_locale_string(scm_symbol_to_string(name));
-  
+  struct scene *scene = NULL;
+  SCM scm_scene = scm_current_scene();
+  if (! scm_is_false(scm_scene))
+    scene = unwrap_scene(scm_scene);
   if (strcmp("touches", str) == 0) {
     /* int index = scm_to_int(scm_car(value)); */
     /* int v = scm_to_int(scm_cdr(value)); */
     /* demoApp.touches[index] = v; */
     return SCM_UNSPECIFIED;
   } else if (strcmp("camera-target", str) == 0) {
-    gscene->center = vector_to_vl_vec3(value);
-    render_update_camera();
+    if (scene) {
+      scene->center = vector_to_vl_vec3(value);
+      scene_update_camera(scene);
+    }
     return SCM_UNSPECIFIED;
   } else if (strcmp("camera-position", str) == 0) {
-    gscene->eye =  vector_to_vl_vec3(value);
-    render_update_camera();
+    if (scene) {
+      scene->eye =  vector_to_vl_vec3(value);
+      scene_update_camera(scene);
+    }
     return SCM_UNSPECIFIED;
   } else if (strcmp("camera-up", str) == 0) {
-    gscene->up = vector_to_vl_vec3(value);
-    render_update_camera();
+    if (scene) {
+      scene->up = vector_to_vl_vec3(value);
+      scene_update_camera(scene);
+    }
     return SCM_UNSPECIFIED;
   } else if (strcmp("pause", str) == 0) {
     return SCM_UNSPECIFIED;

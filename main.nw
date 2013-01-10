@@ -17,7 +17,7 @@ int main(int argc, char** argv) {
   <<Initialize GLFW.>>
   /* Initialize VL. */
   vl::VisualizationLibrary::init();
-
+  scm_c_eval_string("(set! %load-hook (lambda (filename) (format #t \"Loading ~a~%\" filename)))");
   mylog("main", PRI_INFO, "Initialize submodules.");
   <<+ Initialize submodules.>>
 
@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
   mylog("main", PRI_INFO, "Initialize glcontext.");
   init_glcontext();
 
-  <<+ Load scheme files after window opens.>>
+  emacsy_run_hook_0("post-window-open-hook");   
 
   /* Callbacks must be setup after window is open. 
      (Learned that one the hard way.) */

@@ -12,6 +12,17 @@
              )
 (define pi (acos -1))
 
+;; Some deprecated functions
+(define (physics-clear-scene)
+  (and (current-scene) (scene-clear-physics (current-scene))))
+
+(define (physics-update-scene sim)
+  (and (current-scene) (scene-update-physics (current-scene) sim)))
+
+(define (physics-add-scene sim)
+  (and (current-scene) (scene-add-physics (current-scene) sim)))
+
+
 ;; (define* (robot-time #:optional (my-sim (current-sim)))
 ;;   (sim-time my-sim))
 (cons! <physics-buffer> buffer-classes)
@@ -409,11 +420,11 @@
       ((point)
        (cons! point points)
        (if actor
-           (remove-actor gscene actor))
-       (set! actor (add-line gscene points #(1. 0. 0. 1.))))
+           (remove-actor (current-scene) actor))
+       (set! actor (add-line (current-scene) points #(1. 0. 0. 1.))))
       (() 
        (when actor 
-           (remove-actor gscene actor)
+           (remove-actor (current-scene) actor)
            (set! actor #f))
        (set! points '())))))
 
@@ -565,10 +576,13 @@
   (define (crand)
     (random 1.))
   (repeat n
-   (cons! (add-line gscene (list #(0. 0. 0.) (vector (rand) (rand) (rand)))
-                    (vector (crand) (crand) (crand) (crand)))
+   (cons! 
+    (add-line (current-scene) 
+              (list #(0. 0. 0.) 
+                    (vector (rand) (rand) (rand)))
+              (vector (crand) (crand) (crand) (crand)))
           lines)))
 
 (define-interactive (clear-lines)
-  (for-each (cut remove-actor gscene <>) lines)
+  (for-each (cut remove-actor (current-scene) <>) lines)
   (set! lines '()))

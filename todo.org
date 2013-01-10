@@ -76,6 +76,8 @@
   - [ ] clear the echo area once other messages start to come.
   - [ ] let the minibuffer resize when necessary
   - [ ] viewport should be in window; scene should be in buffer
+  - [ ] write an interactive scm-to-c and c-to-scm that will translate
+    scm_blah_dee_dah to blah-dee-dah and back
 * TODO before GECCO
   - [X] fix the scene since it's not displaying
   - [X] write up the gameplan low-level vs high-level

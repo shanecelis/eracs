@@ -1,3 +1,4 @@
+% -*- mode: Noweb; noweb-code-mode: scheme-mode -*-
 \subsection{Camera Movement}
 
 For the keybindings, we'll use the standard
@@ -6,7 +7,6 @@ backward, up, and down with additional bindings \verb|C-i| and
 \verb|C-o| for in and out.
 
 <<file:camera.scm>>=
-
 <<+ Lisp Preamble>>
 <<Load modules.>>
 
@@ -14,15 +14,23 @@ backward, up, and down with additional bindings \verb|C-i| and
 <<Procedures>>
 <<Key bindings>>
 <<Variables>>=
-
 (define eracs-mode-map (make-keymap))
-(define eracs-buffer (make <physics-buffer> 
-  #:keymap eracs-mode-map 
-  #:name "eracs"
-  #:sim (make-sim)
-))
-<<Key bindings>>=
+(define post-window-open-hook (make-hook))
+(define eracs-buffer #f)
 
+(define-interactive (eracs-mode)
+  (use-local-map eracs-mode-map))
+
+(add-hook! post-window-open-hook
+           (lambda ()
+            (set! eracs-buffer (make <physics-buffer> 
+                                   #:keymap eracs-mode-map 
+                                   #:name "eracs"
+                                        ;  #:scene #f
+                                   #:sim (make-sim)
+                                   ))
+            (add-buffer! eracs-buffer)))
+<<Key bindings>>=
 ;; Camera movement keys
 (define-key eracs-mode-map (kbd "C-f") 'forward-camera-x)  ; forward
 (define-key eracs-mode-map (kbd "C-b") 'backward-camera-x) ; backward
@@ -31,7 +39,6 @@ backward, up, and down with additional bindings \verb|C-i| and
 (define-key eracs-mode-map (kbd "C-i") 'backward-camera-z) ; in 
 (define-key eracs-mode-map (kbd "C-o") 'forward-camera-z)  ; out
 <<Procedures>>=
-
 (define (move-camera i amount)
   (let ((r (get-parameter 'camera-position)))
     (vector-set! r i (+ amount (vector-ref r i)))
@@ -55,14 +62,13 @@ backward, up, and down with additional bindings \verb|C-i| and
 (define-interactive (backward-camera-z #:optional (n 1))
   (forward-camera-z (- n)))
 
-(add-buffer! eracs-buffer)
+
 
 <<Load modules.>>=
-
 (use-modules (oop goops))
 (use-modules (vector-math))
 (use-modules (emacsy emacsy))
 (use-modules (convenience-lambda))
 <<+ Load scheme files.>>=
-  scm_c_primitive_load("camera.scm");
+scm_c_primitive_load("camera.scm");
 @ 

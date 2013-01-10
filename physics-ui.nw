@@ -22,7 +22,6 @@
 (define (set-pause! value)
   (set-parameter! 'pause value))
 <<Commands>>=
-
 (define-interactive (toggle-pause)
   (if (paused? (current-buffer))
       (begin
@@ -32,10 +31,9 @@
         (message "Paused.")
         (set! (paused? (current-buffer)) #t))))
 <<Key Bindings>>=
-
 (define-key eracs-mode-map (kbd "p") 'toggle-pause)
+@ 
 <<Load modules.>>=
-
 (use-modules (vector-math))
 (use-modules (emacsy emacsy))
 (use-modules (convenience-lambda))
