@@ -64,7 +64,5 @@ backward, up, and down with additional bindings \verb|C-i| and
 (use-modules (emacsy emacsy))
 (use-modules (convenience-lambda))
 <<+ Load scheme files.>>=
-
-  scm_c_primitive_load("physics-buffer.scm");
   scm_c_primitive_load("camera.scm");
 @ 

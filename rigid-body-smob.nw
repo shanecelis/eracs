@@ -61,6 +61,7 @@ static size_t free_rigid_body (SCM rigid_body_smob)
 {
   struct rigid_body *rigid_body;
   rigid_body = (struct rigid_body *) SCM_SMOB_DATA (rigid_body_smob);
+  mylog("rigid-body-smob", PRI_DEBUG, "freeing rigid-body 0x%x", rigid_body);
   if (rigid_body->body) {
     if (! scm_is_false(rigid_body->sim)) {
       scm_sim_remove_body(rigid_body->sim, rigid_body_smob);
@@ -267,9 +268,11 @@ SCM_DEFINE (scm_sim_remove_body,
     scm_gc_unprotect_object(rb->sim);
     rb->sim = SCM_BOOL_F;
     return SCM_BOOL_T;
-  } else
+  } else {
+    mylog("rigid-body-smob", PRI_WARN, "remove requested for rigid body 0x%x that doesn't have a world.", rb->body);
     return SCM_BOOL_F;
-  scm_remember_upto_here_2 (sim, body);
+  }
+  scm_remember_upto_here_2(sim, body);
 }
 
 <<Helper Functions>>=

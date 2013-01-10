@@ -8,7 +8,7 @@ We'd like to have a physics buffer for ERACS rather than a text buffer.
   (oop goops)
   (emacsy emacsy))
 
-(define-class-public <physics-buffer> (<buffer>)
+(define-class-public <physics-buffer> (<scene-buffer>)
   (sim #:accessor sim #:init-keyword #:sim #:init-form (make-sim))
   (paused? #:accessor paused? #:init-value #f))
 (export paused?)

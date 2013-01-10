@@ -144,7 +144,7 @@ void init_scene_type(void)
 
 void init_glcontext()
 {
-  //if (! glcontext)
+  if (! glcontext)
     glcontext = new DummyOpenGLContext;
 }
 <<Primitives>>=
@@ -171,19 +171,18 @@ SCM_DEFINE (scm_make_scene, "make-scene", 0, 0, 0,
      
   /* Step 2: Initialize it with straight code.
    */
-  /* if (! glcontext) */
-  /*   glcontext = new DummyOpenGLContext; */
   sc->main_rendering = new vl::RenderingTree();
   sc->scene_manager = new vl::SceneManagerActorTree;
   sc->rendering = new vl::Rendering();
   vl::vec4 background_color(61.f/255.f, 110.f/255.f, 203/255.f, 1.f);
   sc->rendering->camera()->viewport()->setClearColor(background_color);
-  sc->rendering->renderer()->setFramebuffer(glcontext->framebuffer());
+  if (glcontext)
+    sc->rendering->renderer()->setFramebuffer(glcontext->framebuffer());
   sc->rendering->sceneManagers()->push_back(sc->scene_manager.get());
   sc->main_rendering->subRenderings()->push_back(sc->rendering.get());
   sc->eye    = vl::vec3(0,10,10);
-  sc->center = vl::vec3(0,0,0); 
-  sc->up     = vl::vec3(0,1,0);
+  sc->center = vl::vec3(0, 0, 0); 
+  sc->up     = vl::vec3(0, 1, 0);
   sc->render_fps = 0.0;
   
   return scm_wrap_scene(sc);
@@ -248,7 +247,7 @@ SCM_DEFINE (scm_add_line, "add-line", 2, 1, 0,
 //    if (points) 
 //      geom->drawCalls()->push_back(new vl::DrawArrays(vl::PT_POINTS, 0, (int)vert_array->size()));
 
-    // Adds the geometry to the scene
+    // Adds the geometry to the scene.
     SCM actor = scm_c_wrap_vlref(sc->scene_manager->tree()->addActor( geom.get(), effect.get(), NULL), "actor", "line");
     <<Add a cleanup hook.>>
     return actor;
@@ -268,9 +267,6 @@ void *remove_actor_hook(void *hook_data, void *func_data, void *data)
   scm_remove_actor(scene, actor);
   return (void *)1;
 }
-
-
-
 
 <<+ Initialize submodules.>>=
 init_scene_type();
@@ -294,3 +290,23 @@ I want to try to minimize the amount of ``stuff'' I have to do in
 these primitive functions.  For instance, I don't want to do a lot of
 argument handling.  
 
+\subsection{Scene Buffer}
+
+We'd like to have a scene buffer for ERACS.
+
+<<file:scene-smob.scm>>=
+(use-modules 
+  (oop goops)
+  (emacsy emacsy))
+
+(define-class-public <scene-buffer> (<buffer>)
+  (scene #:accessor scene #:init-keyword #:scene #:init-form (make-scene)))
+(export scene)
+
+(define (current-scene)
+  (if (is-a? (current-buffer) <scene-buffer>)
+    (scene (current-buffer))
+    #f))
+<<+ Load scheme files.>>=
+  scm_c_primitive_load("scene-smob.scm");
+@ 

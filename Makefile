@@ -32,7 +32,7 @@ TEXS := $(patsubst %.nw, %.tex, $(LITSRCS))
 
 DEFS := $(patsubst %.nw, %.defs, $(LITSRCS))
 
-SRCS = main.cpp render.cpp physics.cpp primitive-procedures.cpp vlref-smob.cpp scene-smob.cpp sim-smob.cpp rigid-body-smob.cpp nn.c dummy-opengl-context.cpp physics-buffer.scm camera.scm physics-ui.scm nsga2.c nsga2.scm osc.c osc.scm linear-spline.scm logging.c scm-logging.c logging.scm util.cpp
+SRCS = main.cpp render.cpp physics.cpp primitive-procedures.cpp vlref-smob.cpp scene-smob.cpp sim-smob.cpp rigid-body-smob.cpp nn.c dummy-opengl-context.cpp physics-buffer.scm camera.scm physics-ui.scm nsga2.c nsga2.scm osc.c osc.scm linear-spline.scm logging.c scm-logging.c logging.scm util.cpp scene-smob.scm
 
 TESTS = nsga2.test.scm vlref-smob.test.scm sim-smob.test.scm linear-spline.test.scm
 
@@ -168,7 +168,9 @@ nn.o: nn.c nn.c.x
 
 sim-smob.o: sim-smob.cpp sim-smob.cpp.x
 
-main.cpp: main.nw camera.nw nn.nw osc.nw physics-buffer.nw physics-ui.nw primitive-procedures.nw rigid-body-smob.nw scene-smob.nw sim-smob.nw vlref-smob.nw physics.nw logging.nw
+# Must be careful here. This ends up inadvertently controlling the order in
+# which global chunks are concatenated.
+main.cpp: main.nw nn.nw osc.nw primitive-procedures.nw rigid-body-smob.nw scene-smob.nw physics-buffer.nw camera.nw physics-ui.nw sim-smob.nw vlref-smob.nw physics.nw logging.nw
 
 # nn.h: nn.nw boiler-plate.nw 
 

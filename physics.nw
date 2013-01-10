@@ -12,8 +12,15 @@ Let's define a simple interface.
 <<file:physics.h>>=
 #ifndef SCM_MAGIC_SNARFER 
 #include <btBulletDynamicsCommon.h>
+#include "scene-smob.h"
 #endif
 void physics_init();
+void physics_add_scene(btDynamicsWorld *world);
+void scene_add_physics(struct scene* scene, btDynamicsWorld *world);
+void physics_update_scene(btDynamicsWorld *world);
+void scene_update_physics(struct scene* scene, btDynamicsWorld *world);
+void physics_clear_scene();
+void scene_clear_physics(struct scene* scene);
 @ And the body will be similar to \verb|render.cpp|.
 
 <<file:physics.cpp>>=
@@ -60,12 +67,16 @@ uses an automatic memory management policy documented
 \href{http://www.visualizationlibrary.org/documentation/pag_guide_memory.html}{here}.
 
 <<file:physics.cpp>>=
-
 void physics_add_scene(btDynamicsWorld *world)
 {
-  vl::ref<vl::SceneManagerActorTree> scene;
+  scene_add_physics(gscene, world);
+}
+
+void scene_add_physics(struct scene* scene, btDynamicsWorld *world)
+{
+  vl::ref<vl::SceneManagerActorTree> scene_manager;
   //if (scene == NULL)
-  scene = gscene->scene_manager.get();
+  scene_manager = scene->scene_manager.get();
   static int wireframe_setup = 0;
   if (! wireframe_setup) {
     <<Setup wireframe.>>
@@ -73,7 +84,6 @@ void physics_add_scene(btDynamicsWorld *world)
   }   
   <<Setup effect.>>
   /* Used to include 'Setup solid renderer.'*/
-
 
   btScalar        M[16];
   const int       numObjects = world->getNumCollisionObjects();
@@ -91,7 +101,8 @@ void physics_add_scene(btDynamicsWorld *world)
     <<Add shape to scene.>>
   }
   /* Now update so the transformations are correct. */
-  physics_update_scene(world);
+  scene_update_physics(scene, world);
+  //physics_update_scene(world);
 }
 SCM_DEFINE (scm_physics_add_scene, "physics-add-scene", 1, 0, 0,
             (SCM sim),
@@ -99,6 +110,16 @@ SCM_DEFINE (scm_physics_add_scene, "physics-add-scene", 1, 0, 0,
 {
   struct sim *s = unwrap_sim(sim);
   physics_add_scene(s->world);
+  return SCM_UNSPECIFIED;
+}
+
+SCM_DEFINE (scm_scene_add_physics, "scene-add-physics", 2, 0, 0,
+            (SCM scene, SCM sim),
+            "Add all the objects into the scene.")
+{
+  struct scene *sc = unwrap_scene(scene);
+  struct sim *s = unwrap_sim(sim);
+  scene_add_physics(sc, s->world);
   return SCM_UNSPECIFIED;
 }
 <<Includes>>=
@@ -119,9 +140,9 @@ if (shape->getShapeType() == BOX_SHAPE_PROXYTYPE) {
   cube->computeNormals();
   vl_transform = new vl::Transform;
   vl::ref<vl::Actor> actor;
-  actor = scene->tree()->addActor(cube.get(), 
-                                  effect.get(), 
-                                  vl_transform.get());
+  actor = scene_manager->tree()->addActor(cube.get(), 
+                                          effect.get(), 
+                                          vl_transform.get());
 
   actor->actorEventCallbacks()->push_back( new vl::DepthSortCallback );
 
@@ -129,14 +150,14 @@ if (shape->getShapeType() == BOX_SHAPE_PROXYTYPE) {
     vl::ref<vl::Transform> old_transform;
     old_transform = (vl::Transform *) colObj->
       getCollisionShape()->getUserPointer();
-    if (has_child(gscene->rendering->transform()->childrenCount(),
-                  gscene->rendering->transform()->children(), 
+    if (has_child(scene->rendering->transform()->childrenCount(),
+                  scene->rendering->transform()->children(), 
                   old_transform.get())) 
-      gscene->rendering->transform()->eraseChild(old_transform.get());
+      scene->rendering->transform()->eraseChild(old_transform.get());
   }
   vl_transform->incReference();
   colObj->getCollisionShape()->setUserPointer(vl_transform.get());
-  gscene->rendering->transform()->addChild(vl_transform.get());
+  scene->rendering->transform()->addChild(vl_transform.get());
 } else {
   fprintf(stderr, "warning: cannot draw any shape except a box.\n");
 }
@@ -149,21 +170,21 @@ bool has_child(size_t n, vl::ref<vl::Transform> *children, vl::Transform *child)
   return false;
 }
 <<Setup effect.>>=
-  // Setup the effect to be used to render the cube.
-  vl::ref<vl::Effect> effect = new vl::Effect;
-  // Enable depth test and lighting.
-  effect->shader()->enable(vl::EN_DEPTH_TEST);
-  // Add a Light to the scene, since no Transform is associated to the Light it will follow the camera.
-  effect->shader()->setRenderState( new vl::Light, 0 );
-  // Enable the standard OpenGL lighting.
-  effect->shader()->enable(vl::EN_LIGHTING);
-  effect->shader()->enable(vl::EN_BLEND);
-  // Set the front and back material color of the cube 
-  // "gocMaterial" stands for "get-or-create Material".
-  vl::vec4 color = vl::crimson;
-  //color.a() = 0.5;
-  color.a() = 0.0;
-  effect->shader()->gocMaterial()->setDiffuse(color );
+// Setup the effect to be used to render the cube.
+vl::ref<vl::Effect> effect = new vl::Effect;
+// Enable depth test and lighting.
+effect->shader()->enable(vl::EN_DEPTH_TEST);
+// Add a Light to the scene, since no Transform is associated to the Light it will follow the camera.
+effect->shader()->setRenderState( new vl::Light, 0 );
+// Enable the standard OpenGL lighting.
+effect->shader()->enable(vl::EN_LIGHTING);
+effect->shader()->enable(vl::EN_BLEND);
+// Set the front and back material color of the cube 
+// "gocMaterial" stands for "get-or-create Material".
+vl::vec4 color = vl::crimson;
+//color.a() = 0.5;
+color.a() = 0.0;
+effect->shader()->gocMaterial()->setDiffuse(color );
 @
 <<Includes>>=
 #include <vlGraphics/EdgeRenderer.hpp>
@@ -172,7 +193,7 @@ bool has_child(size_t n, vl::ref<vl::Transform> *children, vl::Transform *child)
 vl::ref<vl::Renderer> solid_renderer;
 vl::ref<vl::EdgeRenderer> edge_renderer;
 
-solid_renderer = gscene->rendering->renderer();
+solid_renderer = scene->rendering->renderer();
 edge_renderer = new vl::EdgeRenderer;
 
 // we set the clear flags to be CF_CLEAR_DEPTH (by default is set to
@@ -185,7 +206,7 @@ edge_renderer->setClearFlags(vl::CF_CLEAR_DEPTH);
 edge_renderer->setFramebuffer(solid_renderer->framebuffer());
 // enqueue the EdgeRenderer in the rendering, will be executed after
 // mSolidRenderer
-gscene->rendering->renderers().push_back( edge_renderer.get() );
+scene->rendering->renderers().push_back( edge_renderer.get() );
 
 // hidden line and crease options
 edge_renderer->setShowHiddenLines(true);
@@ -245,8 +266,12 @@ vl::ref<vl::Effect> effect = fx.get();
 their positions and orientations.
 
 <<file:physics.cpp>>=
+void physics_update_scene(btDynamicsWorld* world) 
+{
+  scene_update_physics(gscene, world);
+}
 
-  void physics_update_scene(btDynamicsWorld* world)
+void scene_update_physics(struct scene* scene, btDynamicsWorld *world)
 {
   btScalar        M[16];
   const int       numObjects = world->getNumCollisionObjects();
@@ -270,11 +295,21 @@ their positions and orientations.
       vl::Matrix4<btScalar> N;
       N.fillPtr(M);
       vl_transform->setLocalMatrix( N );    
-      //fprintf(stderr, "debug: Updated transform.\n");
+      //mylog("physics", PRI_DEBUG, "Updated transform.");
     } else {
       mylog("physics", PRI_WARN, "Unable to update transform.");
     }
   }
+}
+
+SCM_DEFINE (scm_scene_update_physics, "scene-update-physics", 2, 0, 0,
+            (SCM scene, SCM sim),
+            "Update all the objects into the scene.")
+{
+  struct scene *sc = unwrap_scene(scene);
+  struct sim *s = unwrap_sim(sim);
+  scene_update_physics(sc, s->world);
+  return SCM_UNSPECIFIED;
 }
 SCM_DEFINE (scm_physics_update_scene, "physics-update-scene", 1, 0, 0,
             (SCM sim),
@@ -289,14 +324,27 @@ SCM_DEFINE (scm_physics_update_scene, "physics-update-scene", 1, 0, 0,
 
 void physics_clear_scene()
 {
-
+  scene_clear_physics(gscene);
+}
+void scene_clear_physics(struct scene* scene)
+{
   //scene_manager->tree()->eraseAllChildren();
-  gscene->scene_manager->tree()->actors()->clear();
-  gscene->rendering->transform()->eraseAllChildren();
+  scene->scene_manager->tree()->actors()->clear();
+  scene->rendering->transform()->eraseAllChildren();
 
   // rendering->sceneManagers()->clear();
   // rendering->sceneManagers()->push_back(scene_manager.get());
 }
+
+SCM_DEFINE (scm_scene_clear_physics, "scene-clear-physics", 1, 0, 0,
+            (SCM scene),
+            "Clear all the objects into the scene.")
+{
+  struct scene *sc = unwrap_scene(scene);
+  scene_clear_physics(sc);
+  return SCM_UNSPECIFIED;
+}
+
 SCM_DEFINE (scm_physics_clear_scene, "physics-clear-scene", 0, 0, 0,
             (),
             "Clear the scene.")
@@ -304,11 +352,7 @@ SCM_DEFINE (scm_physics_clear_scene, "physics-clear-scene", 0, 0, 0,
   physics_clear_scene();
   return SCM_UNSPECIFIED;
 }
-<<file:physics.h>>=
-void physics_add_scene(btDynamicsWorld *world);
-void physics_update_scene(btDynamicsWorld *world);
-void physics_clear_scene();
-@ 
+
 <<file:physics.cpp>>=
 <<Physics Initialize>>
 @ 

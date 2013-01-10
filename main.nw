@@ -32,6 +32,8 @@ int main(int argc, char** argv) {
   mylog("main", PRI_INFO, "Initialize glcontext.");
   init_glcontext();
 
+  <<+ Load scheme files after window opens.>>
+
   /* Callbacks must be setup after window is open. 
      (Learned that one the hard way.) */
   mylog("main", PRI_INFO, "Initialize render module.");

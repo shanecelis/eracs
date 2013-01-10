@@ -221,8 +221,8 @@ SCM_DEFINE (scm_sim_tick, "sim-tick", 1, 1, 0,
     s->world->stepSimulation(dt);
     s->elapsed_time += dt;
   }
-  scm_remember_upto_here_1 (sim);
   return scm_from_double(s->elapsed_time);
+  scm_remember_upto_here_1 (sim);
 }
 @ 
 <<Primitives>>=

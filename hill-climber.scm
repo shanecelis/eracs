@@ -64,7 +64,7 @@
   (set-nn-weights! robot weights)
   (eval-robot))
 
-(define eval-robot-time 10.) ;; simulated seconds
+(define eval-robot-time 40.) ;; simulated seconds
 
 (define* (eval-robot-headless weights 
                               #:key 
@@ -562,7 +562,7 @@ distance to waypoint."
       #;(format #t "~a" (list (vector->list (raw-fitness->display-fitness
                                            last-seed-fitness))))
       (mathematica 
-       (apply format #f "exportPDF[~a, Show[plotFrontAndPoint[~a, ~a, ~a], AxesLabel -> ~a]];" 
+       (apply format #f "exportPDF[~a, Show[plotFrontAndPoint[~a, ~a, ~a], AxesLabel -> ~a, AxesOrigin -> {0, 0}]];" 
               (map sexp->mathematica
                    (list
                     "tmp-plot2.pdf"
