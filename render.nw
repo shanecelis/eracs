@@ -147,7 +147,7 @@ void render_init(int screen_width, int screen_height)
 void render()
 {
   //scene_render(gscene);
-  struct scene* scene = scm_c_current_scene();
+  struct scene* scene = scm_c_recent_scene();
   if (scene)
     scene_render(scene);
   scene_render(mode_line_scene);
@@ -208,7 +208,7 @@ SCM_DEFINE (scm_scene_update_camera, "scene-update-camera",
 <<file:render.cpp>>=
 void scene_update_camera(struct scene *scene) {
   vl::mat4 view_mat = vl::mat4::getLookAt(scene->eye, scene->center, scene->up);
-  scene->rendering->camera()->setViewMatrix( view_mat );
+  scene->rendering->camera()->setViewMatrix(view_mat);
 }
 void render_update_camera() {
   scene_update_camera(gscene);

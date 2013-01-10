@@ -12,6 +12,10 @@
              )
 (define pi (acos -1))
 
+(define (current-robot)
+  (buffer-robot (current-buffer)))
+
+
 ;; Some deprecated functions
 (define (physics-clear-scene)
   (and (current-scene) (scene-clear-physics (current-scene))))
@@ -163,10 +167,13 @@
 
 (define init-scene init-robot-obstacle-scene)
 
+;; XXX why is 
+(mylog "quadruped2" pri-crit "sim for init-scene is ~a" (current-sim))
 (set! robot (init-scene (current-sim)))
+(set! (buffer-robot eracs-buffer) robot)
 (physics-add-scene (current-sim))
 
-(define* (robot-position #:optional (my-robot robot))
+(define* (robot-position #:optional (my-robot (current-robot)))
   (get-position (car (bodies my-robot))))
 
 (define-interactive (focus-on-robot)
@@ -182,9 +189,9 @@
      ;; path
      (format #f "/2/target-angles/~a" (1+ index))
      ;; getter
-     (lambda () (vector-ref (target-angles robot) index))
+     (lambda () (vector-ref (target-angles (current-robot)) index))
      ;; setter
-     (lambda (value) (vector-set! (target-angles robot) index value)))) 
+     (lambda (value) (vector-set! (target-angles (current-robot)) index value)))) 
   (range 0 7))
 
 ;; Setup the active joints.
@@ -195,9 +202,9 @@
      ;; path
      (format #f "/2/active/1/~a" (1+ index))
      ;; getter
-     (lambda () (vector-ref (active-joints robot) index))
+     (lambda () (vector-ref (active-joints (current-robot)) index))
      ;; setter
-     (lambda (value) (vector-set! (active-joints robot) index value)))) 
+     (lambda (value) (vector-set! (active-joints (current-robot)) index value)))) 
   (range 0 7))
 
 ;; Setup touch sensors for OSC.
@@ -208,9 +215,9 @@
     ;; path
     (format #f "/2/touch~a" index)
     ;; getter
-    (lambda () (vector-ref (touch-sensors robot) index))
+    (lambda () (vector-ref (touch-sensors (current-robot)) index))
     ;; setter
-    (lambda (value) (vector-set! (touch-sensors robot) index value))))
+    (lambda (value) (vector-set! (touch-sensors (current-robot)) index value))))
  (range 0 8))
 
 (define nn-time-period 2.) ;; seconds
@@ -352,7 +359,7 @@
               v))
 
 (define-interactive (plot-ap-brain)
-  (plot-splines (ap->linear-splines robot)))
+  (plot-splines (ap->linear-splines (current-robot))))
 
 (define-interactive (plot-ap-prefs)
   (plot-splines active-preferences-splines))
@@ -395,8 +402,8 @@
     result))
 
 (define-interactive (ap-train)
-  (train-nn (ap->nn-training-values robot))
-  (set! (controller robot) run-nn-brain))
+  (train-nn (ap->nn-training-values (current-robot)))
+  (set! (controller (current-robot)) run-nn-brain))
 
 (define (noop . args)
   #f)
@@ -429,19 +436,26 @@
        (set! points '())))))
 
 (define (my-physics-tick)
-  (if (not (paused? eracs-buffer))
-      (with-buffer eracs-buffer
-       ;; Update the simulation.
-       (sim-tick (current-sim))
-       ;; Update the visualization.
-       (physics-update-scene (current-sim))
-       ;; Do we want multiple bodies shown?
-       ;; (when (= 0 (mod (tick-count robot) 120))
-       ;;   (physics-add-scene (current-sim)))
-       (robot-tick robot)
-       (if (and draw-path? (= 0 (mod (tick-count robot) draw-path-frequency)))
-           (draw-path (robot-position robot)))
-       (osc-push osc-reg))))
+  (for-each 
+   (lambda (physics-buffer)
+     (with-buffer 
+      physics-buffer
+      (unless (paused? physics-buffer)            
+        ;; Update the simulation.
+        (sim-tick (current-sim))
+        ;; Update the visualization.
+        (physics-update-scene (current-sim))
+        ;; Do we want multiple bodies shown?
+        ;; (when (= 0 (mod (tick-count robot) 120))
+        ;;   (physics-add-scene (current-sim)))
+        (when (current-robot)
+          (let ((robot (current-robot)))
+            (robot-tick robot)
+            (if (and draw-path? 
+                     (= 0 (mod (tick-count robot) draw-path-frequency)))
+                (draw-path (robot-position robot))))
+          (osc-push osc-reg)))))
+   (filter (cut is-a? <> <physics-buffer>) (buffer-list))))
 
 (define controller-update-frequency 5) ; robot ticks
 
@@ -549,24 +563,19 @@
    #:optional 
    (brain (completing-read "Brain: "
                            (map (compose symbol->string car) brains))))
-    (set! (controller robot) (assq-ref brains (string->symbol brain))))
+    (set! (controller (current-robot)) (assq-ref brains (string->symbol brain))))
 
 (define-interactive (restart-physics)
-  (let ((weights (get-nn-weights robot)))
+  (let ((weights (and (current-robot) (get-nn-weights (current-robot)))))
     (physics-clear-scene)
     (set! (sim (current-buffer)) (make-sim))
     (set! robot (init-scene (current-sim)))
-    (set-nn-weights! robot weights)
+    (set! (buffer-robot (current-buffer)) robot)
+    (and weights
+     (set-nn-weights! robot weights))
     (set! (controller robot) run-nn-brain)
     (physics-add-scene (current-sim))
-    (draw-path))
-  ;; (sim-remove-robot (current-sim) robot)
-  ;; (set! robot (make-quadruped-robot))
-  ;; (sim-add-robot (current-sim) robot)
-  ;; (physics-clear-scene)
-  ;; (physics-add-scene (current-sim))
-  ;(sim-time-set! (current-sim) 0.0)
-  )
+    (draw-path)))
 
 (define lines '())
 

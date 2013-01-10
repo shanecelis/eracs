@@ -26,8 +26,8 @@ backward, up, and down with additional bindings \verb|C-i| and
             (set! eracs-buffer (make <physics-buffer> 
                                    #:keymap eracs-mode-map 
                                    #:name "eracs"
-                                        ;  #:scene #f
-                                   #:sim (make-sim)
+                                   ;  #:scene #f
+                                   ;#:sim (make-sim)
                                    ))
             (add-buffer! eracs-buffer)))
 <<Key bindings>>=

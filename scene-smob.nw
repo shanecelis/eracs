@@ -18,6 +18,7 @@ constraint (or joint).
 #include <vlGraphics/SceneManagerActorTree.hpp>
 #include "vlref-smob.hpp"
 #include "render.h"
+#include "util.h"
 #endif
 #include <libguile.h>
 
@@ -31,6 +32,7 @@ vl::vec3 eye;
 vl::vec3 center;
 vl::vec3 up;
 double render_fps;
+int flags;
 };
 
 void init_scene_type(void);
@@ -40,6 +42,9 @@ SCM scm_wrap_scene(struct scene*);
 SCM scm_make_scene();
 SCM scm_current_scene();
 struct scene* scm_c_current_scene();
+
+SCM scm_recent_scene();
+struct scene* scm_c_recent_scene();
 #endif /* _SCENE_SMOB_H_ */
 @ %def scene
 <<file:scene-smob.cpp>>=
@@ -188,6 +193,7 @@ SCM_DEFINE (scm_make_scene, "make-scene", 0, 0, 0,
   sc->center = vl::vec3(0, 0, 0); 
   sc->up     = vl::vec3(0, 1, 0);
   sc->render_fps = 0.0;
+  sc->flags = 0;
 
   // XXX Yuck
   scene_set_viewport(sc, 640, 440, 0, 40);
@@ -309,13 +315,80 @@ struct scene* scm_c_current_scene()
     return NULL;
 }
 @
+
+<<Functions>>=
+SCM scm_recent_scene()
+{
+    return scm_call_0(scm_c_public_ref("guile-user",
+                                       "recent-scene"));
+}
+
+struct scene* scm_c_recent_scene()
+{
+  SCM scene = scm_recent_scene();
+  if (! scm_is_false(scene))
+    return unwrap_scene(scene);
+  else
+    return NULL;
+}
+@
 \subsection{Camera Manipulation}
 
 \todo{This is currently handled in primitive-procedures, but it should
   be ripped out of there.}
 
-
+<<Primitives>>=
+SCM_DEFINE (scm_set_scene_parameter_x, "set-scene-parameter!", 
+           /* required args */ 3, 
+           /* optional args */ 0, 
+           /* rest args?    */ 0,
+            (SCM scene_smob, SCM name, SCM value),
+            "Set the parameter for a scene like camera position, target, and up for instance.")
+{
+  char *str = scm_to_locale_string(scm_symbol_to_string(name));
+  struct scene *scene;
+  scene = unwrap_scene(scene_smob);
+  if (strcmp("camera-target", str) == 0) {
+    scene->center = vector_to_vl_vec3(value);
+    scene_update_camera(scene);
+    return SCM_UNSPECIFIED;
+  } else if (strcmp("camera-position", str) == 0) {
+    scene->eye =  vector_to_vl_vec3(value);
+    scene_update_camera(scene);
+    return SCM_UNSPECIFIED;
+  } else if (strcmp("camera-up", str) == 0) {
+    scene->up = vector_to_vl_vec3(value);
+    scene_update_camera(scene);
+    return SCM_UNSPECIFIED;
+  } else
+    scm_throw(scm_c_string_to_symbol("invalid-parameter"), SCM_EOL);
+  return SCM_BOOL_F;
+}
 @ 
+
+<<Primitives>>=
+SCM_DEFINE (scm_scene_parameter, "scene-parameter", 2, 0, 0,
+            (SCM scene_smob, SCM name),
+            "Get simulation parameter.")
+{
+  char *str = scm_to_locale_string(scm_symbol_to_string(name));
+  struct scene *scene;
+  scene = unwrap_scene(scene_smob);
+  if (strcmp("FPS", str) == 0) {
+    return scm_from_double(scene->render_fps);
+  } else if (strcmp("camera-position", str) == 0) {
+    return vl_vec3_to_vector(scene->eye);
+  } else if (strcmp("camera-target", str) == 0) {
+    return vl_vec3_to_vector(scene->center);
+  } else if (strcmp("camera-up", str) == 0) {
+    return vl_vec3_to_vector(scene->up);
+  } else
+    scm_throw(scm_c_string_to_symbol("invalid-parameter"), SCM_EOL);
+  return SCM_BOOL_F;
+}
+@ 
+
+
 \subsection{Drawing State}
 
 I want to try to minimize the amount of ``stuff'' I have to do in
@@ -329,7 +402,10 @@ We'd like to have a scene buffer for ERACS.
 <<file:scene-smob.scm>>=
 (use-modules 
   (oop goops)
-  (emacsy emacsy))
+  (emacsy emacsy)
+  (srfi srfi-1)  ; find
+  (srfi srfi-26) ; cute
+  )
 
 (define-class-public <scene-buffer> (<buffer>)
   (scene #:accessor scene #:init-keyword #:scene #:init-form (make-scene)))
@@ -337,13 +413,22 @@ We'd like to have a scene buffer for ERACS.
 
 (define-method (initialize (obj <scene-buffer>) initargs)
   (next-method)
-  (if (scene obj)
-    (scene-set-viewport! (scene obj) 640 480 0 10)))
+  (when (scene obj)
+    (scene-set-viewport! (scene obj) 640 480 0 10)
+    (set-scene-parameter! (scene obj) 'camera-position #(0. 8. 10.)))
+  obj)
 
 (define-public (current-scene)
   (if (is-a? (current-buffer) <scene-buffer>)
     (scene (current-buffer))
     #f))
+
+;; Grabs the most recent scene buffer may be current, skips
+;; any non scene-buffers like minibuffer.
+(define-public (recent-scene)
+  (let ((buffer (find (cut is-a? <> <scene-buffer>) (buffer-list))))
+    (and buffer (scene buffer))))
+
 
 (define-method-public (buffer-render (buffer <scene-buffer>))
   (scene-render (scene buffer)))

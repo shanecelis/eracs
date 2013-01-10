@@ -264,7 +264,7 @@ extern "C" void GLFWCALL resize_callback(int w, int h) {
   mylog("main", PRI_DEBUG, "Resizing");
   render_setup_viewport(w, h);
   /* render(); */
-  /* glfwSwapBuffers();  */
+  /* glfwSwapBuffers(); */
 }
 @ 
 
@@ -329,6 +329,7 @@ while (! quitp) {
   //printf(".");
   //fflush(stdout);
   render();
+  glfwSetWindowTitle(emacsy_current_buffer());
   glfwSwapBuffers(); 
   glfwPollEvents();
   emacsy_flags = emacsy_tick();

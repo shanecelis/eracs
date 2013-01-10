@@ -16,10 +16,11 @@ Let's define a simple interface.
 #endif
 void physics_init();
 void physics_add_scene(btDynamicsWorld *world);
-void scene_add_physics(struct scene* scene, btDynamicsWorld *world);
 void physics_update_scene(btDynamicsWorld *world);
-void scene_update_physics(struct scene* scene, btDynamicsWorld *world);
 void physics_clear_scene();
+
+void scene_add_physics(struct scene* scene, btDynamicsWorld *world);
+void scene_update_physics(struct scene* scene, btDynamicsWorld *world);
 void scene_clear_physics(struct scene* scene);
 @ And the body will be similar to \verb|render.cpp|.
 
@@ -52,6 +53,8 @@ need the results to be reproducible.
 <<file:physics.h>>=
 #define DEFAULT_TIME_STEP 0.01666
 //#define DEFAULT_TIME_STEP 0.1
+
+#define WIREFRAME_SETUP 1
 @ 
 <<Includes>>=
 #include "render.h"
@@ -77,10 +80,9 @@ void scene_add_physics(struct scene* scene, btDynamicsWorld *world)
   vl::ref<vl::SceneManagerActorTree> scene_manager;
   //if (scene == NULL)
   scene_manager = scene->scene_manager.get();
-  static int wireframe_setup = 0;
-  if (! wireframe_setup) {
+  if (! (scene->flags & WIREFRAME_SETUP)) {
     <<Setup wireframe.>>
-    wireframe_setup = 1;
+    scene->flags |= WIREFRAME_SETUP;
   }   
   <<Setup effect.>>
   /* Used to include 'Setup solid renderer.'*/

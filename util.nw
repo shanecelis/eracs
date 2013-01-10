@@ -24,6 +24,7 @@ vl::vec4 vector_to_vl_vec4(SCM vector) {
 <<+ Begin C Header Guard.>>
 
 size_t scm_c_length(SCM list);
+SCM scm_c_string_to_symbol(const char *);
 
 <<+ End C Header Guard.>>
 #ifdef __cplusplus
@@ -38,6 +39,8 @@ size_t scm_c_length(SCM list);
 btVector3 vector_to_btVector3(SCM vector);
 vl::vec3 vector_to_vl_vec3(SCM vector);
 vl::vec4 vector_to_vl_vec4(SCM vector);
+vl::vec4 vector_to_vl_vec4(SCM vector);
+SCM vl_vec3_to_vector(vl::vec3 v3);
 #endif
 
 #endif

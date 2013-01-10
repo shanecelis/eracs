@@ -55,10 +55,10 @@
   (vector-map mutate-gene weights))
 
 (define-interactive (randomize-brain)
-  (set-nn-weights! robot (random-brain)))
+  (set-nn-weights! (current-robot) (random-brain)))
 
 (define-interactive (clear-brain)
-  (set-nn-weights! robot (make-vector gene-count 0.)))
+  (set-nn-weights! (current-robot) (make-vector gene-count 0.)))
 
 (define (evaluate-robot weights)
   (set-nn-weights! robot weights)
@@ -90,7 +90,7 @@ if supplied."
        (robot-tick robot)
        (step-fn robot))
      (let ((fitness (end-fn robot)))
-       (sim-remove-robot sim robot)
+       ;(sim-remove-robot sim robot)
        fitness))
     (mylog "hill-climber" pri-trace "END eval-robot-headless")))
 
@@ -105,20 +105,23 @@ if supplied."
   "Evaluates a robot with the given NN weights. Calls hook functions if
 supplied.  Renders this in a new buffer."
   (in-out (mylog "hill-climber" pri-trace "BEGIN eval-robot-render")
-   (let ((buffer (switch-to-buffer "*eval-robot*" <physics-buffer>)))
+   (let* ((buffer (switch-to-buffer "*eval-robot*" <physics-buffer>))
+         (scene (scene buffer)))
      (define (set-sim robot)
        (set! (sim buffer) (in-sim robot))
-       (physics-clear-scene)
-       (physics-add-scene (current-sim))
+       (set! (buffer-robot buffer) robot)
+       (scene-clear-physics scene)
+       (scene-add-physics scene (current-sim))
        (begin-fn robot))
      (define (draw robot)
-       (physics-update-scene (current-sim))
+       (scene-update-physics scene (current-sim))
        (step-fn robot)
        ;; Yield so that everything can be re-rendered.
        (block-yield))
      (define (end robot)
        (set! (paused? buffer) #t)
        (end-fn robot))
+     (set! (paused? buffer) #t)
      (eval-robot-headless weights 
                           #:begin-fn set-sim 
                           #:step-fn draw 
@@ -180,7 +183,7 @@ supplied.  Renders this in a new buffer."
                      (begin 
                        (set! first-time #f) 
                        (random-brain))
-                     (get-nn-weights robot)))
+                     (get-nn-weights (current-robot))))
         (parent-fitness (evaluate-robot parent))
         (child #f)
         (child-fitness 0))
@@ -235,7 +238,7 @@ supplied.  Renders this in a new buffer."
 (define-fitness
   ((maximize "distance from origin")
    (minimize "active preference error"))
-  (two-obj-fitness #:optional (weights (get-nn-weights robot))) 
+  (two-obj-fitness #:optional (weights (get-nn-weights (current-robot)))) 
   "Fitness objectives: 1) maximize distance from origin, and 2)
 minimize active preference error."
   (let ((start-position #f)
@@ -259,7 +262,7 @@ minimize active preference error."
 (define-fitness 
   ((minimize "distance to target")
    (minimize "active preference error"))
-  (target-object-fitness #:optional (weights (get-nn-weights robot))) 
+  (target-object-fitness #:optional (weights (get-nn-weights (current-robot)))) 
   "Fitness objectives: 1) minimize distance to target, and 2) minimize
 active preference error."
   (let ((target-position #(0 1 -10))
@@ -293,7 +296,7 @@ active preference error."
    (message "No pareto front available.")))
 
 (define-interactive (draw-robot-path #:optional 
-                         (weights (get-nn-weights robot))
+                         (weights (get-nn-weights (current-robot)))
                          (color #(1. 1. 1. 1.)))
   (let ((points '())
         (capture-frequency 10)) ;; ticks
@@ -340,7 +343,7 @@ active preference error."
   ((minimize "distance to target")
    (minimize "distance to waypoint"))
   (target-object-fitness-averaging-two-obj 
-   #:optional (weights (get-nn-weights robot))) 
+   #:optional (weights (get-nn-weights (current-robot)))) 
   "Fitness objectives: 1) minimize distance to target, and 2) minimize
 distance to waypoint."
   (let ((target-position #(0 1 -10))
@@ -389,7 +392,7 @@ distance to waypoint."
 
 (define-fitness
   ((minimize "distance to target/waypoint"))
-  (high-level-waypoint-fitness #:optional (weights (get-nn-weights robot)))
+  (high-level-waypoint-fitness #:optional (weights (get-nn-weights (current-robot))))
   (define (normalized-distance start target current)
     (/ (vector-norm (vector- current target))
        (vector-norm (vector- start target))))
@@ -459,7 +462,7 @@ distance to waypoint."
           ;high-level-waypoint-fitness
           target-object-fitness-averaging-two-obj
           )
-         (seed-weights (get-nn-weights robot))
+         (seed-weights (get-nn-weights (current-robot)))
          (original-fitness (with-fluids ((eval-robot-fluid eval-robot-headless))
                              (fitness-fn seed-weights)))
          (objective-count (vector-length original-fitness))
@@ -587,8 +590,8 @@ distance to waypoint."
     (read-from-string (read-from-minibuffer "index: "))))
   (set! last-pareto-front-index (mod index (vector-length last-pareto-front)))
   (restart-physics)
-  (set! (controller robot) run-nn-brain)
-  (set-nn-weights! robot (car (: last-pareto-front @ last-pareto-front-index)))
+  (set! (controller (current-robot)) run-nn-brain)
+  (set-nn-weights! (current-robot) (car (: last-pareto-front @ last-pareto-front-index)))
   (draw-robot-path (car (: last-pareto-front @ last-pareto-front-index))
                    (: colors @ last-pareto-front-index))
   (plot-front))
