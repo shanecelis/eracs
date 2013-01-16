@@ -280,7 +280,7 @@ supplied.  Renders this in a new buffer."
     ;; Sum them up.
     (apply + error-squared-elements)))
 
-(define fitness-functions (list ))
+(define fitness-functions '())
 
 #;"The macro define-fitness defines a procedure that contains information about what its results are, e.g. (define-fitness ((minimize \"x^2 - 1\")) (f genes) (: (genes @ 0) * (genes @ 0) - 1)) defines the procedure f which returns one result that which is to be minimized."
 (define-syntax-public define-fitness

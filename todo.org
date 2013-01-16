@@ -115,11 +115,8 @@
 
   - [X] rename fitness functions so they can be more easily understood
   - [ ] determine the spatial dimensional units.
-  - [ ] fix error calculation in active user preferences
   - [X] run some tests using the high level waypoint
   - [X] write a script to run an automated test.
-  - [ ] input some initial AP values then save them, so they are easy
-    to reload.
   - [X] there's a memory leak somewhere
     potential places
     - [X] why are any rigid bodies being free'd when I run dummy-fitness?
@@ -127,4 +124,7 @@
        Make this an automatic execution.
   - [X] Turn off the OSC discovery stuff when run in batch mode
   - [X] expose batch mode to the rest of the system
-  - [ ] 
+  - [ ] fix error calculation in active user preferences
+  - [ ] input some initial AP values then save them, so they are easy
+    to reload.
+  - [ ] define how to exercise AP
