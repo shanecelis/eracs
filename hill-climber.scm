@@ -730,6 +730,5 @@ distance to waypoint."
 (define-key eracs-mode-map (kbd ",") 'prev-individual)
 
 (define-interactive (test-read-brain)
-  (pp (call-interactively 'read-brain "run3/exp-hlwp-trial1/individual-2.bin"))
-
-  )
+  ;;(call-interactively 'read-brain "run3/exp-hlwp-trial1/individual-2.bin")
+  (call-interactively 'read-brain "run4/individual-1.bin"))

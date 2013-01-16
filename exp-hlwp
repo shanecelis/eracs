@@ -1,12 +1,11 @@
 #!./eracs -b -s
 !#
+;; exp-hlwp
 
 (use-modules
  (emacsy emacsy)
  (logging)
- (ice-9 match)
- )
-
+ (ice-9 match))
 
 (mylog "exp-hlwp" pri-debug "command line: ~a" (program-arguments))
 
