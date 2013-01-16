@@ -184,16 +184,20 @@ SCM_DEFINE (scm_make_sim, "make-sim", 0, 0, 0,
   btDefaultCollisionConfiguration* m_collisionConfiguration;
 
   m_collisionConfiguration = new btDefaultCollisionConfiguration();
+  scm_gc_register_allocation(sizeof(*m_collisionConfiguration));
   m_dispatcher = new btCollisionDispatcher(m_collisionConfiguration);
+  scm_gc_register_allocation(sizeof(*m_dispatcher));
   btVector3 worldAabbMin(-10000,-10000,-10000);
   btVector3 worldAabbMax(10000,10000,10000);
   m_broadphase = new btAxisSweep3 (worldAabbMin, worldAabbMax);
+  scm_gc_register_allocation(sizeof(*m_broadphase));
   m_solver = new btSequentialImpulseConstraintSolver;
-
+  scm_gc_register_allocation(sizeof(*m_solver));
   world = new btDiscreteDynamicsWorld(m_dispatcher,
                                       m_broadphase,
                                       m_solver,
                                       m_collisionConfiguration);
+  scm_gc_register_allocation(sizeof(*world));
 
 
   mylog("sim-smob", PRI_DEBUG, "Making sim 0x%x", world);

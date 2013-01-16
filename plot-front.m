@@ -40,20 +40,20 @@ box[] := Graphics[{EdgeForm[Black], Transparent, Rectangle[]}, ImageSize->myMark
 plotFront[points_, index_:1] := Module[{p1, p2, p3},
 p1 = ListPlot[points, Joined ->True, PlotLegends -> LineLegend[{"front"}], PlotRangePadding -> Scaled[.1]];
 p2 = ListPlot[Map[List, points], PlotStyle -> Map[colorData, Range[Length[points]]],
-PlotMarkers -> {Automatic, Large}, PlotLegends -> Map[ToString,Range[Length[points]]]];
+PlotMarkers -> {Automatic, Medium}, PlotLegends -> Map[ToString,Range[Length[points]]]];
 p3 = ListPlot[{points[[index]]},
 PlotMarkers -> {circle[]}, PlotLegends -> {"current"}, PlotStyle -> Black];
 Show[p1,p2, p3]]
 
 
-plotPoint[point_, opts:OptionsPattern[Options[ListPlot]]] := ListPlot[{point},PlotMarkers -> {Automatic, Large}, Evaluate[FilterRules[{opts},Options[ListPlot]]]]
+plotPoint[point_, opts:OptionsPattern[Options[ListPlot]]] := ListPlot[{point},PlotMarkers -> {Automatic, Medium}, Evaluate[FilterRules[{opts},Options[ListPlot]]]]
 
 
 plotFrontAndPoint[points_, index_, lastPoint_] :=
 Show[{plotFront[points, index], plotPoint[lastPoint, PlotLegends ->{"previous"}, PlotStyle -> {colorData[ 1+Length[points]]}]}, PlotRange -> All]
 
 
-exportPDF[filename_, expr_] := Export[filename, expr, ImageSize ->2  pdfImageSize]
+exportPDF[filename_, expr_] := Export[filename, expr,"PDF", ImageSize ->2  pdfImageSize]
 
 
 mathematicaToSexp[x_RGBColor] := ("#"<>mathematicaToSexp[Apply[List,Append[x,1.]]])
@@ -66,6 +66,19 @@ mathematicaToSexp[x_Real] := ToString[x]
 
 
 mathematicaToSexp[x_Integer] := ToString[x]
+
+
+path[points_] := Line[points]
+
+
+box[pos_, dims_] := {Transparent, Cuboid[pos - dims/2, pos + dims/2]}
+
+
+plotRobotPathAndObstacles[points_, obstacles_] :=
+Graphics3D[{path[points], Map[box@@#&,obstacles], {PointSize[Large],Green, Opacity[0.5], Point[points[[1]]]}},Axes->{True, False, True},AxesLabel->{"x","y","z"},ViewPoint->{0,Infinity,0},ViewVertical->{0,0,-1}, PlotRangePadding -> 2]
+
+
+plotFitnessTimeSeries[results_] := ListPlot[Transpose[Map[Function[{input}, Map[ {input[[1]], #}&,input[[2]]]],results[[All,{1,3}]]]], Joined -> True, PlotRange -> All, AxesLabel -> {"generation", "fitness"}, AxesOrigin -> {1, 0}]
 
 
 

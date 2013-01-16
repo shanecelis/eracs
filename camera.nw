@@ -25,10 +25,7 @@ backward, up, and down with additional bindings \verb|C-i| and
            (lambda ()
             (set! eracs-buffer (make <physics-buffer> 
                                    #:keymap eracs-mode-map 
-                                   #:name "eracs"
-                                   ;  #:scene #f
-                                   ;#:sim (make-sim)
-                                   ))
+                                   #:name "eracs"))
             (add-buffer! eracs-buffer)))
 <<Key bindings>>=
 ;; Camera movement keys

@@ -18,6 +18,7 @@ int main(int argc, char** argv) {
   /* Initialize VL. */
   vl::VisualizationLibrary::init();
   scm_c_eval_string("(set! %load-hook (lambda (filename) (format #t \"Loading ~a~%\" filename)))");
+  init_main();
   mylog("main", PRI_INFO, "Initialize submodules.");
   <<+ Initialize submodules.>>
 
@@ -25,8 +26,12 @@ int main(int argc, char** argv) {
   scm_c_primitive_load("util.scm"); 
   <<+ Load scheme files.>>
 
-  //<Process arguments.>>
+  <<Process arguments.>>
 
+  if (batch) {
+    mylog("main", PRI_INFO, "Running in batch mode, no GUI.");
+    emacsy_run_hook_0("post-window-open-hook");   
+  } else {
   mylog("main", PRI_INFO, "Open window.");
   <<Open window.>>
   mylog("main", PRI_INFO, "Initialize glcontext.");
@@ -39,11 +44,14 @@ int main(int argc, char** argv) {
   mylog("main", PRI_INFO, "Initialize render module.");
   render_init(SCREEN_WIDTH, SCREEN_HEIGHT);
   <<Setup callbacks.>>
-
-  <<Process arguments.>>
+  }
 
   mylog("main", PRI_INFO, "Load personal configuration.");
   <<Load personal configuration.>>
+
+  <<Run shell.>>
+
+  <<Run script.>>
 
   <<Run loop.>>
   emacsy_run_hook_0("emacsy-terminate-hook"); 
@@ -80,30 +88,50 @@ if (glfwOpenWindow(SCREEN_WIDTH, SCREEN_HEIGHT,
 }
 glfwSwapInterval(1);
 glfwEnable(GLFW_KEY_REPEAT);
-glfwSetWindowTitle("ERACS version $VERSION");
+//glfwSetWindowTitle("ERACS version $VERSION");
 
 @ \section{Process Arguments}
 
 <<Functions>>=
 void usage() 
 {
-  fprintf(stderr, "usage: eracs [-h] [-l file]\n");
+  fprintf(stderr, "usage: eracs [-hS] [-l file] [-s script]\n");
 }
 @ 
 
-Our main program has the following options: ``-l FILE''.
+Our main program has the following options: ``-h'' for help, ``-b'' for batch run, ``-l FILE'' to load a file, and ``-s SCRIPT'' to run a script.
 
 <<Process arguments.>>=
 int c;
-while ((c = getopt (argc, argv, "hl:")) != -1)
+int batch = 0;
+int shell_argc = -1;
+char **shell_argv;
+SCM script = SCM_BOOL_F;
+while ((c = getopt (argc, argv, "bhl:s:S")) != -1)
   switch (c)
   {
   case 'h':
     usage();
     return 2;
+
+  case 'b':
+    batch = 1;
+    scm_c_define("eracs-batch?", SCM_BOOL_T);
+    break;
+
   case 'l':
     if (access(optarg, R_OK) != -1)
       scm_c_primitive_load(optarg);
+    break;
+
+  case 's':
+    script = scm_from_locale_string(optarg);
+    mylog("main", PRI_DEBUG, "Setting program arguments.");
+    scm_set_program_arguments(argc - (optind - 1), argv + (optind - 1), NULL);
+    break;
+  case 'S':
+    shell_argc = argc - (optind - 1);
+    shell_argv = argv + (optind - 1); 
     break;
   case '?':
     if (optopt == 'c')
@@ -112,11 +140,18 @@ while ((c = getopt (argc, argv, "hl:")) != -1)
   default:
     abort ();
   }
-// next argument at argv[0]; good for new code.
+// Next argument at argv[0].
 argc -= (optind - 1);
 argv += (optind - 1);
 @ 
 
+<<Run script.>>=
+if (! scm_is_false(script)) {
+ if (access(optarg, R_OK) != -1) {
+   scm_primitive_load(script);
+ }
+}
+@ 
 
 \section{Keyboard Input}
 
@@ -129,6 +164,8 @@ function.
 
 <<State>>=
 bool key_pressed = true;
+SCM_GLOBAL_VARIABLE_INIT(scm_batch, "eracs-batch?", SCM_BOOL_F);
+
 @ \end{multicols}
 
 <<Functions>>=
@@ -326,21 +363,24 @@ while (! quitp) {
   //printf("BEGIN PHYSICS HOOK\n");
   emacsy_run_hook_0("physics-tick-hook"); 
   //printf("END PHYSICS HOOK\n");
-  //printf(".");
-  //fflush(stdout);
-  render();
-  glfwSetWindowTitle(emacsy_current_buffer());
-  glfwSwapBuffers(); 
-  glfwPollEvents();
+  if (! batch) {
+    render();
+    glfwSetWindowTitle(emacsy_current_buffer());
+    glfwSwapBuffers(); 
+    glfwPollEvents();
+  }
   emacsy_flags = emacsy_tick();
   quitp = 
     emacsy_flags & EY_QUIT_APPLICATION
-    || ! glfwGetWindowParam(GLFW_OPENED);
+    || (!batch && ! glfwGetWindowParam(GLFW_OPENED));
   tick++;
-  if (glfwGetWindowParam(GLFW_ICONIFIED) || ! glfwGetWindowParam(GLFW_ACTIVE)) {
+  if (!batch 
+      && (glfwGetWindowParam(GLFW_ICONIFIED) 
+          || ! glfwGetWindowParam(GLFW_ACTIVE))) {
     // Let's sleep a little bit.
     glfwSleep(1./30.);
   }
+  //glfwSleep(1./30.);
   //printf("END RUN LOOP\n");
 }
 
@@ -367,6 +407,7 @@ lightweight library.)
 #include <stdlib.h>
 
 #include <libguile.h>
+#ifndef SCM_MAGIC_SNARFER
 #include <emacsy.h>
 
 #include "vl.h"
@@ -375,6 +416,7 @@ lightweight library.)
 #include "primitive-procedures.h"
 
 <<+ Include submodules.>>
+#endif
 <<Defines>>=
 
 #define SCREEN_WIDTH 640
@@ -420,3 +462,15 @@ if (log4c_fini()) {
 #include "logging.h"
 #include "scm-logging.h"
 @ 
+
+<<Helper Functions>>=
+void init_main()
+{
+  #include "main.cpp.x"
+}
+@ 
+
+<<Run shell.>>=
+if (shell_argc != -1)
+  scm_shell(shell_argc, shell_argv); 
+@

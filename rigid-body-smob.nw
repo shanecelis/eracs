@@ -61,7 +61,7 @@ static size_t free_rigid_body (SCM rigid_body_smob)
 {
   struct rigid_body *rigid_body;
   rigid_body = (struct rigid_body *) SCM_SMOB_DATA (rigid_body_smob);
-  mylog("rigid-body-smob", PRI_DEBUG, "freeing rigid-body 0x%x", rigid_body);
+  mylog("rigid-body-smob", PRI_DEBUG, "freeing rigid-body 0x%x '%s'", rigid_body, scm_to_locale_string(rigid_body->name));
   if (rigid_body->body) {
     if (! scm_is_false(rigid_body->sim)) {
       scm_sim_remove_body(rigid_body->sim, rigid_body_smob);
@@ -173,7 +173,7 @@ SCM wrap_rigid_body(btRigidBody* btrb, char* name, SCM contact_func)
    */
   SCM_NEWSMOB (smob, rigid_body_tag, rb);
   rb->body->setUserPointer(smob);
-
+  mylog("rigid-body-smob", PRI_DEBUG, "wrap_rigid_body 0x%x '%s'.", rb->body, scm_to_locale_string(rb->name));
   return smob;  
 }
 @ Now let's allow ourselves to create this C object from Scheme.
@@ -193,8 +193,11 @@ SCM_DEFINE (make_box, "make-box", 2, 3, 0,
 
   transform.setIdentity(); 
   transform.setOrigin(vector_to_btVector3(pos));
+
   motionState = new btDefaultMotionState(transform);
+  scm_gc_register_allocation(sizeof(*motionState));
   shape = new btBoxShape(0.5 * vector_to_btVector3(dims));
+  scm_gc_register_allocation(sizeof(*shape));
   shape->calculateLocalInertia(SCM_UNBNDP(mass) 
                                ? 1. : scm_to_double(mass), 
                                local_inertia);
@@ -205,7 +208,7 @@ SCM_DEFINE (make_box, "make-box", 2, 3, 0,
           motionState, shape, local_inertia);
 
   body = new btRigidBody(con_info);
-
+  scm_gc_register_allocation(sizeof(*body));
   return wrap_rigid_body(body, 
                          SCM_UNBNDP(name) 
                          ? NULL 
@@ -428,16 +431,17 @@ static scm_t_bits constraint_tag;
 \verb|print|.
 
 <<Free>>=
+SCM scm_sim_remove_constraint(SCM, SCM);
 
 static size_t free_constraint (SCM constraint_smob)
 {
   struct constraint *constraint;
   constraint = (struct constraint *) SCM_SMOB_DATA (constraint_smob);
+  mylog("rigid-body-smob", PRI_DEBUG, "freeing constraint 0x%x", constraint);
+
   if (constraint->joint) {
     if (constraint->world) {
-      scm_remove_constraint(constraint->sim, constraint);
-      /* constraint->world->removeConstraint(constraint->joint); */
-      /* constraint->world = NULL; */
+      scm_sim_remove_constraint(constraint->sim, constraint_smob);
     }
     scm_gc_unprotect_object(constraint->body_a);
     scm_gc_unprotect_object(constraint->body_b);
@@ -531,6 +535,7 @@ SCM wrap_constraint(btTypedConstraint* bttc,
   SCM_NEWSMOB (smob, constraint_tag, tc);
   // No user pointer for joint objects.
   tc->joint->setUserConstraintPtr(smob);
+  mylog("rigid-body-smob", PRI_DEBUG, "wrapping constraint 0x%x", tc);
          
   return smob;  
 }
@@ -571,6 +576,7 @@ SCM_DEFINE (make_hinge, "make-hinge", 6, 2, 0,
     new btHingeConstraint(*(rb_a->body), *(rb_b->body),
                           p_a, p_b,
                           ax_a, ax_b, false);
+  scm_gc_register_allocation(sizeof(*tc));
   /*
   if (SCM_UNBNDP(update_func)) {
     rb->update_func = SCM_BOOL_F;

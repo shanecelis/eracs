@@ -78,6 +78,25 @@
   - [ ] viewport should be in window; scene should be in buffer
   - [ ] write an interactive scm-to-c and c-to-scm that will translate
     scm_blah_dee_dah to blah-dee-dah and back
+  - [ ] implement a <void-object> so I can implement a <void-buffer> and <void-sim>
+    and don't have to check for #f everywhere.
+  - [ ] figure out how to integrate a browser window, it'll show pdf
+    graphs, images, etc. too!
+  - [ ] implement void-class
+  - [ ] implement separate histories for read-from-minibuffer
+  - [ ] there should be a way to turn off the display/runloop from happening.
+
+  - [ ] do buffer-local variables using dynamically created modules for each buffer
+    
+    Some good things to know.
+(define the-root-module
+  (let ((m (make-module 0)))
+    (set-module-obarray! m (%get-pre-modules-obarray))
+    (set-module-name! m '(guile))
+    (set-system-module! m #t)
+    m))
+  - [ ] cut <...> DOES NOT WORK!
+
 * TODO before GECCO
   - [X] fix the scene since it's not displaying
   - [X] write up the gameplan low-level vs high-level
@@ -92,8 +111,20 @@
   - [X] need to be able to see prior evaluations
   - [X] plot fitness correctly: need to know what's being minimized
     and maximized; need axes labels.
+  - [X] save binary vector values for the NN
+
+  - [X] rename fitness functions so they can be more easily understood
   - [ ] determine the spatial dimensional units.
   - [ ] fix error calculation in active user preferences
-  - [ ] run some tests using the high level waypoint
-  - [ ] rename fitness functions so they can be more easily understood
+  - [X] run some tests using the high level waypoint
+  - [X] write a script to run an automated test.
+  - [ ] input some initial AP values then save them, so they are easy
+    to reload.
+  - [X] there's a memory leak somewhere
+    potential places
+    - [X] why are any rigid bodies being free'd when I run dummy-fitness?
+  - [X] determine how small of a NN we can use and have AP work
+       Make this an automatic execution.
+  - [X] Turn off the OSC discovery stuff when run in batch mode
+  - [X] expose batch mode to the rest of the system
   - [ ] 

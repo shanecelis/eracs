@@ -10,9 +10,9 @@
     ((: (begin . args))
       (begin . args))
     ((: v @ i)
-     (vector-ref v (: i)))
+     (generalized-vector-ref v (: i)))
     ((: v @ i := rhs ...)
-     (vector-set! v (: i) (: rhs ...)))
+     (generalized-vector-set! v (: i) (: rhs ...)))
     
     ;; ((: (op x ...))
     ;;  (op (: x ...)))

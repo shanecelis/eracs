@@ -24,7 +24,11 @@
 	<!-- my categories ========================================= -->
 	<category name="main.event" priority="notice" appender="stdout"/>
 	<category name="zeroconf" priority="warn" appender="stdout"/>
-	<!-- <category name="sim-smob" priority="warn" appender="stdout"/> -->
+	<category name="rigid-body-smob" priority="warn" appender="stdout"/>
+	<category name="hill-climber" priority="debug" appender="stdout"/>
+	<category name="sim-smob" priority="warn" appender="stdout"/>
+	<!-- <category name="emacsy.message" priority="warn" appender="stdout"/> -->
+	<category name="sim-smob" priority="warn" appender="stdout"/>
 
 <!--
 	<category name="main" priority="debug" appender="stdout"/>

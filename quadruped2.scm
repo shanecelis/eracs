@@ -31,7 +31,7 @@
 ;;   (sim-time my-sim))
 (cons! <physics-buffer> buffer-classes)
 
-(define neuron-count '(5 16 16 8))
+(define neuron-count '(5 4 8))
 
 (define-class <quadruped> ()
   (bodies #:getter bodies #:init-keyword #:bodies)
@@ -53,10 +53,10 @@
   (vector-fill! (target-angles robot) 0.)
   (vector-fill! (active-joints robot) #t))
 
-(define (make-boxy-cylinder pos radius length alignment)
+(define* (make-boxy-cylinder pos radius length alignment #:optional (name #f))
   (let ((dims (make-vector 3 (* 2 radius))))
     (vector-set! dims (1- alignment) length)
-    (make-box pos dims)))
+    (apply make-box pos dims 1. (if name (list name) '()))))
 
 (define (low-level-brain robot )
   (target-angles robot))
@@ -78,19 +78,20 @@
 
 (define (make-quadruped-robot)
   (define (make-contact-responder robot index)
-    (lambda ()
-      (vector-set! (touch-sensors robot) index #t)))
+    (let ((v (touch-sensors robot)))
+     (lambda ()
+       (vector-set! v index #t))))
   
   (let* ((nth list-ref)
-         (body (make-box #(0 1 0) #(1 .2 1)))
-         (legs (list (make-boxy-cylinder #(1    1  0  ) .1 1 1)
-                     (make-boxy-cylinder #(1.5 .5  0  ) .1 1 2)
-                     (make-boxy-cylinder #(0    1 -1  ) .1 1 3)
-                     (make-boxy-cylinder #(0   .5 -1.5) .1 1 2) 
-                     (make-boxy-cylinder #(-1   1  0  ) .1 1 1)
-                     (make-boxy-cylinder #(-1.5 .5 0  ) .1 1 2)
-                     (make-boxy-cylinder #(0    1  1  ) .1 1 3)
-                     (make-boxy-cylinder #(0   .5  1.5) .1 1 2)))
+         (body (make-box #(0 1 0) #(1 .2 1) 1. "root"))
+         (legs (list (make-boxy-cylinder #(1    1  0  ) .1 1 1 "leg")
+                     (make-boxy-cylinder #(1.5 .5  0  ) .1 1 2 "leg")
+                     (make-boxy-cylinder #(0    1 -1  ) .1 1 3 "leg")
+                     (make-boxy-cylinder #(0   .5 -1.5) .1 1 2 "leg") 
+                     (make-boxy-cylinder #(-1   1  0  ) .1 1 1 "leg")
+                     (make-boxy-cylinder #(-1.5 .5 0  ) .1 1 2 "leg")
+                     (make-boxy-cylinder #(0    1  1  ) .1 1 3 "leg")
+                     (make-boxy-cylinder #(0   .5  1.5) .1 1 2 "leg")))
          (joints (list (make-hinge body (nth legs 0)
                                    #(.5 0 0) #(-.5 0  0)
                                    #(0 0 -1) #(0   0 -1))
@@ -115,17 +116,22 @@
                        (make-hinge (nth legs 6) (nth legs 7)
                                    #(0  0 .5) #(0 0.5  0)
                                    #(1 0   0) #(1  0  0))))
-         (target-body (make-box #(0 1 -10) #(1  1 1)))
-         (wall-body   (make-box #(0 1 -5)  #(10 1 1)))
+         ;(target-body (make-box #(0 1 -10) #(1  1 1)))
+         ;(wall-body   (make-box #(0 1 -5)  #(10 1 1)))
          
          (robot (make <quadruped> 
                   #:bodies (append (cons body legs) ;(list target-body wall-body)
                                    
                                    ) 
                   #:joints joints
-                  #:controller hand-coded-brain ;low-level-brain
-                  )))
+                  #:controller hand-coded-brain) ;low-level-brain
+                ))
     
+    ;; XXX - The contact function is a closure that contains the robot.
+    ;; This seems to create a circular reference that will not allow
+    ;; for garbage collection to happen.  Yuck!
+    ;; FIXED it by having the closure not keep the robot but instead only
+    ;; keep the reference to the touches vector that robot has.
     (for-each 
      (lambda (body index)
        (set-contact-func! body (make-contact-responder robot index)))
@@ -136,7 +142,8 @@
 (define (sim-add-robot sim robot)
   (map #.\ (sim-add-body sim %1) (bodies robot))
   (map #.\ (sim-add-constraint sim %1) (joints robot))
-  (set! (in-sim robot) sim))
+  (set! (in-sim robot) sim)
+  )
 
 (define (sim-remove-robot sim robot)
   (map #.\ (sim-remove-constraint sim %1) (joints robot))
@@ -148,27 +155,34 @@
 
 (define robot #f)
 
+(define (init-robot-scene-anemic sim)
+  (let ((robot (make-quadruped-robot)))
+    (sim-add-robot sim robot)
+    robot))
+
 (define (init-robot-scene sim)
   ;; Add the robot to the physics simulation.
   (let ((robot (make-quadruped-robot)))
-
+    
     (sim-add-robot sim robot)
     ;(mylog "quadruped2" pri-debug "added quadruped to sim ~a" sim)
     ;;(sim-add-ground-plane sim)
     (sim-add-ground-plane2 sim)
     robot))
 
+(define obstacles '( 
+                   ;;target-body 
+                   (#(0 1 -10) #(1  1 1))
+                   ;;wall-body
+                   (#(0 1 -5)  #(10 1 1))
+                   ))
+
 (define (init-robot-obstacle-scene sim)
-  ;;target-body 
-  (sim-add-fixed-box sim #(0 1 -10) #(1  1 1))
-  ;;wall-body
-  (sim-add-fixed-box sim #(0 1 -5)  #(10 1 1))
+  (map (lambda (obs) (apply sim-add-fixed-box sim obs)) obstacles)
   (init-robot-scene sim))
 
 (define init-scene init-robot-obstacle-scene)
 
-;; XXX why is 
-(mylog "quadruped2" pri-crit "sim for init-scene is ~a" (current-sim))
 (set! robot (init-scene (current-sim)))
 (set! (buffer-robot eracs-buffer) robot)
 (physics-add-scene (current-sim))
@@ -442,19 +456,23 @@
       physics-buffer
       (unless (paused? physics-buffer)            
         ;; Update the simulation.
-        (sim-tick (current-sim))
+        (repeat eval-robot-render-speed
+                (sim-tick (current-sim))
+                ;; Do we want multiple bodies shown?
+                ;; (when (= 0 (mod (tick-count robot) 120))
+                ;;   (physics-add-scene (current-sim)))
+                (when (current-robot)
+                  (let ((robot (current-robot)))
+                    (robot-tick robot)
+                    (if (and draw-path? 
+                             (= 0 (mod (tick-count robot) draw-path-frequency)))
+                        (draw-path (robot-position robot))))
+                  (osc-push osc-reg)))
+
         ;; Update the visualization.
         (physics-update-scene (current-sim))
-        ;; Do we want multiple bodies shown?
-        ;; (when (= 0 (mod (tick-count robot) 120))
-        ;;   (physics-add-scene (current-sim)))
-        (when (current-robot)
-          (let ((robot (current-robot)))
-            (robot-tick robot)
-            (if (and draw-path? 
-                     (= 0 (mod (tick-count robot) draw-path-frequency)))
-                (draw-path (robot-position robot))))
-          (osc-push osc-reg)))))
+
+        )))
    (filter (cut is-a? <> <physics-buffer>) (buffer-list))))
 
 (define controller-update-frequency 5) ; robot ticks

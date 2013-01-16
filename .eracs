@@ -14,11 +14,15 @@
 (let ((orig emacsy-mode-line))
   (set! emacsy-mode-line 
         (lambda ()
+        (with-buffer (recent-buffer)
           (format #f "~a FPS ~1,0f sim-time ~1,1f controller-time ~1,2f" 
                   (orig) 
                   (get-parameter 'FPS) 
                   (let ((sim (current-sim))) (if sim (sim-time sim) 0.))
-                  (time-loop-value robot)))))
+                  (time-loop-value (current-robot)))))))
+
+(define-interactive (reload-log-config)
+  (log4c-reread))
 
 (let ((orig message))
   (set! message
@@ -55,10 +59,8 @@
   (add-hook! emacsy-terminate-hook stop-profiling))
 
 ;; Let's start a REPL.
-(when spawn-threads?
+(when (and spawn-threads? (not eracs-batch?))
   (spawn-server)
-
-
 ;; Let's start the OSC server and publish it.
   (start-osc-server)
   (spawn-publish-service "" "_osc._udp." "ERACS" 7770)
@@ -73,3 +75,6 @@
 
 ;(optimize 1)
 (restore-signals)
+
+(randomize-brain)
+(set! (controller (current-robot)) run-nn-brain)

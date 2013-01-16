@@ -19,6 +19,7 @@ constraint (or joint).
 #include "vlref-smob.hpp"
 #include "render.h"
 #include "util.h"
+#include "util-cpp.hpp"
 #endif
 #include <libguile.h>
 
@@ -186,7 +187,8 @@ SCM_DEFINE (scm_make_scene, "make-scene", 0, 0, 0,
   sc->rendering = new vl::Rendering();
   vl::vec4 background_color(61.f/255.f, 110.f/255.f, 203/255.f, 1.f);
   sc->rendering->camera()->viewport()->setClearColor(background_color);
-  sc->rendering->renderer()->setFramebuffer(glcontext->framebuffer());
+  if (glcontext)
+    sc->rendering->renderer()->setFramebuffer(glcontext->framebuffer());
   sc->rendering->sceneManagers()->push_back(sc->scene_manager.get());
   sc->main_rendering->subRenderings()->push_back(sc->rendering.get());
   sc->eye    = vl::vec3(0,10,10);
@@ -428,6 +430,9 @@ We'd like to have a scene buffer for ERACS.
 (define-public (recent-scene)
   (let ((buffer (find (cut is-a? <> <scene-buffer>) (buffer-list))))
     (and buffer (scene buffer))))
+
+(define-public (recent-buffer)
+  (find (lambda (buffer) (not (eq? buffer minibuffer))) (buffer-list)))
 
 
 (define-method-public (buffer-render (buffer <scene-buffer>))

@@ -3,10 +3,39 @@
 We'd like to have a physics buffer for ERACS rather than a text buffer.
 
 <<file:physics-buffer.scm>>=
-
 (use-modules 
   (oop goops)
-  (emacsy emacsy))
+  (emacsy emacsy)
+  (logging))
+
+#;(define-class <void-class> (<class>))
+
+#;(define-method (no-applicable-method (vo <void-class>) args)
+  (mylog "void-class" pri-debug "called on ~S with args ~S" vo args)
+  (if #f #f))
+
+#;(define-method (apply-methods (vo <void-class>) (l <list>) args)
+  (mylog "void-class" pri-debug "called on ~S with args ~S" vo args)
+  (if #f #f))
+
+#;(define-method (no-method (vo <void-class>) args)
+  (mylog "void-class" pri-debug "no-method called on ~S with args ~S" vo args)
+  (if #f #f))
+
+#;(define-class <void-buffer> ()
+  ;#:metaclass <void-class>
+  
+  )
+
+#;(define-method (apply-generic (vo <void-buffer>) args)
+  (mylog "void-class" pri-debug "apply-generic called on ~S with args ~S" vo args)
+  (if #f #f))
+
+
+
+;(other-name (make <void-buffer>))
+;(buffer-name (make <void-buffer>))
+
 
 (define-class-public <physics-buffer> (<scene-buffer>)
   (sim #:accessor sim #:init-keyword #:sim #:init-form (make-sim))

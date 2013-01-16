@@ -1,0 +1,35 @@
+% -*- mode: Noweb; noweb-code-mode: c-mode -*-
+/section{Utility Functions}
+
+A dumping ground for general purpose things.
+
+<<file:util-cpp.cpp>>=
+#include "util-cpp.hpp"
+
+vl::vec4 vector_to_vl_vec4(SCM vector) {
+  vl::vec4 v;
+  for (int i = 0; i < 4; i++)
+    v[i] = scm_to_double(scm_vector_ref(vector, scm_from_int(i)));
+  return v;
+}
+@
+
+<<file:util-cpp.hpp>>=
+#ifndef _UTIL_CPP_H_
+#define _UTIL_CPP_H_
+
+#include <libguile.h>
+#ifndef SCM_MAGIC_SNARFER
+#include <btBulletDynamicsCommon.h>
+#include "vl.h"
+#include <vlCore/Vector3.hpp>
+#include <vlCore/Vector4.hpp>
+#endif
+
+btVector3 vector_to_btVector3(SCM vector);
+vl::vec3 vector_to_vl_vec3(SCM vector);
+vl::vec4 vector_to_vl_vec4(SCM vector);
+vl::vec4 vector_to_vl_vec4(SCM vector);
+SCM vl_vec3_to_vector(vl::vec3 v3);
+#endif /* _UTIL_CPP_H_ */
+@

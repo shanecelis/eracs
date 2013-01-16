@@ -1,13 +1,11 @@
 % -*- mode: Noweb; noweb-code-mode: c-mode -*-
 \section{Fast Artificial Neural Network Integration}
 
-
 ERACS makes use of the Fast Artificial Neural Network (FANN) library
 to easily expose feed forward neural networks.  This will expose a
 SMOB.
 
 <<file:nn.h>>=
-
 <<+ Begin C Header Guard.>>
 struct nn {
 
@@ -20,7 +18,6 @@ struct nn {
 void init_nn_type(void);
 <<+ End C Header Guard.>>
 <<file:nn.c>>=
-
 <<+ Preamble>>
 <<Includes>>
 <<State>>
@@ -38,7 +35,6 @@ void init_nn_type(void);
 
 init_nn_type();
 <<Includes>>=
-
 #ifndef SCM_MAGIC_SNARFER
 #include <doublefann.h>
 #include "util.h"
@@ -178,7 +174,7 @@ SCM_DEFINE (nn_run, "nn-run", 2, 0, 0,
             "Evaluate a neural network using libfann.")
 {
   struct nn *nn = (struct nn *) SCM_SMOB_DATA (nn_smob);
-  size_t input_len = scm_c_vector_length(input);
+  size_t input_len = scm_c_generalized_vector_length(input);
   fann_type *c_input = (fann_type *) malloc(sizeof(fann_type) * input_len);
   vector_to_array(input, c_input);
   fann_type *output = fann_run(nn->ann, c_input);
@@ -202,7 +198,6 @@ SCM_DEFINE (nn_to_vector, "nn->vector", 1, 0, 0,
 @ This could be a little tricky, but I'm going to try something
 
 <<Helper Functions>>=
-
 SCM scm_c_nn_to_vector(struct fann* ann) {
   int inputs, outputs, conn_count;
   inputs = fann_get_num_input(ann);
@@ -214,7 +209,7 @@ SCM scm_c_nn_to_vector(struct fann* ann) {
     malloc(sizeof (struct fann_connection) * conn_count);
   fann_get_connection_array(ann, connections);
   for (int i = 0; i < fann_get_total_connections(ann); i++) {
-    scm_c_vector_set_x(weights,
+    scm_c_generalized_vector_set_x(weights,
                        i,
                        scm_from_double(connections[i].weight));
   }
@@ -239,7 +234,7 @@ SCM_DEFINE (vector_to_nn, "vector->nn", 2, 0, 0,
     malloc(sizeof (struct fann_connection) * conn_count);
   fann_get_connection_array(nn->ann, connections);
   for (int i = 0; i < conn_count; i++) {
-    connections[i].weight = scm_to_double(scm_c_vector_ref(weights, i));
+    connections[i].weight = scm_to_double(scm_c_generalized_vector_ref(weights, i));
   }
   fann_set_weight_array(nn->ann, connections, conn_count);
   free(connections);
@@ -268,7 +263,7 @@ void vector_to_array(SCM vec, double *a) {
 SCM array_to_vector(int count, double *array) {
   SCM v = scm_c_make_vector(count, SCM_UNSPECIFIED);
   for (int j = 0; j < count; j++)
-    scm_c_vector_set_x(v, j, scm_from_double(array[j]));
+    scm_c_generalized_vector_set_x(v, j, scm_from_double(array[j]));
   return v;
 }
 @ \subsection{NN Training}
@@ -294,7 +289,7 @@ SCM_DEFINE (nn_train, "nn-train", 3, 0, 0,
 <<Helper Functions>>=
 
 double * malloc_vector_to_array(SCM vec) {
-  double *a = (double *) malloc(sizeof(double) * scm_c_vector_length(vec));
+  double *a = (double *) malloc(sizeof(double) * scm_c_generalized_vector_length(vec));
   vector_to_array(vec, a);
   return a;
 }
@@ -311,8 +306,8 @@ SCM_DEFINE (nn_train_epoch, "nn-train-epoch", 3, 2, 0,
   struct fann_train_data* train_data;
   struct fann* ann;
   train_data = fann_create_train_from_callback(scm_c_length(inputs),
-                                               scm_c_vector_length(scm_car(inputs)),
-                                               scm_c_vector_length(scm_car(outputs)),
+                                               scm_c_generalized_vector_length(scm_car(inputs)),
+                                               scm_c_generalized_vector_length(scm_car(outputs)),
                                                train_callback);
   fann_shuffle_train_data(train_data);
   float mse_error;
