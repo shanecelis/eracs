@@ -263,14 +263,17 @@
         (range 0 3))))
 
 (define (nn-input robot)
-  (let* ((time (time-loop-value robot))  ;; [-1, 1]
+  (let* ((abs-time (/ (robot-time robot) eval-robot-time))
+         (time (time-loop-value robot))  ;; [-1, 1]
          (inputs (vector-map (lambda (x)
                               (if x
                                    1.0
                                   -1.0))  (distal-touch-sensors robot))))
-    (vector-append (vector time) inputs)
+    ;(vector-append (vector time) inputs)
       ;; fake the input except for time component
+    ;(vector abs-time time 1 1 1 1)
     (vector time 1 1 1 1)
+    
     ))
 
 (define (osc-value->angle x)
@@ -292,78 +295,9 @@
 (define (run-nn-brain robot)
   (nn-run (nn-brain robot) (nn-input robot)))
 
-(define (make-spline)
-  (make <linear-spline> #:domain '(-1. 1.) #:step-size 0.1))
-
-(define (make-splines)
-  (list->vector 
-           (map 
-            (lambda (i) 
-              (make-spline))
-            (range 0 7))))
+(set! active-preferences-primary-controller run-nn-brain)
 
 
-;; describe the triangle functions (joint-index origin height base).
-(define active-preferences-training '())
-(define active-preferences-splines (make-splines))
-
-(define active-preferences-primary-controller run-nn-brain)
-
-;; active preferences is a controller that can be augmented by the user.
-(define (active-preferences-controller robot)
-  ;; Construct the offset for time t for joint i.
-  (let* ((t (time-loop-value robot))
-         (offset (make-vector 8 0.)))
-    (for-each (lambda (ap-entry)
-                (vector-set! offset (car ap-entry) 
-                             (+ (vector-ref offset (car ap-entry))
-                                (apply triangle-basis* t (cddr ap-entry)))))
-              active-preferences-training)
-    (vector+ offset (active-preferences-primary-controller robot))))
-
-;; ;; Convert the preferences into splines.
-;; (define (ap-prefs->splines)
-;;   (let ((splines 
-;;          (list->vector 
-;;           (map 
-;;            (lambda (i) 
-;;              (make <linear-spline> #:domain '(-1. 1.) #:step-size 0.1)) 
-;;            (range 0 7)))))
-;;     (for-each (lambda (ap-entry)
-                
-;;                 (vector-set! offset (car ap-entry) 
-;;                              (+ (vector-ref offset (car ap-entry))
-;;                                 (apply triangle-basis* t (cdr ap-entry)))))
-;;               active-preferences-training)
-;;     )
-;;   )
-
-(define (active-preferences-offset robot)
-  ;; Construct the offset for time t for joint i.
-  (let* ((t (time-loop-value robot))
-         (offset (make-vector 8 0.)))
-    (for-each (lambda (ap-entry)
-                (vector-set! offset (car ap-entry) 
-                             (+ (vector-ref offset (car ap-entry))
-                                (apply triangle-basis* t (cddr ap-entry)))))
-              active-preferences-training)
-    offset))
-
-
-(define (ap->linear-splines robot)
-  (let ((orig-time-loop time-loop-param)
-         (splines (make-splines)))
-    
-    (for-each (lambda (i)
-                ;; This spline-set isn't working right;
-                ;; I don't think.
-                (spline-fill! (: splines @ i) (lambda (time)
-                                (time-loop-value-set! robot time)
-                                (let ((output (active-preferences-controller robot)))
-                                  (: output @ i))))) 
-              (range 0 7))
-    (time-loop-value-set! robot orig-time-loop)
-    splines))
 
 (define* (vector-denan v #:optional (nan-fill 0.))
   (vector-map (lambda (x) 
@@ -372,52 +306,6 @@
                     x)) 
               v))
 
-(define-interactive (plot-ap-brain)
-  (plot-splines (ap->linear-splines (current-robot))))
-
-(define-interactive (plot-ap-prefs)
-  (plot-splines active-preferences-splines))
-
-(define (plot-splines splines-vector)
-  (let* ((splines (vector->list splines-vector))
-         (spline-count (length splines))
-         (m (vector-length (spline-range-vector (car splines))))
-         (xs (map spline-domain-vector splines))
-         (ys (map (lambda (spline i) 
-                    (vector+ 
-                     (make-vector m (+ 1 (* 2. (- (1- spline-count) i))))
-                     (vector-denan 
-                      (vector-bound -1. 1. (spline-range-vector spline)) -1)))
-                    splines
-                    (index-range splines-vector))))
-    (gnuplot "set xlabel 'time step'")
-    (gnuplot (format #f "set yrange [0:~a]" (* 2 spline-count)))
-    (gnuplot (format #f "set ytic 0,2,~a" (1+ (* 2 spline-count))))
-    ;(gnuplot "set xtic 0,40")
-    ;(gnuplot "set ytic 0,2,17")
-    
-    ;(format #t "xs ~a ys ~a~%" xs ys)
-    (apply gnuplot-multiplot ys)
-    (gnuplot "unset xtic")
-    (gnuplot "unset ytic")
-    (gnuplot "unset yrange")
-    (gnuplot "unset xlabel")
-    ))
-
-(define (ap->nn-training-values robot)
-  (let ((orig-time-loop time-loop-param)
-        (result (map (lambda (time)
-                       (time-loop-value-set! robot time)
-                       (cons (nn-input robot) 
-                             (active-preferences-controller robot)))
-         
-                     (range -1. 1. .05))))
-    (time-loop-value-set! robot orig-time-loop)
-    result))
-
-(define-interactive (ap-train)
-  (train-nn (ap->nn-training-values (current-robot)))
-  (set! (controller (current-robot)) run-nn-brain))
 
 (define (noop . args)
   #f)
@@ -448,6 +336,23 @@
            (remove-actor (current-scene) actor)
            (set! actor #f))
        (set! points '())))))
+
+(define eval-robot-render-speed 1)
+
+(define-interactive (increase-render-speed #:optional (n 1))
+  (incr! eval-robot-render-speed n)
+  (if (< eval-robot-render-speed 1)
+      (set! eval-robot-render-speed 1))
+  (message "Render speed ~dX" eval-robot-render-speed))
+
+(define-interactive (decrease-render-speed #:optional (n 1))
+  (increase-render-speed (- n)))
+
+(define-key eracs-mode-map (kbd "=") 'increase-render-speed)
+(define-key eracs-mode-map (kbd "-") 'decrease-render-speed)
+
+
+
 
 (define (my-physics-tick)
   (for-each 

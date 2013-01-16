@@ -48,10 +48,10 @@
   (set! results (open-output-file (file "results.m")))
   ;; (set! eval-robot-time 2.)
   (set! eval-robot-time 30.)
-  ;; (set! init-scene init-robot-scene)
-  (set! init-scene init-robot-scene-anemic)
+  (set! init-scene init-robot-obstacle-scene)
+  ;(set! init-scene init-robot-scene-anemic)
   (set! population-count 
-        ;4
+        ;;4
         10
         ;;20
         )
@@ -64,7 +64,7 @@
   (optimize 
    high-level-waypoint-fitness
    ;;30
-   50
+   50; *
    ;;100
    ;;2
    ;;3

@@ -59,19 +59,6 @@
     (cons! (cons (nn-input robot) (nn-output robot)) 
            last-nn-training-values)))
 
-(define (triangle-basis x)
-  "This is a triangular basis element.  To produce whatever other kind
-of triangle basis use the following transformation: (*
-height (triangle-basis (/ (- x origin) base)))"
-  (max 0 (if (>= x 0)
-                      (- 1 (* 2 x))
-                      (+ 1 (* 2 x)))))
-
-(define* (triangle-basis* x #:optional (origin 0) (height 1) (base 1))
-  "This is a triangular basis element of a particular height, base
-length, and origin."
-  (* height (triangle-basis (/ (- x origin) base))))
-
 (define-interactive (export-nn-training-values 
                      #:optional (filename (read-from-minibuffer "Filename: ")))
   (call-with-output-file filename 
@@ -183,18 +170,8 @@ event or an input."
       ;; What to do? Ask? No. Just continue running.
       (time-loop-value-set! robot #f)))
 
-(define ap-recording? #f)
-(define-interactive (ap-record #:optional (event this-command-event))
-  (set! ap-recording? (button-on? (car (osc-values event)))))
-
-(define-interactive (ap-erase)
-  (set! active-preferences-training '())
-  (set! active-preferences-splines (make-splines)))
 
 ;(define-key eracs-mode-map (kbd "osc-2-play")   'osc-play)
-(define-key eracs-mode-map (kbd "osc-2-play")   'continue-runloop)
-(define-key eracs-mode-map (kbd "osc-2-record") 'ap-record)
 ;(define-key eracs-mode-map (kbd "osc-2-record") 'osc-record)
 ;(define-key eracs-mode-map (kbd "osc-2-erase")  'osc-erase)
-(define-key eracs-mode-map (kbd "osc-2-erase")  'ap-erase)
-(define-key eracs-mode-map (kbd "osc-2-time-slider")  'goto-time)
+(define-key eracs-mode-map (kbd "osc-2-play")   'continue-runloop)

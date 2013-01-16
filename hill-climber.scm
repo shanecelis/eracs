@@ -84,9 +84,7 @@
        (get-bytevector-n! port weights 0 (* 8 (uniform-vector-ref count 0)))
        ;(uniform-vector-read! weights port)
        (when (called-interactively?)
-        (set-nn-weights! (current-robot) 
-                         ;; XXX inefficient. Oh well.
-                         weights))
+        (set-nn-weights! (current-robot) weights))
        weights))))
 
 (define-interactive (clear-brain)
@@ -97,7 +95,7 @@
   (eval-robot))
 
 (define eval-robot-time 
-  20.
+  30.
   ;;1.
   
   ) ;; simulated seconds
@@ -106,20 +104,6 @@
   (/ 1. 60.)
   ;;0.05
   )
-
-(define eval-robot-render-speed 1)
-
-(define-interactive (increase-render-speed #:optional (n 1))
-  (incr! eval-robot-render-speed n)
-  (if (< eval-robot-render-speed 1)
-      (set! eval-robot-render-speed 1))
-  (message "Render speed ~dX" eval-robot-render-speed))
-
-(define-key eracs-mode-map (kbd "=") 'increase-render-speed)
-(define-key eracs-mode-map (kbd "-") 'decrease-render-speed)
-
-(define-interactive (decrease-render-speed #:optional (n 1))
-  (increase-render-speed (- n)))
 
 (define* (eval-robot-headless weights 
                               #:key 
@@ -264,21 +248,7 @@ supplied.  Renders this in a new buffer."
       (loop (1+ generation))
       (begin (evaluate-robot parent))))))
 
-(define (active-pref-error weights active-pref-training)
-  (let* ((nn (vector->nn weights neuron-count))
-         (error-squared-elements 
-          (map 
-           (lambda (ap-entry)
-             (match ap-entry
-               ((index joint-value t-offset joint-offset spread)
-                (let* ((output (nn-run nn (vector t-offset 1 1 1 1)))
-                       (diff (: (joint-value + joint-offset) - (output @ index)))
-                       (diffsq (* diff diff)))
-                  diffsq))
-               (_ #f)))
-         active-pref-training)))
-    ;; Sum them up.
-    (apply + error-squared-elements)))
+
 
 (define fitness-functions '())
 
@@ -450,7 +420,7 @@ active preference error."
 (define-fitness
   ((minimize "distance to target")
    (minimize "active preference error"))
-  (ap-target-averaging weights) 
+  (ap-target-averaging #:optional (weights (get-nn-weights (current-robot)))) 
   "Fitness objectives: 1) minimize distance to target, and 2) minimize
 active preference error."
   (let ((target-position #(0 1 -10))
@@ -559,7 +529,7 @@ distance to waypoint."
     (let-values (((accum report) (make-averaging-fns norm-distance-to-target)))
       (define (report-and-message robot)
         (let ((distance-avg (report)))
-                (message "Distance to target ~a tick-count ~a sim-time ~a." 
+                (message "Fitness ~a tick-count ~a sim-time ~a." 
                          distance-avg (tick-count robot) (sim-time (in-sim robot)))
                 (vector distance-avg)))
       (eval-robot weights 
@@ -576,7 +546,10 @@ distance to waypoint."
 ;; each element is of the form ((#<genes ...> . #<objective values...>) ...)
 (define last-results '())
 
-(define population-count 4)
+(define population-count 
+  ;;4
+  10
+  )
 (define generation-tick #f)
 
 (define-interactive
@@ -630,8 +603,8 @@ distance to waypoint."
     (set! last-pareto-front (list->vector results))
     (message "Feasible fitnesses ~a" (map cdr results))
     (when (called-interactively?) 
-        (set-pareto-front-index 0)
-        (plot-front))
+        (call-interactively 'set-pareto-front-index 0)
+        (call-interactively 'plot-front))
     (set! (controller (current-robot)) run-nn-brain)))
 
 (define ql-pid #f)
@@ -712,7 +685,7 @@ distance to waypoint."
                     (map cadr objectives)))))
       ;; Show the exported image.
       (when (called-interactively?)
-        (draw-all-robot-paths)
+        (call-interactively 'draw-all-robot-paths)
         (preview filename))))
 
 (define-interactive (am-i-int)
@@ -739,11 +712,24 @@ distance to waypoint."
    
    (plot-front)))
 
+(define-interactive (goto-individual
+                     #:optional
+                     (number
+                      (read-from-string (read-from-minibuffer "Individual number: "))))
+  (if (or (not (number? number)) (< number 1) (> number (vector-length last-pareto-front)))
+      (message "Invalid individual")
+      (call-interactively 'set-pareto-front-index (1- number))))
+
 (define-interactive (next-individual)
-  (set-pareto-front-index (1+ last-pareto-front-index)))
+  (call-interactively 'set-pareto-front-index (1+ last-pareto-front-index)))
 
 (define-interactive (prev-individual)
-  (set-pareto-front-index (1- last-pareto-front-index)))
+  (call-interactively 'set-pareto-front-index (1- last-pareto-front-index)))
 
 (define-key eracs-mode-map (kbd ".") 'next-individual)
 (define-key eracs-mode-map (kbd ",") 'prev-individual)
+
+(define-interactive (test-read-brain)
+  (pp (call-interactively 'read-brain "run3/exp-hlwp-trial1/individual-2.bin"))
+
+  )

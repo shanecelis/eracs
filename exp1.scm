@@ -1,6 +1,6 @@
 #!./eracs -b -s
 !#
-
+;; exp1.scm
 (use-modules
  (emacsy emacsy)
  (logging)
@@ -57,8 +57,8 @@
   (set! results (open-output-file (file "results.m")))
   ;; (set! eval-robot-time 2.)
   (set! eval-robot-time 30.)
-  ;; (set! init-scene init-robot-scene)
-  (set! init-scene init-robot-scene-anemic)
+  (set! init-scene init-robot-scene)
+  ;;(set! init-scene init-robot-scene-anemic)
   (set! population-count 
         ;4
         10
@@ -74,9 +74,9 @@
    ;;dummy-fitness
    average-distance 
    ;;30
-   ;;50
+   50
    ;;100
-   2
+   ;;2
    ;;3
    )
   (format results "~a~%" (sexp->mathematica fitness-time-series))

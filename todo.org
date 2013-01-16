@@ -96,6 +96,7 @@
     (set-system-module! m #t)
     m))
   - [ ] cut <...> DOES NOT WORK!
+  - [ ] make emacsy work with copy/paste [[http://stackoverflow.com/questions/6888862/how-to-access-clipboard-data-programmatically][link]]
 
 * TODO before GECCO
   - [X] fix the scene since it's not displaying
@@ -128,3 +129,5 @@
   - [ ] input some initial AP values then save them, so they are easy
     to reload.
   - [ ] define how to exercise AP
+  - [ ] 
+

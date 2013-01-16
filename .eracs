@@ -69,7 +69,9 @@
   (restore-signals))
 
 (set-parameter! 'camera-position #(4 4 3))
+(load "active-preferences.scm")
 (load "quadruped2.scm")
+
 (load "record-robot.scm")
 (load "hill-climber.scm")
 
