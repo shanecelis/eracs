@@ -1,0 +1,6 @@
+#!/bin/bash
+# mymathematica
+
+unset DYLD_LIBRARY_PATH
+exec math "$@"
+
