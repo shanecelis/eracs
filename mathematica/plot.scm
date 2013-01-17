@@ -59,15 +59,16 @@
   #:use-module (logging)
   #:use-module (os process)
   #:use-module (ice-9 match)
-  
   )
 
+(define mathematica-pid #f)
 (define mathematica-port #f)
 (define mathematica-input #f)
 
 (define (mathematica-open)
   (match (run-with-pipe "w" "./mymathematica")
     ((pid . (input . output))
+     (set! mathematica-pid pid)
      (set! mathematica-port output)
      (set! mathematica-input input)
      #;(call-with-new-thread 
@@ -80,6 +81,7 @@
          (while mathematica-input
            (mylog "mathematica.output" pri-debug "~a" (read-line mathematica-input) ))))))
     ((pid . output)
+     (set! mathematica-pid pid)
      (set! mathematica-port output)
      (set! mathematica-input #f)
      (mylog "mathematica" pri-debug "Got an output port ~a" mathematica-port)
@@ -222,3 +224,7 @@
 (define (vector->mathematica-list* xs)
   (list->mathematica-list* (vector->list xs)))
 
+(define (mathematica-quit)
+  (when mathematica-pid
+    (mathematica "Quit[]")
+    (waitpid mathematica-pid)))

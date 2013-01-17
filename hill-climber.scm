@@ -20,6 +20,9 @@
              (rnrs io ports)
              (mathematica plot))
 
+(add-hook! emacsy-terminate-hook (lambda ()
+                                   (mathematica-quit)))
+
 (define (neuron-count->matrix-size node-counts)
   "Adds a bias weight to each layer except the output layer."
   (let ((counts (reverse node-counts)))
