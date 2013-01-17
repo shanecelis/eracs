@@ -224,7 +224,8 @@
 (define (vector->mathematica-list* xs)
   (list->mathematica-list* (vector->list xs)))
 
-(define (mathematica-quit)
+(define-public (mathematica-quit)
   (when mathematica-pid
     (mathematica "Quit[]")
-    (waitpid mathematica-pid)))
+    (waitpid mathematica-pid)
+    (set! mathematica-pid #f)))
