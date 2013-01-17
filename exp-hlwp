@@ -24,7 +24,10 @@
             (range 1 (length list))))
 
 (define* (plot-path input #:optional (output #f))
-  (let ((weights (read-brain input))
+  (let ((weights (if (string? input) 
+                     (read-brain input)
+                     ;; else, assume it's a vector.
+                     input))
         (output-file (or output
                          (format #f "~a/~a.pdf" (dirname input) (basename input ".bin")))))
     (plot-robot-path weights output-file)))
@@ -73,9 +76,9 @@
   (plot-fitness-time-series fitness-time-series (file "fitness-time-series.pdf"))
  (plot-front (file "front.pdf"))
  (for-each-i (lambda (ind-weights number)
-               (let ((filename (format #f "~a/individual-~d.bin" dir number)))
+               (let ((filename (format #f "~a/individual~d.bin" dir number)))
                  (write-brain ind-weights filename)
-                 (plot-path filename)))
+                 (plot-path ind-weights (format #f "~a/individual~d.pdf" dir number))))
              (map car (first last-results)))
  (call-with-output-file (file "results.txt")
    (lambda (port)
