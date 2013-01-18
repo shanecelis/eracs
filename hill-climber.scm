@@ -571,13 +571,19 @@ distance to waypoint."
    (max-generations 
     (read-from-string (read-from-minibuffer "Generation count: "
                                             ;:history* 'generation-count
-                                            ))))
+                                            )))
+   (seed-population
+    (if (and (called-interactively?) (not (null? last-results)))
+        (map car (first last-results))
+        (list (get-nn-weights (current-robot))))))
   
   (message "nsga-ii optimizing ~a" (fitness-desc fitness-fn))
-  (block-yield)
-  ;; Let's the message be displayed before going into the big
-  ;; optimization procedure.
-  (let* ((seed-weights (get-nn-weights (current-robot)))
+  (if (called-interactively?) 
+      ;; Let's the message be displayed before going into the big
+      ;; optimization procedure.
+      (block-yield))
+
+  (let* ((seed-weights (car seed-population))
          (fitness-fn* (lambda (weights)
                         (with-fluids ((eval-robot-fluid eval-robot-headless))
                              (fitness-fn weights))))
@@ -585,18 +591,14 @@ distance to waypoint."
          (objective-count (vector-length original-fitness))
          ;; Had to use with-dynamic-state to make fluids work when crossing
          ;; into C code that called Scheme code.
-         (results (apply nsga-ii-search 
+         (results (nsga-ii-search 
                    fitness-fn*
                    #:objective-count objective-count
                    #:gene-count (neuron-count->weight-count neuron-count) ;504
                    #:population-count population-count
                    #:generation-count max-generations
                    #:generation-tick-func generation-tick
-                   (if (called-interactively?) 
-                       (if (null? last-results)
-                        (list #:seed-individual seed-weights)
-                        (list #:seed-population (map car (first last-results))))
-                       '()))))
+                   #:seed-population seed-population)))
     (set! last-fitness-func fitness-fn)
     (set! last-seed-fitness original-fitness)
     (set! last-seed-weights seed-weights)

@@ -167,3 +167,8 @@ length, and origin."
 (define-key eracs-mode-map (kbd "osc-2-record") 'ap-record)
 (define-key eracs-mode-map (kbd "osc-2-erase")  'ap-erase)
 (define-key eracs-mode-map (kbd "osc-2-time-slider")  'goto-time)
+
+(define-interactive (test-ap-prefs)
+  (set! active-preferences-training 
+        '((0 0.15 0.4 -0.8 2.0) 
+          (0 0.0 -0.4  0.6 2.0))))

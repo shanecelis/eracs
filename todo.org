@@ -97,6 +97,7 @@
     m))
   - [ ] cut <...> DOES NOT WORK!
   - [ ] make emacsy work with copy/paste [[http://stackoverflow.com/questions/6888862/how-to-access-clipboard-data-programmatically][link]]
+  - [ ] determine the spatial dimensional units.
 
 * TODO before GECCO
   - [X] fix the scene since it's not displaying
@@ -115,7 +116,6 @@
   - [X] save binary vector values for the NN
 
   - [X] rename fitness functions so they can be more easily understood
-  - [ ] determine the spatial dimensional units.
   - [X] run some tests using the high level waypoint
   - [X] write a script to run an automated test.
   - [X] there's a memory leak somewhere
@@ -125,9 +125,12 @@
        Make this an automatic execution.
   - [X] Turn off the OSC discovery stuff when run in batch mode
   - [X] expose batch mode to the rest of the system
-  - [ ] fix error calculation in active user preferences
-  - [ ] input some initial AP values then save them, so they are easy
+  - [X] input some initial AP values then save them, so they are easy
     to reload.
-  - [ ] define how to exercise AP
-  - [ ] 
+  - [X] define how to exercise AP: just do the simple initial one.
+  - [ ] fix error calculation in active user preferences
+  - [ ] write the methods section
+  - [ ] write the introduction
+
+
 
