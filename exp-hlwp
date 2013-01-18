@@ -87,13 +87,11 @@
                    (format port "~d) (~{~f~^, ~})~%" number (vector->list fitness)))
                  (map cdr (first last-results)))))
  
- (mylog "exp-hlwp" pri-trace "END exp-hlwp!")
- (quit-application)))
+ (mylog "exp-hlwp" pri-trace "END exp-hlwp!")))
 
 ;; Just eval the command line.
 (let* ((func-name (car args))
        (func-sym (string->symbol func-name)))
   (pp (debug-options 'help))
   (eval (cons func-sym (cdr args)) (interaction-environment))
-  ;;(quit)
-  )
+  (quit-application))

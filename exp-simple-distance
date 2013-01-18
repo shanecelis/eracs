@@ -87,13 +87,13 @@
                    (format port "~d) (~{~f~^, ~})~%" number (vector->list fitness)))
                  (map cdr (first last-results)))))
  
- (mylog "exp-simple-distance" pri-trace "END exp-simple-distance!")
- (quit-application)))
+ (mylog "exp-simple-distance" pri-trace "END exp-simple-distance!")))
 
 ;; Just eval the command line.
 (let* ((func-name (car args))
        (func-sym (string->symbol func-name)))
   (pp (debug-options 'help))
   (eval (cons func-sym (cdr args)) (interaction-environment))
+  (quit-application)
   ;;(quit)
   )
