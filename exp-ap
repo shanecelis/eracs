@@ -57,8 +57,8 @@
   (set! init-scene init-robot-obstacle-scene)
   ;(set! init-scene init-robot-scene-anemic)
   (set! population-count 
-        4
-        ;;10;*
+        ;;4
+        10;*
         ;;20
         )
   (format results "(* results.m *)~%")
@@ -70,9 +70,9 @@
   (optimize 
    ap-target
    ;;30
-   ;;50; *
+   50; *
    ;;100
-   2
+   ;;2
    ;;3
    (begin (test-ap-prefs)
           (ap-train)
@@ -97,10 +97,11 @@
  (mylog "exp-ap" pri-trace "END exp-ap!")))
 
 ;; Just eval the command line.
-(call-with-error-handling 
+(;call-with-error-handling 
  (lambda ()
    (let* ((func-name (car args))
           (func-sym (string->symbol func-name)))
      (pp (debug-options 'help))
      (eval (cons func-sym (cdr args)) (interaction-environment))
-     (quit-application))))
+     (quit-application)))
+ )
