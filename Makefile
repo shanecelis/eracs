@@ -38,7 +38,7 @@ TESTS = nsga2.test.scm vlref-smob.test.scm sim-smob.test.scm linear-spline.test.
 
 TESTS = sim-smob.test.scm
 
-HDRS = render.h physics.h primitive-procedures.h vlref-smob.hpp scene-smob.h sim-smob.h rigid-body-smob.h osc.h nn.h dummy-opengl-context.hpp vl.h logging.h scm-logging.h util.h util-cpp.hpp
+HDRS = render.h physics.h primitive-procedures.h vlref-smob.hpp scene-smob.h sim-smob.h rigid-body-smob.h osc.h nn.h dummy-opengl-context.hpp vl.h logging.h scm-logging.h util.h util-cpp.hpp 
 
 OBJS = main.o render.o physics.o primitive-procedures.o vlref-smob.o scene-smob.o sim-smob.o rigid-body-smob.o nn.o dummy-opengl-context.o logging.o scm-logging.o util.o util-cpp.o
 

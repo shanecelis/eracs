@@ -6,7 +6,7 @@ ERACS will use the [[log4c]] library.
 
 <<file:logging.h>>=
 <<+ Begin C Header Guard.>>
-#include "log4c.h"
+#include <log4c.h> 
 #define PRI_FATAL  LOG4C_PRIORITY_FATAL
 #define PRI_ALERT  LOG4C_PRIORITY_ALERT
 #define PRI_CRIT   LOG4C_PRIORITY_CRIT

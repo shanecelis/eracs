@@ -447,14 +447,16 @@ includes in the file [[vl.h]].
 \subsection{Setup Logging}
 
 <<Setup logging.>>=
-if (log4c_init()) {
-    fprintf(stderr, "error: log4c_init() failed.");
+int err;
+err = log4c_init();
+if (err) {
+    fprintf(stderr, "error: log4c_init() failed with error code %d.\n", err); 
 }
 @ 
 
 <<Teardown logging.>>=
-if (log4c_fini()) {
-    fprintf(stderr, "error: log4c_fini() failed.");
+if (log4c_fini() != 0) {
+    fprintf(stderr, "error: log4c_fini() failed.\n");
 }
 @ 
 
