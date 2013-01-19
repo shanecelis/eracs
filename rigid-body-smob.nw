@@ -303,7 +303,6 @@ btVector3 vector_to_btVector3(SCM vector) {
 @ \subsection{Getting Center of Mass}
 
 <<file:rigid-body-smob.cpp>>=
-
 SCM_DEFINE (scm_get_position, 
             "get-position", 
             1, 0, 0,
@@ -313,6 +312,19 @@ SCM_DEFINE (scm_get_position,
   scm_assert_smob_type(rigid_body_tag, rb_smob);
   struct rigid_body *rb = (struct rigid_body*) SCM_SMOB_DATA(rb_smob);
   return btVector3_to_vector3(rb->body->getCenterOfMassPosition());
+}
+
+SCM_DEFINE (scm_local_to_global_position, 
+            "local->global-position", 
+            2, 0, 0,
+            (SCM rb_smob, SCM local_pos),
+            "Get position of body from simulation.")
+{
+  scm_assert_smob_type(rigid_body_tag, rb_smob);
+  struct rigid_body *rb = (struct rigid_body*) SCM_SMOB_DATA(rb_smob);
+  btVector3 v = vector_to_btVector3(local_pos);
+  btTransform worldTransform = rb->body->getCenterOfMassTransform();
+  return btVector3_to_vector3(worldTransform * v);
 }
 <<Helper Functions>>=
 SCM btVector3_to_vector(btVector3 vector) {

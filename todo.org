@@ -131,6 +131,10 @@
   - [ ] fix error calculation in active user preferences
   - [ ] write the methods section
   - [ ] write the introduction
+  - [ ] write a (uniq) function so that the same individual isn't
+        recorded multiple times.
+  - [ ] should the neural network have a target sensor?
+  - [ ] should the neural network have a more long range timer?
 
 
 

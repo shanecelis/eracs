@@ -15,6 +15,7 @@
             vector.
             vector-negate
             vector-move!
+            vector-angle
             range
             index-range
             make-matrix
@@ -62,6 +63,12 @@
 
 (define (vector-norm v)
   (sqrt (vector-norm-squared v)))
+
+(define (vector-angle v w)
+  (let ((dp (vector. v w))
+        (vn (vector-norm v))
+        (wn (vector-norm w)))
+    (acos (/ dp (* vn wn)))))
 
 (define (vector-normalize v)
   (vector* (/ 1 (vector-norm v)) v))

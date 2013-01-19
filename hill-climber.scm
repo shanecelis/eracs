@@ -17,6 +17,7 @@
              (srfi srfi-26) ;; cut cute
              (srfi srfi-4)  ;; uniform vectors
              (srfi srfi-4 gnu)  ;; uniform vectors
+             (srfi srfi-69) ;; hash-table
              (rnrs io ports)
              (mathematica plot))
 
@@ -599,6 +600,8 @@ distance to waypoint."
                    #:generation-count max-generations
                    #:generation-tick-func generation-tick
                    #:seed-population seed-population)))
+    ;; Get rid of any duplicate individuals.
+    (set! results (uniq results))
     (set! last-fitness-func fitness-fn)
     (set! last-seed-fitness original-fitness)
     (set! last-seed-weights seed-weights)
@@ -628,6 +631,14 @@ distance to waypoint."
 
 (define (my-sleep seconds)
   (usleep (inexact->exact (* seconds 1000))))
+
+(define (uniq lst)
+  (let ((hash (make-hash-table)))
+    (for-each (lambda (item)
+                (hash-table-set! hash item #t)) lst)
+    (hash-table-keys hash)))
+
+;; XXX I need an easier way of writing and running tests.
 
 (define (preview filename)
   "Show the file using Preview.app.  When called on a file that's already open, it will update what's shown.  Nice."

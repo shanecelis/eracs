@@ -38,6 +38,7 @@
   (joints #:getter joints #:init-keyword #:joints)
   (controller #:accessor controller #:init-keyword #:controller)
   (touch-sensors #:accessor touch-sensors #:init-form (make-vector 9 #f))
+  (target-sensors #:accessor target-sensors #:init-form (make-vector 2 0.))
   (target-angles #:accessor target-angles #:init-form (make-vector 8 0.))
   (active-joints #:accessor active-joints #:init-form (make-vector 8 #t))
   (tick-count #:accessor tick-count #:init-value 0)
@@ -51,6 +52,7 @@
 (define-method (reset-robot (robot <quadruped>))
   (vector-fill! (touch-sensors robot) #f)
   (vector-fill! (target-angles robot) 0.)
+  (vector-fill! (target-sensors robot) 0.)
   (vector-fill! (active-joints robot) #t))
 
 (define* (make-boxy-cylinder pos radius length alignment #:optional (name #f))
@@ -170,11 +172,14 @@
     (sim-add-ground-plane2 sim)
     robot))
 
-(define obstacles '( 
+(define *target-position* #(0 1 -10))
+(define *obstacle-position* #(0 1 -5))
+
+(define obstacles `( 
                    ;;target-body 
-                   (#(0 1 -10) #(1  1 1))
+                   (,*target-position* #(1  1 1))
                    ;;wall-body
-                   (#(0 1 -5)  #(10 1 1))
+                   (,*obstacle-position* #(10 1 1))
                    ))
 
 (define (init-robot-obstacle-scene sim)
@@ -268,13 +273,14 @@
          (inputs (vector-map (lambda (x)
                               (if x
                                    1.0
-                                  -1.0))  (distal-touch-sensors robot))))
+                                  -1.0))  (distal-touch-sensors robot)))
+         (sensors (target-sensors robot)))
     ;(vector-append (vector time) inputs)
       ;; fake the input except for time component
     ;(vector abs-time time 1 1 1 1)
-    (vector time 1 1 1 1)
+    ;(vector time 1 1 1 1)
     
-    ))
+    (vector time (: sensors @ 0) (: sensors @ 1) 1 1)))
 
 (define (osc-value->angle x)
   (* x (/ 4. pi)))
@@ -297,15 +303,12 @@
 
 (set! active-preferences-primary-controller run-nn-brain)
 
-
-
 (define* (vector-denan v #:optional (nan-fill 0.))
   (vector-map (lambda (x) 
                 (if (nan? x)
                     nan-fill
                     x)) 
               v))
-
 
 (define (noop . args)
   #f)
@@ -351,9 +354,6 @@
 (define-key eracs-mode-map (kbd "=") 'increase-render-speed)
 (define-key eracs-mode-map (kbd "-") 'decrease-render-speed)
 
-
-
-
 (define (my-physics-tick)
   (for-each 
    (lambda (physics-buffer)
@@ -377,6 +377,7 @@
         ;; Update the visualization.
         (physics-update-scene (current-sim))
 
+
         )))
    (filter (cut is-a? <> <physics-buffer>) (buffer-list))))
 
@@ -390,6 +391,30 @@
   
   (when (= 0 (mod (tick-count robot) controller-update-frequency))
     ;(format #t "Update brain.")
+    
+    ;; Compute the target distance sensors.
+    (let* ((root-body (car (bodies robot)))
+           (robot-pos (get-position root-body))
+           (sensor-pos1 (local->global-position root-body #(0.5 0 -0.5)))
+           (sensor-pos2 (local->global-position root-body #(-0.5 0 -0.5)))
+           (s1 (vector-norm (vector- *target-position* sensor-pos1)))
+           (s2 (vector-norm (vector- *target-position* sensor-pos2)))
+           (sensor-range 15)
+           (beta (/ pi 4.));;45 degrees
+           (theta (vector-angle (vector- robot-pos *target-position*)
+                                (vector- *obstacle-position* *target-position*)))
+           (z-distance (vector-norm (vector* #(0 0 1) (vector- robot-pos *target-position*)))))
+      (format #t "z-distance ~f and theta ~f~%" z-distance theta)
+      (if (and (: (abs theta) < beta) (: z-distance > 5.))
+          (begin
+            (: (target-sensors robot) @ 0 := 1.)
+            (: (target-sensors robot) @ 1 := 1.))
+          (begin
+            (: (target-sensors robot) @ 0 := s1 / sensor-range)
+            (: (target-sensors robot) @ 1 := s2 / sensor-range)
+            (add-line (current-scene) (list *target-position* sensor-pos1))
+            (add-line (current-scene) (list *target-position* sensor-pos2)))))
+
     ;; Run the brain.
     (let ((new-angles ((controller robot) robot)))
       (for-each (lambda (i) 
