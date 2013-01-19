@@ -404,7 +404,7 @@
            (theta (vector-angle (vector- robot-pos *target-position*)
                                 (vector- *obstacle-position* *target-position*)))
            (z-distance (vector-norm (vector* #(0 0 1) (vector- robot-pos *target-position*)))))
-      (format #t "z-distance ~f and theta ~f~%" z-distance theta)
+      ;(format #t "z-distance ~f and theta ~f~%" z-distance theta)
       (if (and (: (abs theta) < beta) (: z-distance > 5.))
           (begin
             (: (target-sensors robot) @ 0 := 1.)
