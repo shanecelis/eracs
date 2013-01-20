@@ -319,7 +319,9 @@
     ;(vector time 1 1 1 1)
     
     ;(vector time (: sensors @ 0) (: sensors @ 1) 1 1)
-    (vector time (long-time-loop-value robot) 1 1 1)))
+    ;(vector time (long-time-loop-value robot) 1 1 1)
+    (vector time (long-time-loop-value robot) (: sensors @ 0) (: sensors @ 1) 1 )
+    ))
 
 (define (osc-value->angle x)
   (* x (/ 4. pi)))

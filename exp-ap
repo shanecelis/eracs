@@ -24,14 +24,14 @@
             list
             (range 1 (length list))))
 
-(define* (plot-path input #:optional (output #f))
+(define* (plot-path input #:optional (output #f) (individual-number 1))
   (let ((weights (if (string? input) 
                      (read-brain input)
                      ;; else, assume it's a vector.
                      input))
         (output-file (or output
                          (format #f "~a/~a.pdf" (dirname input) (basename input ".bin")))))
-    (plot-robot-path weights output-file)))
+    (plot-robot-path weights output-file individual-number)))
 
 (define
   (plot-fitness-time-series time-series output)
@@ -58,8 +58,8 @@
   ;(set! init-scene init-robot-scene-anemic)
   (set! population-count 
         ;;4
-        10;*
-        ;;20
+        ;;10
+        20;*
         )
   (format results "(* results.m *)~%")
   (set! generation-tick 
@@ -70,8 +70,8 @@
   (optimize 
    ap-target
    ;;30
-   50; *
-   ;;100
+   ;;50; *
+   100
    ;;2
    ;;3
    (begin (test-ap-prefs3)
@@ -83,9 +83,9 @@
   (plot-fitness-time-series fitness-time-series (file "fitness-time-series.pdf"))
  (plot-front (file "front.pdf"))
  (for-each-i (lambda (ind-weights number)
-               (let ((filename (format #f "~a/individual~d.bin" dir number)))
+               (let ((filename (format #f "~a/individual~2'0d.bin" dir number)))
                  (write-brain ind-weights filename)
-                 (plot-path ind-weights (format #f "~a/individual~d.pdf" dir number))))
+                 (plot-path ind-weights (format #f "~a/individual~2'0d.pdf" dir number) number)))
              (map car (first last-results)))
  (call-with-output-file (file "results.txt")
    (lambda (port)

@@ -327,8 +327,7 @@ distance to waypoint."
     (let-values (((accum report) (make-averaging-fns norm-distance-to-target)))
       (define (report-and-message robot)
         (let ((distance-avg (report)))
-                (message "Fitness ~a tick-count ~a sim-time ~a." 
-                         distance-avg (tick-count robot) (sim-time (in-sim robot)))
+                (message "Average distance to target ~1,2f." distance-avg)
                 (vector distance-avg)))
       (eval-robot weights 
                   #:begin-fn capture-start

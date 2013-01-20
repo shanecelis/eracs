@@ -74,11 +74,12 @@ path[points_] := Line[points]
 box[pos_, dims_] := {Transparent, Cuboid[pos - dims/2, pos + dims/2]}
 
 
-plotRobotPathAndObstacles[points_, obstacles_] :=
-Graphics3D[{path[points], Map[box@@#&,obstacles], {PointSize[Large],Green, Opacity[0.5], Point[points[[-1]]]}},Axes->{True, False, True},AxesLabel->{"x","y","z"},ViewPoint->{0,Infinity,0},ViewVertical->{0,0,-1}, PlotRangePadding -> 2]
+plotRobotPathAndObstacles[points_, obstacles_, ind_:1] :=
+Graphics3D[{{colorData[ind],path[points]}, Map[box@@#&,obstacles], {PointSize[Large],Green, Opacity[0.5], Point[points[[-1]]]},
+{PointSize[Large],Red, Opacity[0.5], Point[points[[1]]]}},Axes->{True, False, True},AxesLabel->{"x","y","z"},ViewPoint->{0,Infinity,0},ViewVertical->{0,0,-1}, PlotRangePadding -> 2]
 
 
-plotFitnessTimeSeries[results_] := ListPlot[Transpose[Map[Function[{input}, Map[ {input[[1]], #}&,input[[2]]]],results[[All,{1,3}]]]], Joined -> True, PlotRange -> All, AxesLabel -> {"generation", "fitness"}, AxesOrigin -> {1, 0}]
+plotFitnessTimeSeries[results_, opts:OptionsPattern[Options[ListPlot]]] := ListPlot[Transpose[Map[Function[{input}, Map[ {input[[1]], #}&,input[[2]]]],results[[All,{1,3}]]]], Joined -> False, PlotRange -> All, AxesLabel -> {"generation", "fitness"}, AxesOrigin -> {1, 0}, Evaluate[FilterRules[{opts},Options[ListPlot]]]]
 
 
 

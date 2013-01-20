@@ -169,11 +169,12 @@
 (define-interactive 
   (plot-robot-path #:optional 
                    (weights (get-nn-weights (current-robot)))
-                   (filename "path-plot.pdf"))
+                   (filename "path-plot.pdf")
+                   (individual-number 1))
   (let ((points (calc-robot-path weights)))
     ;; How do I get the obstacles?
     (mathematica 
-     (apply format #f "Export[~a, plotRobotPathAndObstacles[~a, ~a], ImageSize -> {5, 5} inches]" (map sexp->mathematica (list filename points obstacles))))
+     (apply format #f "Export[~a, plotRobotPathAndObstacles[~a, ~a, ~a], ImageSize -> {5, 5} inches]" (map sexp->mathematica (list filename points obstacles individual-number))))
     (when (called-interactively?)
       (preview filename))))
 
@@ -320,7 +321,9 @@
     (let* ((results (vector->list last-pareto-front))
            (points (map cdr results))
            ;; Sort by the first element.
-           (sorted-points (sort points (lambda (a b)
+           (sorted-points points 
+                          ;; Sorting them isn't necessary here anymore.
+                          #;(sort points (lambda (a b)
                                           (< (: a @ 0) (: b @ 0)))))
            (objectives (or (objectives last-fitness-func)
                             '((minimize "objective 1")
