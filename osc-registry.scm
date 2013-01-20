@@ -20,7 +20,9 @@
   (set! (osc-entries r) 
         (cons 
          (make <osc-registry-entry> 
-           #:path my-path #:getter getter #:setter setter #:last-value (getter))
+           #:path my-path #:getter getter #:setter setter; #:last-value (getter)
+           
+           )
          (osc-entries r))))
 
 (define-method-public (osc-push (r <osc-registry>))

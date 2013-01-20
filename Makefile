@@ -32,11 +32,13 @@ TEXS := $(patsubst %.nw, %.tex, $(LITSRCS))
 
 DEFS := $(patsubst %.nw, %.defs, $(LITSRCS))
 
-SRCS = main.cpp render.cpp physics.cpp primitive-procedures.cpp vlref-smob.cpp scene-smob.cpp sim-smob.cpp rigid-body-smob.cpp nn.c dummy-opengl-context.cpp physics-buffer.scm camera.scm physics-ui.scm nsga2.c nsga2.scm osc.c osc.scm linear-spline.scm logging.c scm-logging.c logging.scm util.c util-cpp.cpp scene-smob.scm
+SRCS = main.cpp render.cpp physics.cpp primitive-procedures.cpp vlref-smob.cpp scene-smob.cpp sim-smob.cpp rigid-body-smob.cpp nn.c dummy-opengl-context.cpp physics-buffer.scm camera.scm physics-ui.scm nsga2.c nsga2.scm osc.c osc.scm linear-spline.scm logging.c scm-logging.c logging.scm util.c util-cpp.cpp scene-smob.scm util.scm
 
-TESTS = nsga2.test.scm vlref-smob.test.scm sim-smob.test.scm linear-spline.test.scm
+TESTS = nsga2.test.scm vlref-smob.test.scm sim-smob.test.scm linear-spline.test.scm template.test.scm active-preferences.test.scm
 
-TESTS = sim-smob.test.scm
+#TESTS = sim-smob.test.scm
+
+TESTS_OUT := $(patsubst %.test.scm, %.test.out, $(TESTS))
 
 HDRS = render.h physics.h primitive-procedures.h vlref-smob.hpp scene-smob.h sim-smob.h rigid-body-smob.h osc.h nn.h dummy-opengl-context.hpp vl.h logging.h scm-logging.h util.h util-cpp.hpp 
 
@@ -62,7 +64,7 @@ NOTANGLE_C_FLAGS = -L -markup 'mymarkup'
 NOTANGLE = $(TOP)/bin/mynotangle $@
 .PHONY : all
 
-.SUFFIXES : .nw .c .h .cpp .hpp .x
+.SUFFIXES : .nw .c .h .cpp .hpp .x .scm .test.scm .test.out
 
 %.tex: %.nw all.defs
 	noweave -n -delay -indexfrom all.defs $< | cpif $@
@@ -79,6 +81,9 @@ NOTANGLE = $(TOP)/bin/mynotangle $@
 
 %.test.scm: %.nw boiler-plate.nw
 	$(NOTANGLE) $(NOTANGLE_LISP_FLAGS) -R"file:$@" $^ 
+
+%.test.out: %.test.scm %.scm
+	./eracs -l $< | tee $@; if [[ "${PIPESTATUS[0]}" -ne 0 ]]; then exit 1; else rm $@; fi
 
 %.dvi: %.tex
 	noindex $<
@@ -195,10 +200,12 @@ osc.o: osc.c.x
 libguile-osc.dylib: osc.o
 	$(CC) -g $(GUILE_CFLAGS) $(GUILE_LDFLAGS) $(LDFLAGS) -shared -o $@ -fPIC $^
 
-test: eracs $(SRCS) $(TESTS) $(LIBS)
-	for test in $(TESTS); do \
-		 ./eracs -l $$test || exit 1; \
-	done
+# test: eracs $(SRCS) $(TESTS) $(LIBS)
+# 	for test in $(TESTS); do \
+# 		 ./eracs -l $$test || exit 1; \
+# 	done
+
+check: eracs $(SRCS) $(TESTS) $(LIBS) $(TESTS_OUT)
 
 linear-spline.scm: linear-spline.nw
 

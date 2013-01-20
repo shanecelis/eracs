@@ -13,7 +13,21 @@
 (define pi (acos -1))
 
 (define (current-robot)
-  (buffer-robot (current-buffer)))
+  (let ((b (current-buffer)))
+    (if (is-a? b <physics-buffer>)
+     (buffer-robot b)
+     #f)))
+
+(define eval-robot-time 
+  30.
+  ;;1.
+  
+  )
+
+(define eval-robot-time-step
+  (/ 1. 60.)
+  ;;0.05
+  )
 
 
 ;; Some deprecated functions
@@ -44,10 +58,12 @@
   (tick-count #:accessor tick-count #:init-value 0)
   (in-sim #:accessor in-sim #:init-value #f)
   (nn-brain #:accessor nn-brain #:init-form (make-nn neuron-count))
+  (robot-time-param #:accessor robot-time-param #:init-form #f)
   )
 
 (define-method (robot-time (robot <quadruped>))
-  (and (in-sim robot) (sim-time (in-sim robot))))
+  (or (robot-time-param robot) 
+      (and (in-sim robot) (sim-time (in-sim robot)))))
 
 (define-method (reset-robot (robot <quadruped>))
   (vector-fill! (touch-sensors robot) #f)
@@ -188,9 +204,11 @@
 
 (define init-scene init-robot-obstacle-scene)
 
-(set! robot (init-scene (current-sim)))
-(set! (buffer-robot eracs-buffer) robot)
-(physics-add-scene (current-sim))
+(add-hook! post-window-open-hook (lambda ()
+                                   (set! robot (init-scene (current-sim)))
+                                   (set! (buffer-robot eracs-buffer) robot)
+                                   (physics-add-scene (current-sim))) 
+           #t)
 
 (define* (robot-position #:optional (my-robot (current-robot)))
   (get-position (car (bodies my-robot))))
@@ -243,6 +261,18 @@
 
 (define time-loop-param #f)
 
+(define (call-with-time-loop-value robot time thunk)
+  (let ((orig time-loop-param))
+    (in-out
+     (time-loop-value-set! robot time)
+     (thunk)
+     (time-loop-value-set! robot orig))))
+
+(define-syntax-public with-time-loop-value
+  (syntax-rules ()
+    ((with-time-loop-value robot time e ...)
+     (call-with-time-loop-value robot time (lambda () e ...)))))
+
 (define (time-loop-value robot)
   (or time-loop-param 
       (let* ((time (/ (mod (robot-time robot) nn-time-period)
@@ -250,7 +280,6 @@
         (- (* 2. time) 1.)))) ;; [-1,1]
 
 (define (time-loop-value-set! robot value)
-  ;(osc-set! "/2/play" (if value 1. 0.))
   (set! time-loop-param value))
 
 ;; Setup the time loop
@@ -260,16 +289,25 @@
  (lambda () (time-loop-value robot))
  (lambda (value) (time-loop-value-set! robot value)))
 
-
-
 (define (distal-touch-sensors robot)
   (list->vector 
    (map (lambda (i) (vector-ref (touch-sensors robot) (+ 2 (* i 2)))) 
         (range 0 3))))
 
+(define long-time-loop-param #f)
+(define (long-time-loop-value robot)
+  (or long-time-loop-param 
+      (let ((time (/ (mod (robot-time robot) eval-robot-time)
+                     eval-robot-time))) ;; [0,1] 
+        (- (* 2. time) 1.)))) ;; [-1,1]
+
+(define (long-time-loop-value-set! robot value)
+  (set! long-time-loop-param value))
+
+
+
 (define (nn-input robot)
-  (let* ((abs-time (/ (robot-time robot) eval-robot-time))
-         (time (time-loop-value robot))  ;; [-1, 1]
+  (let* ((time (time-loop-value robot))  ;; [-1, 1]
          (inputs (vector-map (lambda (x)
                               (if x
                                    1.0
@@ -280,7 +318,8 @@
     ;(vector abs-time time 1 1 1 1)
     ;(vector time 1 1 1 1)
     
-    (vector time (: sensors @ 0) (: sensors @ 1) 1 1)))
+    ;(vector time (: sensors @ 0) (: sensors @ 1) 1 1)
+    (vector time (long-time-loop-value robot) 1 1 1)))
 
 (define (osc-value->angle x)
   (* x (/ 4. pi)))
@@ -301,7 +340,6 @@
 (define (run-nn-brain robot)
   (nn-run (nn-brain robot) (nn-input robot)))
 
-(set! active-preferences-primary-controller run-nn-brain)
 
 (define* (vector-denan v #:optional (nan-fill 0.))
   (vector-map (lambda (x) 
@@ -393,7 +431,7 @@
     ;(format #t "Update brain.")
     
     ;; Compute the target distance sensors.
-    (let* ((root-body (car (bodies robot)))
+    #;(let* ((root-body (car (bodies robot)))
            (robot-pos (get-position root-body))
            (sensor-pos1 (local->global-position root-body #(0.5 0 -0.5)))
            (sensor-pos2 (local->global-position root-body #(-0.5 0 -0.5)))
@@ -405,6 +443,7 @@
                                 (vector- *obstacle-position* *target-position*)))
            (z-distance (vector-norm (vector* #(0 0 1) (vector- robot-pos *target-position*)))))
       ;(format #t "z-distance ~f and theta ~f~%" z-distance theta)
+      
       (if (and (: (abs theta) < beta) (: z-distance > 5.))
           (begin
             (: (target-sensors robot) @ 0 := 1.)
@@ -436,6 +475,16 @@
 
 (add-hook! physics-tick-hook #.\ (my-physics-tick))
 
+(define call-with-limit-hash (make-weak-key-hash-table 10))
+(define (call-with-limit upper-frequency thunk)
+  (let ((last-time (hash-ref call-with-limit-hash thunk #f)))
+    (when (or (not last-time) 
+              (and last-time (> (- (emacsy-time) last-time) upper-frequency)))
+      (thunk)
+      (hash-set! call-with-limit-hash thunk (emacsy-time)))))
+
+(define set-target-angles-hook (make-hook 3))
+
 (define-interactive 
   (osc-set-target-angles #:optional (event this-command-event))
   (let ((parsed-path (string-tokenize 
@@ -445,41 +494,12 @@
          (start-index 1)) ;; 1 for TouchOSC, 0 for Control
     (match `(,parsed-path ,@values)
       (((page "target-angles" i) value)
-       (let ((index (- (string->number i) start-index)))
-        (if ap-recording?
-            (begin
-              (cons! (list index
-                           (vector-ref (target-angles robot) index)
-                           (time-loop-value robot)
-                           (- (osc-value->angle value) 
-                              (vector-ref (target-angles robot) index))
-                           2.)
-                     active-preferences-training)
-              (let ((spline (make-spline))
-                    (value-offset (- (osc-value->angle value) 
-                                          (vector-ref (target-angles robot) index)))
-                    (time-offset (time-loop-value robot))
-                    (spread 2.)
-                    (new-v #f))
-                (spline-fill! spline (lambda (t)
-                                       (triangle-basis* t
-                                                        time-offset
-                                                        value-offset
-                                                        spread)))
-                (set! new-v (vector+ (spline-range-vector spline)
-                                     (spline-range-vector 
-                                      (: active-preferences-splines @ index))))
-                (vector-move! (spline-range-vector 
-                               (: active-preferences-splines @ index))
-                 new-v))
-              ;; What's a good way to call this function in a rate-limited way?
-              ;; (call-with-limit 1 ;Hz
-              ;;                  (lambda () (plot-ap-brain)))
-              ;(plot-ap-brain)
-              ))
-        (vector-set! (target-angles robot) 
-                     index
-                     (osc-value->angle value)))))))
+       (let ((index (- (string->number i) start-index))
+             (angle (osc-value->angle value)))
+         (run-hook set-target-angles-hook robot index angle)
+         (vector-set! (target-angles robot) 
+                      index
+                      angle))))))
 
 (for-each #.\ (define-key eracs-mode-map 
                 (kbd (format #f "osc-2-target-angles-~a" %)) 
@@ -504,7 +524,7 @@
 (define brains (list (cons 'hand-coded-brain hand-coded-brain)
                      (cons 'low-level-brain low-level-brain)
                      (cons 'nn-brain run-nn-brain)
-                     (cons 'ap-brain active-preferences-controller)))
+                     ))
 
 (define-interactive 
   (switch-to-brain 

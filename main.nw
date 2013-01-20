@@ -30,14 +30,11 @@ int main(int argc, char** argv) {
 
   if (batch) {
     mylog("main", PRI_INFO, "Running in batch mode, no GUI.");
-    emacsy_run_hook_0("post-window-open-hook");   
   } else {
   mylog("main", PRI_INFO, "Open window.");
   <<Open window.>>
   mylog("main", PRI_INFO, "Initialize glcontext.");
   init_glcontext();
-
-  emacsy_run_hook_0("post-window-open-hook");   
 
   /* Callbacks must be setup after window is open. 
      (Learned that one the hard way.) */
@@ -48,6 +45,9 @@ int main(int argc, char** argv) {
 
   mylog("main", PRI_INFO, "Load personal configuration.");
   <<Load personal configuration.>>
+
+  mylog("main", PRI_INFO, "Running post-window-open-hook.");
+  emacsy_run_hook_0("post-window-open-hook");   
 
   <<Run shell.>>
 
@@ -120,8 +120,11 @@ while ((c = getopt (argc, argv, "bhl:s:S")) != -1)
     break;
 
   case 'l':
-    if (access(optarg, R_OK) != -1)
-      scm_c_primitive_load(optarg);
+    if (access(optarg, R_OK) != -1) {
+      //scm_c_primitive_load(optarg);
+      scm_call_1(scm_c_public_ref("guile-user", "my-load-file"),
+                 scm_from_locale_string(optarg));
+    }
     break;
 
   case 's':

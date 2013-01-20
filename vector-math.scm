@@ -2,6 +2,7 @@
   #:use-module (ice-9 optargs)
   #:use-module (debugging assert)
   #:use-module (srfi  srfi-1)
+  #:use-module (oop goops)
   #:use-module ((rnrs) #:select (vector-map vector-for-each))
   #:export (vector-fold
             vector-norm
@@ -209,8 +210,25 @@
 
 (define pi (acos -1))
 
-(define* (=? a b #:optional (tolerance 0.001))
-  (< (abs (- a b)) tolerance))
+(define-method (=? (a <number>) (b <number>) . rest)
+  (let-optional rest ((tolerance 0.001))
+   (< (abs (- a b)) tolerance)))
+
+(define-method (=? (a <list>) (b <list>) . rest)
+  (fold (lambda (x y prev)
+          (and prev (apply =? x y rest))) #t a b))
+
+(define-method (=? (a <pair>) (b <pair>) . rest)
+  (and (apply =? (car a) (car b) rest)
+       (apply =? (cdr a) (cdr b) rest)))
+
+
+(define-method (=? (a <vector>) (b <vector>) . rest)
+  (apply =? (vector->list a) (vector->list b) rest))
+
+(define-method (=? a b . rest)
+  #f)
+
 
 (define (vector=? a b)
   (catch 'not-equal

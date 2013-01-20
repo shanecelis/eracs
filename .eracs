@@ -15,11 +15,14 @@
   (set! emacsy-mode-line 
         (lambda ()
         (with-buffer (recent-buffer)
-          (format #f "~a FPS ~1,0f sim-time ~1,1f controller-time ~1,2f" 
+          (format #f "~a FPS ~1,0f sim-time ~1,1f short-time ~1,2f long-time ~1,1f" 
                   (orig) 
                   (get-parameter 'FPS) 
                   (let ((sim (current-sim))) (if sim (sim-time sim) 0.))
-                  (time-loop-value (current-robot)))))))
+                  (time-loop-value (current-robot))
+                  (long-time-loop-value (current-robot))
+                  
+                  )))))
 
 (define-interactive (reload-log-config)
   (log4c-reread))
@@ -69,14 +72,21 @@
   (restore-signals))
 
 (set-parameter! 'camera-position #(4 4 3))
-(load "active-preferences.scm")
 (load "quadruped2.scm")
-
+(load "active-preferences.scm")
 (load "record-robot.scm")
+(load "fitness-functions.scm")
+(load "colors.scm")
+
 (load "hill-climber.scm")
 
 ;(optimize 1)
 (restore-signals)
 
-(randomize-brain)
-(set! (controller (current-robot)) run-nn-brain)
+(add-hook! post-window-open-hook 
+           (lambda ()
+             (randomize-brain)
+             (set! (controller (current-robot)) run-nn-brain)
+             (clear-brain)
+             (set! (controller (current-robot)) ap-controller)) 
+           #t)

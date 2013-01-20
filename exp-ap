@@ -74,7 +74,7 @@
    ;;100
    ;;2
    ;;3
-   (begin (test-ap-prefs)
+   (begin (test-ap-prefs3)
           (ap-train)
           (list (get-nn-weights (current-robot))))
    )

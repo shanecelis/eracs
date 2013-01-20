@@ -22,3 +22,48 @@ SCM scm_c_string_to_symbol(const char *);
 <<+ End C Header Guard.>>
 #endif /* _UTIL_H_ */
 @ 
+
+\subsection{Scheme}
+
+<<file:util.scm>>=
+<<util:procedure>>
+@
+
+<<util:procedure>>=
+(define-public (my-load-file filename)
+  (with-backtrace* (lambda () (load filename)) '(quit)))
+@ 
+
+<<util:procedure>>=
+(define (for-each-i proc lst . args)
+  (apply 
+   for-each proc
+   lst
+   (append args (list (range 1 (length lst))))))
+@
+  
+<<util:procedure>>=
+(define (for-each-i0 proc lst . args)
+  (apply 
+   for-each proc
+   lst
+   (append args (list (range 0 (1- (length lst)))))))
+@
+
+
+<<util:procedure>>=
+(define (map-i proc lst . args)
+  (apply 
+   map proc
+   lst
+   (append args (list (range 1 (length lst))))))
+@
+
+<<util:procedure>>=
+(define (map-i0 proc lst . args)
+  (apply 
+   map proc
+   lst
+   (append args (list (range 0 (1- (length lst)))))))
+@
+
