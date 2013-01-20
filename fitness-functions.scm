@@ -224,12 +224,11 @@ active preference error."
       (let* ((pos (robot-position robot))
              ;; Project only in the xz-plane (height displacement doesn't count).
              (distance (vector-norm (vector* xz-proj 
-                                             (vector- target-position pos)))))
-        (message "Distance to target ~a tick-count ~a sim-time ~a." 
-                 distance (tick-count robot) (sim-time (in-sim robot)))
-        distance))
-    (vector (eval-robot weights #:end-fn distance-to-target)
-            (active-pref-error weights active-preferences-training))))
+                                             (vector- target-position pos))))
+             (ap-err (ap-error ap-old-weights ap-given-indexed-points weights)))
+        (message "Distance ~1,2f AP error ~1,2f." distance ap-err)
+        (vector distance ap-err)))
+    (eval-robot weights #:end-fn distance-to-target)))
 
 (define-fitness
   ((minimize "distance to target")
