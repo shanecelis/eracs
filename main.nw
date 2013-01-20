@@ -107,7 +107,8 @@ int batch = 0;
 int shell_argc = -1;
 char **shell_argv;
 SCM script = SCM_BOOL_F;
-while ((c = getopt (argc, argv, "bhl:s:S")) != -1)
+int stop = 0;
+while (!stop && (c = getopt (argc, argv, "bhl:s:S")) != -1)
   switch (c)
   {
   case 'h':
@@ -129,8 +130,10 @@ while ((c = getopt (argc, argv, "bhl:s:S")) != -1)
 
   case 's':
     script = scm_from_locale_string(optarg);
-    mylog("main", PRI_DEBUG, "Setting program arguments.");
-    scm_set_program_arguments(argc - (optind - 1), argv + (optind - 1), NULL);
+    mylog("main", PRI_DEBUG, "Setting program arguments and script '%s'.", optarg);
+    //scm_set_program_arguments(argc - (optind - 1), argv + (optind - 1), NULL);
+    scm_set_program_arguments(argc - (optind - 0), argv + (optind - 0), NULL);
+    stop = 1;
     break;
   case 'S':
     shell_argc = argc - (optind - 1);
@@ -361,6 +364,7 @@ The run loop is where all the action happens.
 bool quitp = false; // C99
 unsigned int tick = 0;
 int emacsy_flags;
+mylog("main", PRI_TRACE, "BEGIN run loop.");    
 while (! quitp) {
   //printf("BEGIN RUN LOOP\n");
   //printf("BEGIN PHYSICS HOOK\n");
@@ -386,7 +390,7 @@ while (! quitp) {
   //glfwSleep(1./30.);
   //printf("END RUN LOOP\n");
 }
-
+mylog("main", PRI_TRACE, "END run loop.");    
 <<file:main.cpp>>= 
 <<+ Preamble>> 
 <<Includes>>

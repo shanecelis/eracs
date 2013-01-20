@@ -291,6 +291,8 @@ distance to waypoint."
                                        (accum* robot))
                            #:end-fn report-and-message))))
 
+(define *waypoint-alpha* 0.3)
+
 (define-fitness
   ((minimize "distance to target/waypoint"))
   (high-level-waypoint-fitness #:optional (weights (get-nn-weights (current-robot))))
@@ -303,7 +305,7 @@ distance to waypoint."
         (xz-proj (vector 1. 0. 1.))
         (approach-waypoint? #t)
         (leave-waypoint-position #f)
-        (alpha .3))
+        (alpha *waypoint-alpha*))
     (define (capture-start robot)
       (set! start-position (robot-position robot)))
     (define (norm-distance-to-target robot)

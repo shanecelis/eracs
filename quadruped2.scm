@@ -45,7 +45,8 @@
 ;;   (sim-time my-sim))
 (cons! <physics-buffer> buffer-classes)
 
-(define neuron-count '(5 4 8))
+;; 5 16 16 8 works!
+(define neuron-count '(5 12 12 8))
 
 (define-class <quadruped> ()
   (bodies #:getter bodies #:init-keyword #:bodies)
@@ -58,8 +59,7 @@
   (tick-count #:accessor tick-count #:init-value 0)
   (in-sim #:accessor in-sim #:init-value #f)
   (nn-brain #:accessor nn-brain #:init-form (make-nn neuron-count))
-  (robot-time-param #:accessor robot-time-param #:init-form #f)
-  )
+  (robot-time-param #:accessor robot-time-param #:init-form #f))
 
 (define-method (robot-time (robot <quadruped>))
   (or (robot-time-param robot) 
@@ -257,7 +257,7 @@
     (lambda (value) (vector-set! (touch-sensors (current-robot)) index value))))
  (range 0 8))
 
-(define nn-time-period 2.) ;; seconds
+(define nn-time-period 1.) ;; seconds
 
 (define time-loop-param #f)
 
@@ -267,6 +267,19 @@
      (time-loop-value-set! robot time)
      (thunk)
      (time-loop-value-set! robot orig))))
+
+(define (call-with-robot-time robot time thunk)
+  (let ((orig (robot-time-param robot)))
+    (in-out
+     (set! (robot-time-param robot) time)
+     (thunk)
+     (set! (robot-time-param robot) orig))))
+
+(define-syntax-public with-robot-time
+  (syntax-rules ()
+    ((with-robot-time robot time e ...)
+     (call-with-robot-time robot time (lambda () e ...)))))
+
 
 (define-syntax-public with-time-loop-value
   (syntax-rules ()

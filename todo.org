@@ -128,13 +128,15 @@
   - [X] input some initial AP values then save them, so they are easy
     to reload.
   - [X] define how to exercise AP: just do the simple initial one.
-  - [ ] fix error calculation in active user preferences
+  - [X] fix error calculation in active user preferences
   - [ ] write the methods section
   - [ ] write the introduction
   - [X] write a (uniq) function so that the same individual isn't
         recorded multiple times.
   - [X] should the neural network have a target sensor?
-  - [ ] should the neural network have a more long range timer?
+  - [X] should the neural network have a more long range timer?
+  - [ ] test other values of alpha
+  - [ ] try the jumping task?
 
 
 

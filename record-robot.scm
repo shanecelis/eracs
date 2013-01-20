@@ -75,13 +75,13 @@
 (define-interactive (train-nn 
                      #:optional (training-values last-nn-training-values))
   (let ((mse 
-          (nn-train-epoch (nn-brain robot) 
+          (nn-train-epoch (nn-brain (current-robot)) 
                           (map car training-values) 
                           (map cdr training-values)
-                          5000
+                          2500
                           0.001
                           )))
-    (message "Trained NN 2 had an MSE of ~a" mse)))
+    (message "Trained NN had an MSE of ~a" mse)))
 
 ;; Maybe I want something like this:
 ;; (controller->time-series

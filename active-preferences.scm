@@ -259,10 +259,10 @@ length, and origin."
 
 (define (ap->nn-training-values robot)
   (map (lambda (time)
-         (with-time-loop-value robot time
+         (with-robot-time robot time
                                (cons (nn-input robot) 
                                      (ap-controller robot))))
-       (range 0. nn-time-period 0.01)))
+       (range 0. 3. 0.05)))
 
 (define-interactive (ap-train)
   (train-nn (ap->nn-training-values (current-robot)))
@@ -287,7 +287,25 @@ length, and origin."
           (0 0.0 -0.4  0.6 2.0))))
 
 (define-interactive (test-ap-prefs3)
-  (set! ap-given-indexed-points '((0 . #(0.5 0.8)) (0 . #(-0.4 -0.7)))))
+  (set! ap-given-indexed-points '((0 . #(0.5 0.7)) 
+                                  (0 . #(-0.3 -0.75)))))
+
+(define-interactive (test-ap-prefs4)
+  (set! ap-given-indexed-points '((0 . #(1. 1.))
+                                  (0 . #(0.5 -0.7))
+                                  (0 . #(-0.35 0.5))
+                                  (0 . #(-1.0 -1)))))
+
+(define-interactive (pin-other-joints)
+  "Use the ap-given-indexed-points, and pin the other ones for these specified values."
+  (let ((new-points 
+         (append-map! 
+          (match-lambda
+           ((0 . #(t h))
+            (map (lambda (index)
+                   (cons index (vector t 0.))) (range 1 7)))) 
+          ap-given-indexed-points)))
+    (set! ap-given-indexed-points (append! new-points ap-given-indexed-points))))
 
 (define-interactive (test-ap-prefs2)
   (set! active-preferences-training
