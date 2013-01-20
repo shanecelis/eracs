@@ -60,18 +60,18 @@
     (mkdir dir))
   (set! results (open-output-file (file "results.m")))
   ;; (set! eval-robot-time 2.)
-  (set! eval-robot-time (read-from-string (option-ref options 'eval-time 30)))
+  (set! eval-robot-time (read-from-string (option-ref options 'eval-time "30")))
   (set! init-scene init-robot-obstacle-scene)
   ;(set! init-scene init-robot-scene-anemic)
   (set! population-count 
         ;;4
         ;;10
         ;;20;*
-        (read-from-string (option-ref options 'popcount 20))
+        (read-from-string (option-ref options 'popcount "20"))
         )
   
   (set! *waypoint-alpha* 
-        (read-from-string (option-ref options 'alpha 0.3))
+        (read-from-string (option-ref options 'alpha "0.3"))
         )
   (format results "(* results.m *)~%")
   (set! generation-tick 
@@ -83,7 +83,7 @@
    high-level-waypoint-fitness
    ;;30
    ;;50; *
-   (read-from-string (option-ref options 'generations 100))
+   (read-from-string (option-ref options 'generations "100"))
    ;;100
    ;;2
    ;;10

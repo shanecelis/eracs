@@ -1,4 +1,4 @@
-#!./eracs -b -s
+#!./eracs -b -s ./exp-ap
 !#
 ;; exp-ap
 
@@ -6,17 +6,29 @@
  (emacsy emacsy)
  (logging)
  (ice-9 match)
- (system repl error-handling))
+ (system repl error-handling)
+ (ice-9 getopt-long))
 
 (mylog "exp-ap" pri-debug "command line: ~a" (program-arguments))
 
 (define (help)
-  (format (current-error-port) "usage: exp-ap run-trial <directory>~%")
+  (format (current-error-port) "usage: exp-ap [-hp] [-c popcount] [-g generations] [-t eval-seconds] run-trial <directory>~%")
   (format (current-error-port) "       exp-ap plot-path <file.bin> <output.pdf>~%")
   (quit))
 
-(define args (cdr (program-arguments)))
-(when (null? args)
+(define option-spec '((pin-others (single-char #\p) (value #f)) 
+                      (help (single-char #\h) (value #f))
+                      (popcount (single-char #\c) (value #t))
+                      (generations (single-char #\g) (value #t))
+                      (eval-time (single-char #\t) (value #t))))
+
+(define options (getopt-long (program-arguments) option-spec))
+(define args (option-ref options '() '()))
+
+(mylog "exp-ap" pri-debug "args: ~a" args)
+
+#;(define args (cdr (program-arguments)))
+(when (or (option-ref options 'help #f) (null? args))
   (help))
 
 (define (for-each-i proc list)
@@ -46,21 +58,22 @@
 
  (with-blockable
   (mylog "exp-ap" pri-trace "BEGIN exp-ap!")
-
-  
  
   (unless (access? dir F_OK)
     (mkdir dir))
   (set! results (open-output-file (file "results.m")))
   ;; (set! eval-robot-time 2.)
-  (set! eval-robot-time 30.)
+  ;;(set! eval-robot-time 30.)
+  (set! eval-robot-time (read-from-string (option-ref options 'eval-time "30")))
   (set! init-scene init-robot-obstacle-scene)
   ;(set! init-scene init-robot-scene-anemic)
   (set! population-count 
         ;;4
         ;;10
-        20;*
+        ;;20;*
+        (read-from-string (option-ref options 'popcount "20"))
         )
+    (mylog "exp-ap" pri-trace "BEGIN exp-ap 2!")
   (format results "(* results.m *)~%")
   (set! generation-tick 
         (lambda (generation ind-gene-obj)
@@ -71,11 +84,15 @@
    ap-target
    ;;30
    ;;50; *
-   100
+   ;;100
+   (read-from-string (option-ref options 'generations "100"))
    ;;2
    ;;3
    (begin (test-ap-prefs3)
           (ap-train)
+          (when (option-ref options 'pin-others #f)
+            (mylog "exp-ap" pri-info "Pinning other joints")
+            (pin-other-joints))
           (list (get-nn-weights (current-robot)))))
   (format results "~a~%" (sexp->mathematica fitness-time-series))
   (close-port results)
@@ -96,11 +113,11 @@
  (mylog "exp-ap" pri-trace "END exp-ap!")))
 
 ;; Just eval the command line.
-(;call-with-error-handling 
+(call-with-error-handling 
  (lambda ()
    (let* ((func-name (car args))
           (func-sym (string->symbol func-name)))
-     (pp (debug-options 'help))
+     ;;(pp (debug-options 'help))
      (eval (cons func-sym (cdr args)) (interaction-environment))
      (quit-application)))
  )

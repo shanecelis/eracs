@@ -78,7 +78,7 @@
           (nn-train-epoch (nn-brain (current-robot)) 
                           (map car training-values) 
                           (map cdr training-values)
-                          2500
+                          5000
                           0.001
                           )))
     (message "Trained NN had an MSE of ~a" mse)))
