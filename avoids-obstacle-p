@@ -30,6 +30,7 @@
 (call-with-error-handling (lambda ()
                            (receive (accum report) (make-averaging-fns (lambda (a) (if (avoids-obstacle? a) 1.0 0.0)))
                              (for-each accum args)
-                             (format #t "Success rate is ~1,2f percent." (* 100 (report))))))
+                             (format #t "Success rate is ~1,2f percent." (* 100 (report))))
+                           (quit)))
 
 
