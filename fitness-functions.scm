@@ -154,8 +154,7 @@ supplied.  Renders this in a new buffer."
              ;; Project only in the xz-plane (height displacement doesn't count).
              (distance (vector-norm (vector* xz-proj 
                                              (vector- start-position pos)))))
-        (message "Distance ~a tick-count ~a sim-time ~a." 
-                 distance (tick-count robot) (sim-time (in-sim robot)))
+        (message "Distance ~1,2f." distance)
         distance))
     (vector (- (eval-robot 
                 weights 
@@ -228,6 +227,22 @@ active preference error."
              (ap-err (ap-error ap-old-weights ap-given-indexed-points weights)))
         (message "Distance ~1,2f AP error ~1,2f." distance ap-err)
         (vector distance ap-err)))
+    (eval-robot weights #:end-fn distance-to-target)))
+
+(define-fitness 
+  ((minimize "distance to target"))
+  (distance-target #:optional (weights (get-nn-weights (current-robot)))) 
+  "Fitness objectives: 1) minimize distance to target, and 2) minimize
+active preference error."
+  (let ((target-position #(0 1 -10))
+        (xz-proj (vector 1. 0. 1.)))
+    (define (distance-to-target robot)
+      (let* ((pos (robot-position robot))
+             ;; Project only in the xz-plane (height displacement doesn't count).
+             (distance (vector-norm (vector* xz-proj 
+                                             (vector- target-position pos)))))
+        (message "Distance to target ~1,2f AP." distance)
+        (vector distance)))
     (eval-robot weights #:end-fn distance-to-target)))
 
 (define-fitness

@@ -1,0 +1,115 @@
+#!./eracs -b -s ./exp-control 
+!#
+;; exp-control
+
+(use-modules
+ (emacsy emacsy)
+ (logging)
+ (ice-9 match)
+ (ice-9 getopt-long))
+
+(mylog "exp-control" pri-debug "command line: ~a" (program-arguments))
+
+(define option-spec '((alpha (single-char #\a) (value #t))
+                      (help (single-char #\h) (value #f))
+                      (popcount (single-char #\c) (value #t))
+                      (generations (single-char #\g) (value #t))
+                      (eval-time (single-char #\t) (value #t))))
+
+
+(define options (getopt-long (program-arguments) option-spec))
+(define args (option-ref options '() '()))
+
+(define (help)
+  (format (current-error-port) "usage: exp-control [-h] [-a alpha] [-c popcount] [-g generations] [-t eval-seconds] run-trial <directory>~%")
+  (format (current-error-port) "       exp-control plot-path <file.bin> <output.pdf>~%")
+  (quit))
+
+;(define args (cdr (program-arguments)))
+(when (or (option-ref options 'help #f) (null? args))
+  (help))
+
+(define (for-each-i proc list)
+  (for-each proc
+            list
+            (range 1 (length list))))
+
+(define* (plot-path input #:optional (output #f) (individual-number 1))
+  (let ((weights (if (string? input) 
+                     (read-brain input)
+                     ;; else, assume it's a vector.
+                     input))
+        (output-file (or output
+                         (format #f "~a/~a.pdf" (dirname input) (basename input ".bin")))))
+    (plot-robot-path weights output-file individual-number)))
+
+(define
+  (plot-fitness-time-series time-series output)
+  (mathematica (apply format #f "Export[~a,plotFitnessTimeSeries[~a], ImageSize -> pdfImageSize]"
+                       (map sexp->mathematica (list output time-series)))))
+
+(define (run-trial dir)
+  (define (file filename)
+    (format #f "~a/~a" dir filename))
+  (define results #f)
+  (define fitness-time-series '())
+ (with-blockable
+  (mylog "exp-control" pri-trace "BEGIN exp-control!")
+ 
+  (unless (access? dir F_OK)
+    (mkdir dir))
+  (set! results (open-output-file (file "results.m")))
+  ;; (set! eval-robot-time 2.)
+  (set! eval-robot-time (read-from-string (option-ref options 'eval-time "30")))
+  (set! init-scene init-robot-obstacle-scene)
+  ;(set! init-scene init-robot-scene-anemic)
+  (set! population-count 
+        ;;4
+        ;;10
+        ;;20;*
+        (read-from-string (option-ref options 'popcount "20"))
+        )
+  
+  (set! *waypoint-alpha* 
+        (read-from-string (option-ref options 'alpha "0.3"))
+        )
+  (format results "(* results.m *)~%")
+  (set! generation-tick 
+        (lambda (generation ind-gene-obj)
+          (map (match-lambda 
+                ((ind gene obj)
+                 (cons! (list generation ind obj) fitness-time-series))) ind-gene-obj)))
+  (optimize 
+   high-level-waypoint-fitness
+   ;;30
+   ;;50; *
+   (read-from-string (option-ref options 'generations "100"))
+   ;;100
+   ;;2
+   ;;10
+   ;;3
+   )
+  (format results "~a~%" (sexp->mathematica fitness-time-series))
+  (close-port results)
+  (plot-fitness-time-series fitness-time-series (file "fitness-time-series.pdf"))
+  (plot-front (file "front.pdf"))
+ (for-each-i (lambda (ind-weights number)
+               (let ((filename (format #f "~a/individual~2'0d.bin" dir number)))
+                 (write-brain ind-weights filename)
+                 (plot-path ind-weights (format #f "~a/individual~2'0d.pdf" dir number) number)))
+             (map car (first last-results)))
+ (call-with-output-file (file "results.txt")
+   (lambda (port)
+     (format port "individual) fitness~%")
+     (for-each-i (lambda (fitness number)
+                   (format port "~d) (~{~f~^, ~})~%" number (vector->list fitness)))
+                 (map cdr (first last-results)))))
+ 
+ (mylog "exp-control" pri-trace "END exp-control!")))
+
+;; Just eval the command line.
+(let* ((func-name (car args))
+       (func-sym (string->symbol func-name)))
+  (pp (debug-options 'help))
+  (eval (cons func-sym (cdr args)) (interaction-environment))
+  (quit-application))
