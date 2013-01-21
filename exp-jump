@@ -68,8 +68,8 @@
   (set! *ditch-width* (read-from-string (option-ref options 'width "3.")))
   (set! *ditch-depth* (read-from-string (option-ref options 'depth "3.")))
   (set! *robot-width* (read-from-string (option-ref options 'robot-width "4.")))
-  (set! eval-robot-time (read-from-string (option-ref options 'eval-time "20")))
-  (set! *target-position* #(0 4 (- -3 *ditch-width*)))
+  (set! eval-robot-time (read-from-string (option-ref options 'eval-time "20.")))
+  (set! *target-position* (vector 0. 4. (- -3. *ditch-width*)))
   (set! init-scene init-ditch-scene)
   (set! population-count 
         ;;4
