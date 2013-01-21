@@ -15,6 +15,7 @@
 
 (define (help)
   (format (current-error-port) "usage: avoids-obstacle-p <file.bin> ...~%")
+  (format (current-error-port) "usage: avoids-obstacle-p dirs <dir1> <dir2>~%")
   (quit))
 
 (when (or (option-ref options 'help #f) (null? args))
@@ -27,10 +28,37 @@
                      input)))
       (robot-avoids-obstacle? weights)))
 
-(call-with-error-handling (lambda ()
-                           (receive (accum report) (make-averaging-fns (lambda (a) (if (avoids-obstacle? a) 1.0 0.0)))
-                             (for-each accum args)
-                             (format #t "Success rate is ~1,2f percent." (* 100 (report))))
-                           (quit)))
+(define (score-aggregate fn inputs)
+    (receive (accum report) (make-averaging-fns fn)
+      (for-each accum inputs)
+      (report)))
+
+(define (avoids-obstacles-aggregate inputs)
+  (let ((p (score-aggregate 
+            (lambda (a) (if (avoids-obstacle? a) 1.0 0.0)) inputs)))
+    (format #t "Success rate is ~1,2f percent.~%" (* 100 p))
+    p))
+
+(define (files-in-dir dirname pattern)
+  (let ((dir (opendir dirname))
+        (filenames '())
+        )
+    (let loop ((filename (readdir dir)))
+      (when (not (eof-object? filename))
+        (if (string-match pattern filename)
+            (cons! (format #f "~a/~a" dirname filename) filenames))
+        (loop (readdir dir))))
+    (closedir dir)
+    filenames))
+
+(call-with-error-handling 
+ (lambda ()
+   (if (string=? (car args) "dirs")
+       (let ((p (score-aggregate (lambda (dir) (if (> (avoids-obstacles-aggregate (files-in-dir dir "individual[0-9]+.bin")) 0)
+                                                 1.0
+                                                 0.0)) (cdr args))))
+         (format #t "Total success rate is ~1,2f percent.~%" (* 100 p)))
+       (avoids-obstacles-aggregate args))                         
+   (quit)))
 
 

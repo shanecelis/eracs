@@ -139,5 +139,46 @@
   - [ ] try the jumping task?
   - [ ] write a robot-avoids-obstacle? success condition.
 
+* Results
+Ten trials for each, with a population size of 20, 100 generations,
+using NSGA-II.  Success is defined as the robot reaching within 4.5
+units of the target at anytime during evaluation.  This requires the
+robot avoid the obstacle somehow.
 
+- Results for control case is 40% success rate of reaching the target.
 
+  For the control case the fitness is the distance between target and
+  robot at the end of the evaluation.  I expected this to get stuck in
+  the local optima of hitting the obstacle in the middle even more
+  frequently than it shows here.
+
+- Results for AP (no passive) case is 100% success rate of reaching the target.
+
+  Fitness is distance to target and Active Preferences (AP) error.
+  The preferences set up locomotion to the right.  The same exact AP
+  preferences are given in each case.
+
+- Results for AP (with passive prefs) case is 60% success rate of reaching the target.
+
+  Fitness is distance to target and active preferences error.
+  However, this experiment tries to account for passive preferences by
+  doing the following: if I say move joint 0 to 45 degrees at time t0,
+  then I also mean keep joints 1 through 7 exactly where they are,
+  where ever they are, at time t0 too.  The same active preferences
+  are used from above, but they're extrapolated to include these
+  passive values.
+
+- Results for HLWP (alpha = 0.1) case is 50% success rate of reaching the target.
+
+  This the high level way point fitness function, where the alpha
+  parameter may be tuned.  In this case alpha is too small.  (These
+  alpha values were total guestimations that seem to have come out
+  nicely.)
+
+- Results for HLWP (alpha = 0.3) case is 100% success rate of reaching the target.
+
+  In this case alpha is just right.  
+
+- Results for HLWP (alpha = 0.5) case is 70% success rate of reaching the target.
+
+  In this case alpha is too large.  
