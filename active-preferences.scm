@@ -296,6 +296,12 @@ length, and origin."
                                   (0 . #(-0.35 0.5))
                                   (0 . #(-1.0 -1)))))
 
+(define-interactive (test-ap-prefs5)
+  (let ((bend-in (map (lambda (index) (cons index #(-0.5 -0.5))) (range 0 7)))
+        (jump-out (map (lambda (index) (cons index #(0.5 0.5))) (range 0 7))))
+   (set! ap-given-indexed-points (append bend-in jump-out))))
+
+
 (define-interactive (pin-other-joints)
   "Use the ap-given-indexed-points, and pin the other ones for these specified values."
   (let ((new-points 

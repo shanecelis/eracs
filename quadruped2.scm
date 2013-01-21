@@ -188,6 +188,20 @@
     (sim-add-ground-plane2 sim)
     robot))
 
+(define *ditch-width* 3.)
+(define *ditch-depth* 3.)
+(define *robot-width* 4.)
+(define (init-ditch-scene sim)
+  (let ((robot (make-quadruped-robot)))
+    
+    (sim-add-robot sim robot)
+    ;;(sim-add-ground-plane sim)
+    (sim-add-fixed-box sim (vector 0. -10. (+ -25. (/ *robot-width* 2.0))) #(50. 20. 50.))
+    (sim-add-fixed-box sim (vector 0. (- -10. *ditch-depth*) 0.) #(50. 20. 50.))
+    (sim-add-fixed-box sim (vector 0. -10. (+ *ditch-width* 25. (/ *robot-width* 2.0))) #(50. 20. 50.))
+    ;(sim-add-ground-plane2 sim)
+    robot))
+
 (define *target-position* #(0 1 -10))
 (define *obstacle-position* #(0 1 -5))
 
@@ -203,6 +217,7 @@
   (init-robot-scene sim))
 
 (define init-scene init-robot-obstacle-scene)
+;(define init-scene init-ditch-scene)
 
 (add-hook! post-window-open-hook (lambda ()
                                    (set! robot (init-scene (current-sim)))

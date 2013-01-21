@@ -98,6 +98,8 @@
   - [ ] cut <...> DOES NOT WORK!
   - [ ] make emacsy work with copy/paste [[http://stackoverflow.com/questions/6888862/how-to-access-clipboard-data-programmatically][link]]
   - [ ] determine the spatial dimensional units.
+  - [ ] restarting physics doesn't clear fixed bodies from graphics
+    (nor do I know if they're cleared from the simulation)
 
 * TODO before GECCO
   - [X] fix the scene since it's not displaying
@@ -129,15 +131,15 @@
     to reload.
   - [X] define how to exercise AP: just do the simple initial one.
   - [X] fix error calculation in active user preferences
-  - [ ] write the methods section
-  - [ ] write the introduction
   - [X] write a (uniq) function so that the same individual isn't
         recorded multiple times.
   - [X] should the neural network have a target sensor?
   - [X] should the neural network have a more long range timer?
-  - [ ] test other values of alpha
+  - [X] test other values of alpha
+  - [X] write a robot-avoids-obstacle? success condition.
   - [ ] try the jumping task?
-  - [ ] write a robot-avoids-obstacle? success condition.
+  - [ ] write the introduction
+  - [ ] write the methods section
 
 * Results
 Ten trials for each, with a population size of 20, 100 generations,

@@ -232,8 +232,7 @@ active preference error."
 (define-fitness 
   ((minimize "distance to target"))
   (target-distance #:optional (weights (get-nn-weights (current-robot)))) 
-  "Fitness objectives: 1) minimize distance to target, and 2) minimize
-active preference error."
+  "Fitness objectives: 1) minimize distance to target."
   (let ((target-position #(0 1 -10))
         (xz-proj (vector 1. 0. 1.)))
     (define (distance-to-target robot)
@@ -244,6 +243,48 @@ active preference error."
         (message "Distance to target ~1,2f AP." distance)
         (vector distance)))
     (eval-robot weights #:end-fn distance-to-target)))
+
+(define-fitness 
+  ((minimize "distance to target"))
+  (average-target-distance-jump #:optional (weights (get-nn-weights (current-robot)))) 
+  "Fitness objectives: 1) minimize average distance to target."
+  (let ((zy-proj (vector 0. 1. 1.)))
+    (define (distance-to-target robot)
+      (let* ((pos (robot-position robot))
+             (distance (vector-norm (vector* zy-proj 
+                                             (vector- *target-position* pos)))))
+        (vector distance)))
+    (let-values (((accum report) (make-averaging-fns distance-to-target)))
+      (define (report-and-message robot)
+        (let ((distance-avg (report)))
+          (message "Average distance to target ~1,2f." distance-avg)
+          
+          (vector distance-avg)))
+      (eval-robot weights 
+                  #:step-fn accum
+                  #:end-fn report-and-message))))
+
+(define-fitness 
+  ((minimize "distance to target"))
+  (ap-average-target-distance-jump #:optional (weights (get-nn-weights (current-robot)))) 
+  "Fitness objectives: 1) minimize average distance to target."
+  (let ((zy-proj (vector 0. 1. 1.)))
+    (define (distance-to-target robot)
+      (let* ((pos (robot-position robot))
+             (distance (vector-norm (vector* zy-proj 
+                                             (vector- *target-position* pos)))))
+        (vector distance)))
+    (let-values (((accum report) (make-averaging-fns distance-to-target)))
+      (define (report-and-message robot)
+        (let ((distance-avg (report))
+              (ap-err (ap-error ap-old-weights ap-given-indexed-points weights)))
+          (message "Average distance to target ~1,2f and AP ~1,1f." distance-avg ap-err)
+          (vector distance-avg ap-err)))
+      (eval-robot weights 
+                  #:step-fn accum
+                  #:end-fn report-and-message))))
+
+
 
 (define-fitness
   ((minimize "distance to target")

@@ -1,6 +1,6 @@
-#!./eracs -b -s ./exp-ap
+#!./eracs -b -s ./exp-jump
 !#
-;; exp-ap
+;; exp-jump
 
 (use-modules
  (emacsy emacsy)
@@ -9,14 +9,16 @@
  (system repl error-handling)
  (ice-9 getopt-long))
 
-(mylog "exp-ap" pri-debug "command line: ~a" (program-arguments))
+(mylog "exp-jump" pri-debug "command line: ~a" (program-arguments))
 
 (define (help)
-  (format (current-error-port) "usage: exp-ap [-hp] [-c popcount] [-g generations] [-t eval-seconds] run-trial <directory>~%")
-  (format (current-error-port) "       exp-ap plot-path <file.bin> <output.pdf>~%")
+  (format (current-error-port) "usage: exp-jump [-h] [-w ditch width] [-d ditch depth] [-c popcount] [-g generations] [-t eval-seconds] run-trial <directory>~%")
+  (format (current-error-port) "       exp-jump plot-path <file.bin> <output.pdf>~%")
   (quit))
 
-(define option-spec '((pin-others (single-char #\p) (value #f)) 
+(define option-spec '((width (single-char #\w) (value #t))
+                      (robot-width (single-char #\W) (value #t))
+                      (depth (single-char #\d) (value #t))
                       (help (single-char #\h) (value #f))
                       (popcount (single-char #\c) (value #t))
                       (generations (single-char #\g) (value #t))
@@ -25,7 +27,7 @@
 (define options (getopt-long (program-arguments) option-spec))
 (define args (option-ref options '() '()))
 
-(mylog "exp-ap" pri-debug "args: ~a" args)
+(mylog "exp-jump" pri-debug "args: ~a" args)
 
 #;(define args (cdr (program-arguments)))
 (when (or (option-ref options 'help #f) (null? args))
@@ -57,23 +59,25 @@
   (define fitness-time-series '())
 
  (with-blockable
-  (mylog "exp-ap" pri-trace "BEGIN exp-ap!")
+  (mylog "exp-jump" pri-trace "BEGIN exp-jump!")
  
   (unless (access? dir F_OK)
     (mkdir dir))
   (set! results (open-output-file (file "results.m")))
-  ;; (set! eval-robot-time 2.)
-  ;;(set! eval-robot-time 30.)
-  (set! eval-robot-time (read-from-string (option-ref options 'eval-time "30")))
-  (set! init-scene init-robot-obstacle-scene)
-  ;(set! init-scene init-robot-scene-anemic)
+
+  (set! *ditch-width* (read-from-string (option-ref options 'width "3.")))
+  (set! *ditch-depth* (read-from-string (option-ref options 'depth "3.")))
+  (set! *robot-width* (read-from-string (option-ref options 'robot-width "4.")))
+  (set! eval-robot-time (read-from-string (option-ref options 'eval-time "20")))
+  (set! *target-position* #(0 4 (- -3 *ditch-width*)))
+  (set! init-scene init-ditch-scene)
   (set! population-count 
         ;;4
         ;;10
         ;;20;*
         (read-from-string (option-ref options 'popcount "20"))
         )
-    (mylog "exp-ap" pri-trace "BEGIN exp-ap 2!")
+    (mylog "exp-jump" pri-trace "BEGIN exp-jump 2!")
   (format results "(* results.m *)~%")
   (set! generation-tick 
         (lambda (generation ind-gene-obj)
@@ -81,17 +85,17 @@
                 ((ind gene obj)
                  (cons! (list generation ind obj) fitness-time-series))) ind-gene-obj)))
   (optimize 
-   ap-target
+   ap-average-target-distance-jump
    ;;30
    ;;50; *
    ;;100
    (read-from-string (option-ref options 'generations "100"))
    ;;2
    ;;3
-   (begin (test-ap-prefs3)
+   (begin (test-ap-prefs5)
           (ap-train)
-          (when (option-ref options 'pin-others #f)
-            (mylog "exp-ap" pri-info "Pinning other joints")
+          #;(when (option-ref options 'pin-others #f)
+            (mylog "exp-jump" pri-info "Pinning other joints")
             (pin-other-joints))
           (list (get-nn-weights (current-robot)))))
   (format results "~a~%" (sexp->mathematica fitness-time-series))
@@ -110,7 +114,7 @@
                    (format port "~d) (~{~f~^, ~})~%" number (vector->list fitness)))
                  (map cdr (first last-results)))))
  
- (mylog "exp-ap" pri-trace "END exp-ap!")))
+ (mylog "exp-jump" pri-trace "END exp-jump!")))
 
 ;; Just eval the command line.
 (call-with-error-handling 
