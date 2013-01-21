@@ -231,7 +231,7 @@ active preference error."
 
 (define-fitness 
   ((minimize "distance to target"))
-  (distance-target #:optional (weights (get-nn-weights (current-robot)))) 
+  (target-distance #:optional (weights (get-nn-weights (current-robot)))) 
   "Fitness objectives: 1) minimize distance to target, and 2) minimize
 active preference error."
   (let ((target-position #(0 1 -10))

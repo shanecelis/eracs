@@ -10,8 +10,7 @@
 
 (mylog "exp-control" pri-debug "command line: ~a" (program-arguments))
 
-(define option-spec '((alpha (single-char #\a) (value #t))
-                      (help (single-char #\h) (value #f))
+(define option-spec '((help (single-char #\h) (value #f))
                       (popcount (single-char #\c) (value #t))
                       (generations (single-char #\g) (value #t))
                       (eval-time (single-char #\t) (value #t))))
@@ -21,7 +20,7 @@
 (define args (option-ref options '() '()))
 
 (define (help)
-  (format (current-error-port) "usage: exp-control [-h] [-a alpha] [-c popcount] [-g generations] [-t eval-seconds] run-trial <directory>~%")
+  (format (current-error-port) "usage: exp-control [-h] [-c popcount] [-g generations] [-t eval-seconds] run-trial <directory>~%")
   (format (current-error-port) "       exp-control plot-path <file.bin> <output.pdf>~%")
   (quit))
 
@@ -80,7 +79,7 @@
                 ((ind gene obj)
                  (cons! (list generation ind obj) fitness-time-series))) ind-gene-obj)))
   (optimize 
-   high-level-waypoint-fitness
+   target-distance
    ;;30
    ;;50; *
    (read-from-string (option-ref options 'generations "100"))
