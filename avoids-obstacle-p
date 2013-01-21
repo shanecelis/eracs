@@ -1,0 +1,35 @@
+#!./eracs -b -s ./avoids-obstacle-p
+!#
+
+(use-modules
+ (emacsy emacsy)
+ (logging)
+ (ice-9 match)
+ (system repl error-handling)
+ (ice-9 getopt-long))
+
+(define option-spec '((help (single-char #\h) (value #f))))
+                    
+(define options (getopt-long (program-arguments) option-spec))
+(define args (option-ref options '() '()))
+
+(define (help)
+  (format (current-error-port) "usage: avoids-obstacle-p <file.bin> ...~%")
+  (quit))
+
+(when (or (option-ref options 'help #f) (null? args))
+  (help))
+
+(define* (avoids-obstacle? input)
+    (let ((weights (if (string? input) 
+                     (read-brain input)
+                     ;; else, assume it's a vector.
+                     input)))
+      (robot-avoids-obstacle? weights)))
+
+(call-with-error-handling (lambda ()
+                           (receive (accum report) (make-averaging-fns (lambda (a) (if (avoids-obstacle? a) 1.0 0.0)))
+                             (for-each accum args)
+                             (format #t "Success rate is ~1,2f percent." (* 100 (report))))))
+
+

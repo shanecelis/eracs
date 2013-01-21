@@ -137,6 +137,7 @@
   - [X] should the neural network have a more long range timer?
   - [ ] test other values of alpha
   - [ ] try the jumping task?
+  - [ ] write a robot-avoids-obstacle? success condition.
 
 
 
