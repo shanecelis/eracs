@@ -1,31 +1,36 @@
-#!./eracs -b -s ./exp-hlwp 
+#!./eracs -b -s ./exp-hlwp-jump
 !#
-;; exp-hlwp
+;; exp-hlwp-jump
 
 (use-modules
  (emacsy emacsy)
  (logging)
  (ice-9 match)
+ (system repl error-handling)
  (ice-9 getopt-long))
 
-(mylog "exp-hlwp" pri-debug "command line: ~a" (program-arguments))
+(mylog "exp-hlwp-jump" pri-debug "command line: ~a" (program-arguments))
+
+(define (help)
+  (format (current-error-port) "usage: exp-hlwp-jump [-h] [-a alpha] [-w ditch width] [-d ditch depth] [-c popcount] [-g generations] [-t eval-seconds] run-trial <directory>~%")
+  (format (current-error-port) "       exp-hlwp-jump plot-path <file.bin> <output.pdf>~%")
+  (quit))
 
 (define option-spec '((alpha (single-char #\a) (value #t))
+                      (width (single-char #\w) (value #t))
+                      (robot-width (single-char #\W) (value #t))
+                      (depth (single-char #\d) (value #t))
                       (help (single-char #\h) (value #f))
                       (popcount (single-char #\c) (value #t))
                       (generations (single-char #\g) (value #t))
                       (eval-time (single-char #\t) (value #t))))
 
-
 (define options (getopt-long (program-arguments) option-spec))
 (define args (option-ref options '() '()))
 
-(define (help)
-  (format (current-error-port) "usage: exp-hlwp [-h] [-a alpha] [-c popcount] [-g generations] [-t eval-seconds] run-trial <directory>~%")
-  (format (current-error-port) "       exp-hlwp plot-path <file.bin> <output.pdf>~%")
-  (quit))
+(mylog "exp-hlwp-jump" pri-debug "args: ~a" args)
 
-;(define args (cdr (program-arguments)))
+#;(define args (cdr (program-arguments)))
 (when (or (option-ref options 'help #f) (null? args))
   (help))
 
@@ -53,24 +58,26 @@
     (format #f "~a/~a" dir filename))
   (define results #f)
   (define fitness-time-series '())
+
  (with-blockable
-  (mylog "exp-hlwp" pri-trace "BEGIN exp-hlwp!")
+  (mylog "exp-hlwp-jump" pri-trace "BEGIN exp-hlwp-jump!")
  
   (unless (access? dir F_OK)
     (mkdir dir))
   (set! results (open-output-file (file "results.m")))
-  ;; (set! eval-robot-time 2.)
-  (set! eval-robot-time (read-from-string (option-ref options 'eval-time "30")))
-  (set! init-scene init-robot-obstacle-scene)
-  ;(set! init-scene init-robot-scene-anemic)
+
+  (set! *ditch-width* (read-from-string (option-ref options 'width "3.")))
+  (set! *ditch-depth* (read-from-string (option-ref options 'depth "3.")))
+  (set! *robot-width* (read-from-string (option-ref options 'robot-width "4.")))
+  (set! eval-robot-time (read-from-string (option-ref options 'eval-time "20.")))
+  (set! *target-position* (vector 0. 4. (- -3. *ditch-width*)))
+  (set! *waypoint-alpha* (read-from-string (option-ref options 'alpha "0.3")))
+  (set! init-scene init-ditch-scene)
   (set! population-count 
         ;;4
         ;;10
         ;;20;*
-        (read-from-string (option-ref options 'popcount "20"))
-        )
-  
-  (set! *waypoint-alpha* (read-from-string (option-ref options 'alpha "0.3")))
+        (read-from-string (option-ref options 'popcount "20")))
   (format results "(* results.m *)~%")
   (set! generation-tick 
         (lambda (generation ind-gene-obj)
@@ -78,19 +85,23 @@
                 ((ind gene obj)
                  (cons! (list generation ind obj) fitness-time-series))) ind-gene-obj)))
   (optimize 
-   high-level-waypoint-fitness
+   hlwp-jump
    ;;30
    ;;50; *
-   (read-from-string (option-ref options 'generations "100"))
    ;;100
+   (read-from-string (option-ref options 'generations "100"))
    ;;2
-   ;;10
    ;;3
-   )
+   #;(begin (test-ap-prefs5)
+          (ap-train)
+          #;(when (option-ref options 'pin-others #f)
+            (mylog "exp-hlwp-jump" pri-info "Pinning other joints")
+            (pin-other-joints))
+          (list (get-nn-weights (current-robot)))))
   (format results "~a~%" (sexp->mathematica fitness-time-series))
   (close-port results)
   (plot-fitness-time-series fitness-time-series (file "fitness-time-series.pdf"))
-  (plot-front (file "front.pdf"))
+ (plot-front (file "front.pdf"))
  (for-each-i (lambda (ind-weights number)
                (let ((filename (format #f "~a/individual~2'0d.bin" dir number)))
                  (write-brain ind-weights filename)
@@ -103,11 +114,13 @@
                    (format port "~d) (~{~f~^, ~})~%" number (vector->list fitness)))
                  (map cdr (first last-results)))))
  
- (mylog "exp-hlwp" pri-trace "END exp-hlwp!")))
+ (mylog "exp-hlwp-jump" pri-trace "END exp-hlwp-jump!")))
 
 ;; Just eval the command line.
-(let* ((func-name (car args))
-       (func-sym (string->symbol func-name)))
-  (pp (debug-options 'help))
-  (eval (cons func-sym (cdr args)) (interaction-environment))
-  (quit-application))
+(call-with-error-handling 
+ (lambda ()
+   (let* ((func-name (car args))
+          (func-sym (string->symbol func-name)))
+     ;;(pp (debug-options 'help))
+     (eval (cons func-sym (cdr args)) (interaction-environment))
+     (quit-application))))

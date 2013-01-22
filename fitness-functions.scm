@@ -414,6 +414,46 @@ distance to waypoint."
                   #:step-fn accum
                   #:end-fn report-and-message))))
 
+(define-fitness
+  ((minimize "distance to target/waypoint"))
+  (hlwp-jump #:optional (weights (get-nn-weights (current-robot))))
+  (define (normalized-distance start target current)
+    (/ (vector-norm (vector- current target))
+       (vector-norm (vector- start target))))
+  (let ((start-position #f)
+        (waypoint-position #(0 .1 0))
+        (yz-proj (vector 0. 1. 1.))
+        (approach-waypoint? #t)
+        (leave-waypoint-position #f)
+        (alpha *waypoint-alpha*))
+    (define (capture-start robot)
+      (set! start-position (robot-position robot)))
+    (define (norm-distance-to-target robot)
+      (let* 
+          ((pos (robot-position robot))
+           (norm-distance 
+            (apply normalized-distance 
+                   (map (cut vector* yz-proj <>) 
+                        (if approach-waypoint? 
+                            (list start-position waypoint-position pos)
+                            (list leave-waypoint-position *target-position* pos))))))
+        (when (and approach-waypoint? (: norm-distance < alpha))
+          (message "Reached waypoint")
+          (set! approach-waypoint? #f)
+          (set! leave-waypoint-position pos))
+        (* (if approach-waypoint?
+               1
+               alpha) norm-distance)))
+    (let-values (((accum report) (make-averaging-fns norm-distance-to-target)))
+      (define (report-and-message robot)
+        (let ((distance-avg (report)))
+                (message "Average distance to target ~1,2f." distance-avg)
+                (vector distance-avg)))
+      (eval-robot weights 
+                  #:begin-fn capture-start
+                  #:step-fn accum
+                  #:end-fn report-and-message))))
+
 (define-interactive
   (robot-avoids-obstacle? #:optional (weights (get-nn-weights (current-robot)))) 
   "Return true if the robot gets within 5 units of the target at any point."
