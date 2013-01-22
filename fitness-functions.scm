@@ -286,6 +286,26 @@ active preference error."
                   #:step-fn accum
                   #:end-fn report-and-message))))
 
+(define-fitness 
+  ((minimize "distance to target"))
+  (average-target-distance-jump 
+   #:optional (weights (get-nn-weights (current-robot)))) 
+  "Fitness objectives: 1) minimize average distance to target."
+  (let ((zy-proj #(0. 1. 1.)))
+    (define (distance-to-target robot)
+      (let* ((pos (robot-position robot))
+             (distance (vector-norm (vector* zy-proj 
+                                             (vector- *target-position* pos)))))
+        distance))
+    (let-values (((accum report) (make-averaging-fns distance-to-target)))
+      (define (report-and-message robot)
+        (let ((distance-avg (report)))
+          (message "Average distance to target ~1,2f." distance-avg)
+          (vector distance-avg)))
+      (eval-robot weights 
+                  #:step-fn accum
+                  #:end-fn report-and-message))))
+
 
 
 (define-fitness
