@@ -68,16 +68,20 @@
 (define-interactive 
   (write-brain #:optional
                (weights (get-nn-weights (current-robot)))
-               (filename (read-from-minibuffer "Write brain to file: ")))
+               (filename (read-file-name "Write brain to file: ")))
   (call-with-output-file filename 
     (lambda (port)
       ;(uniform-vector-write (any->f64vector weights) port)
       (put-bytevector port (u32vector (vector-length weights)))
       (put-bytevector port (any->f64vector weights)))))
 
+(define-interactive
+  (just-load-it)
+  (call-interactively 'read-brain "/Users/shane/School/uvm/CSYS-395-evolutionary-robotics/eracs/results/r04/jump3-01/individual08.bin"))
+
 (define-interactive 
   (read-brain #:optional
-              (filename (read-from-minibuffer "Read brain from file: ")))
+              (filename (read-file-name "Read brain from file: ")))
   (let ((count (make-u32vector 1))
         (weights #f))
    (call-with-input-file filename 
@@ -170,11 +174,20 @@
   (plot-robot-path #:optional 
                    (weights (get-nn-weights (current-robot)))
                    (filename "path-plot.pdf")
-                   (individual-number 1))
+                   (individual-number 1)
+                   (two-views? #f))
   (let ((points (calc-robot-path weights)))
     ;; How do I get the obstacles?
     (mathematica 
-     (apply format #f "Export[~a, plotRobotPathAndObstacles[~a, ~a, ~a], ImageSize -> {5, 5} inches]" (map sexp->mathematica (list filename points obstacles individual-number))))
+     (apply format #f "Export[~a, ~a[~a, ~a, ~a]]" 
+            (map sexp->mathematica 
+                 (list filename
+                       (if two-views?
+                           'plotRobotPathAndObstaclesTwoViews
+                           'plotRobotPathAndObstacles)
+                       points 
+                       obstacles 
+                       individual-number))))
     (when (called-interactively?)
       (preview filename))))
 
@@ -310,8 +323,8 @@
 (define-method (sexp->mathematica (sexp <real>))
   (format #f "~f" sexp))
 
-;; (define-method (sexp->mathematica (sexp <symbol>))
-;;   (format #f "~a" (symbol->string sexp)))
+(define-method (sexp->mathematica (sexp <symbol>))
+  (format #f "~a" (symbol->string sexp)))
 
 (define-method (sexp->mathematica (sexp <list>))
   (format #f "{~{~a~^,~}}" (map sexp->mathematica sexp)))

@@ -45,7 +45,7 @@
                      input))
         (output-file (or output
                          (format #f "~a/~a.pdf" (dirname input) (basename input ".bin")))))
-    (plot-robot-path weights output-file individual-number)))
+    (plot-robot-path weights output-file individual-number #t)))
 
 (define
   (plot-fitness-time-series time-series output)
@@ -71,6 +71,8 @@
   (set! eval-robot-time (read-from-string (option-ref options 'eval-time "20.")))
   (set! *target-position* (vector 0. 4. (- -3. *ditch-width*)))
   (set! init-scene init-ditch-scene)
+  (update-jump-obstacles)
+  (set! obstacles *jump-obstacles*)
   (set! population-count 
         ;;4
         ;;10

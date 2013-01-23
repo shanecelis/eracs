@@ -191,15 +191,34 @@
 (define *ditch-width* 3.)
 (define *ditch-depth* 3.)
 (define *robot-width* 4.)
+
+(define (update-jump-obstacles)
+  (set! *jump-obstacles* 
+        (let* ((rw (/ *robot-width* 2.0))
+               (bh *ditch-depth*)
+               (bh/2 (/ bh 2))
+               (bw 20.)
+               (bw/2 (/ bw 2)))
+          (list
+           ;; front box
+           (list (vector 0. (- bh/2) (- (- bw/2) *ditch-width* rw)) 
+                 (vector bw bh bw))
+           ;; bottom
+           (list
+            (vector 0. (- (- bh/2) *ditch-depth*) (- (+ rw (/ *ditch-width* 2.)))) 
+            (vector bw bh (+ *ditch-width* (* 2. bw))))
+           ;; back box
+           (list
+            (vector 0. (- bh/2) (- bw/2 rw)) 
+            (vector bw bh bw))))))
+
+(define *jump-obstacles* #f)
+(update-jump-obstacles)
+
 (define (init-ditch-scene sim)
   (let ((robot (make-quadruped-robot)))
-    
     (sim-add-robot sim robot)
-    ;;(sim-add-ground-plane sim)
-    (sim-add-fixed-box sim (vector 0. -10. (+ -25. (/ *robot-width* 2.0))) #(50. 20. 50.))
-    (sim-add-fixed-box sim (vector 0. (- -10. *ditch-depth*) 0.) #(50. 20. 50.))
-    (sim-add-fixed-box sim (vector 0. -10. (+ *ditch-width* 25. (/ *robot-width* 2.0))) #(50. 20. 50.))
-    ;(sim-add-ground-plane2 sim)
+    (map (lambda (obs) (apply sim-add-fixed-box sim obs)) *jump-obstacles*)    
     robot))
 
 (define *target-position* #(0 1 -10))
@@ -216,8 +235,8 @@
   (map (lambda (obs) (apply sim-add-fixed-box sim obs)) obstacles)
   (init-robot-scene sim))
 
-(define init-scene init-robot-obstacle-scene)
-;(define init-scene init-ditch-scene)
+;(define init-scene init-robot-obstacle-scene)
+(define init-scene init-ditch-scene)
 
 (add-hook! post-window-open-hook (lambda ()
                                    (set! robot (init-scene (current-sim)))

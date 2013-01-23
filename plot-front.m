@@ -53,7 +53,7 @@ plotFrontAndPoint[points_, index_, lastPoint_] :=
 Show[{plotFront[points, index], plotPoint[lastPoint, PlotLegends ->{"previous"}, PlotStyle -> {colorData[ 1+Length[points]]}]}, PlotRange -> All]
 
 
-exportPDF[filename_, expr_] := Export[filename, expr,"PDF", ImageSize ->2  pdfImageSize]
+exportPDF[filename_, expr_] := Export[filename, expr,"PDF"(*, ImageSize ->10 inches*)] 
 
 
 mathematicaToSexp[x_RGBColor] := ("#"<>mathematicaToSexp[Apply[List,Append[x,1.]]])
@@ -74,12 +74,30 @@ path[points_] := Line[points]
 box[pos_, dims_] := {Transparent, Cuboid[pos - dims/2, pos + dims/2]}
 
 
-plotRobotPathAndObstacles[points_, obstacles_, ind_:1] :=
+plotRobotPathAndObstacles[points_, obstacles_, ind_:1,opts:OptionsPattern[Graphics3D]] :=
 Graphics3D[{{colorData[ind],path[points]}, Map[box@@#&,obstacles], {PointSize[Large],Green, Opacity[0.5], Point[points[[-1]]]},
-{PointSize[Large],Red, Opacity[0.5], Point[points[[1]]]}},Axes->{True, False, True},AxesLabel->{"x","y","z"},ViewPoint->{0,Infinity,0},ViewVertical->{0,0,-1}, PlotRangePadding -> 2]
+{PointSize[Large],Red, Opacity[0.5], Point[points[[1]]]}},Evaluate[FilterRules[{opts},Options[Graphics3D]]],Axes->{True, False, True},AxesLabel->{"x","y","z"},ViewPoint->{0,Infinity,0},ViewVertical->{0,0,-1}, PlotRangePadding -> 2, ImageSize -> pdfImageSize]
 
 
-plotFitnessTimeSeries[results_, opts:OptionsPattern[Options[ListPlot]]] := ListPlot[Transpose[Map[Function[{input}, Map[ {input[[1]], #}&,input[[2]]]],results[[All,{1,3}]]]], Joined -> False, PlotRange -> All, AxesLabel -> {"generation", "fitness"}, AxesOrigin -> {1, 0}, Evaluate[FilterRules[{opts},Options[ListPlot]]]]
+plotRobotPathAndObstaclesSideView[args__] :=
+plotRobotPathAndObstacles@@{args}~Join~{ViewPoint -> {Infinity, 0, 0}, ViewVertical -> {0,1,0}(*ViewAngle -> 3 Degree, ViewRange -> {0, 10}*),Axes -> {False, True, True}}
+
+
+plotRobotPathAndObstaclesTwoViews[args__] :=
+GraphicsGrid[{{plotRobotPathAndObstacles@@{args}~Join~{ImageSize -> Automatic}, plotRobotPathAndObstaclesSideView@@{args}~Join~{ImageSize -> Automatic}}}, ImageSize -> pdfImageSize]
+
+
+(*plotRobotPathWithJump[points_,target_, ditchWidth_, ditchDepth_, ind_:1, opts:OptionsPattern[Graphics3D]] :=
+Module[{bodySize = 4.},
+Graphics3D[{{colorData[ind],path[points]}, 
+box[target - {0,0,1} ditchWidth,{1,1,1}],
+box[{0,-ditchDepth/2, -ditchWidth/2 - bodySize /4},{10,ditchDepth, ditchWidth}], 
+(* robot *)
+box[{0,1,0}, {1,1,1} bodySize/2], {PointSize[Large],Green, Opacity[0.5], Point[points[[-1]]]},
+{PointSize[Large],Red, Opacity[0.5], Point[points[[1]]]}},Evaluate[FilterRules[{opts},Options[Graphics3D]],Axes->{True, False, True},AxesLabel->{"x","y","z"},ViewPoint->{0,Infinity,0},ViewVertical->{0,0,-1} (*PlotRangePadding -> 2,*) PlotRange -> 10 ]]]*)
+
+
+plotFitnessTimeSeries[results_, opts:OptionsPattern[Options[ListPlot]]] := ListPlot[Transpose[Map[Function[{input}, Map[ {input[[1]], #}&,input[[2]]]],results[[All,{1,3}]]]],Evaluate[FilterRules[{opts},Options[ListPlot]]], Joined -> False, PlotRange -> All, AxesLabel -> {"generation", "fitness"}, AxesOrigin -> {1, 0}, Evaluate[FilterRules[{opts}, Options[ListPlot]]]]
 
 
 
