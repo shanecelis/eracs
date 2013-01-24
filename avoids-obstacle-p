@@ -41,8 +41,7 @@
 
 (define (files-in-dir dirname pattern)
   (let ((dir (opendir dirname))
-        (filenames '())
-        )
+        (filenames '()))
     (let loop ((filename (readdir dir)))
       (when (not (eof-object? filename))
         (if (string-match pattern filename)
@@ -58,7 +57,7 @@
                                                  1.0
                                                  0.0)) (cdr args))))
          (format #t "Total success rate is ~1,2f percent.~%" (* 100 p)))
-       (avoids-obstacles-aggregate args))                         
+       (avoids-obstacles-aggregate args))
    (quit)))
 
 

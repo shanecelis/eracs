@@ -480,3 +480,18 @@ distance to waypoint."
         (message "Robot got close enough to target; minimum distance ~1,2f." min-distance)
         (message "Robot did not get close enough to target; minimum distance ~1,2f." min-distance))
     (values got-close? min-distance)))
+
+(define-interactive
+  (robot-crosses-gap? #:optional (weights (get-nn-weights (current-robot)))) 
+  (define (on-other-side? robot)
+    (let ((pos (robot-position robot))
+          (ditch-end (- (+ (/ *robot-width* 2.) *ditch-width*))))
+      (format #t "ditch-end ~1,1f pos ~{~1,1f, ~}~%" ditch-end (vector->list pos))
+      (values (and (: pos @ 2 < ditch-end)
+                   (: pos @ 1 > 0.)) 
+              pos)))
+  (receive (result pos) (eval-robot weights #:end-fn on-other-side?)
+    (if result
+        (message "Robot crossed the gap; end position ~{~1,1f~^, ~}." (vector->list pos))
+        (message "Robot did not cross the gap."))
+    result))

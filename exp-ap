@@ -73,7 +73,6 @@
         ;;20;*
         (read-from-string (option-ref options 'popcount "20"))
         )
-    (mylog "exp-ap" pri-trace "BEGIN exp-ap 2!")
   (format results "(* results.m *)~%")
   (set! generation-tick 
         (lambda (generation ind-gene-obj)

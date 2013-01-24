@@ -409,4 +409,13 @@
 
 (define-interactive (test-read-brain)
   ;;(call-interactively 'read-brain "run3/exp-hlwp-trial1/individual-2.bin")
-  (call-interactively 'read-brain "run4/individual-1.bin"))
+  ;;(call-interactively 'read-brain "run4/individual-1.bin")
+  ;(call-interactively 'read-brain "/Users/shane/School/uvm/CSYS-395-evolutionary-robotics/eracs/results/r07/ap-jump1-10/individual08.bin")
+  ;(call-interactively 'read-brain "/Users/shane/School/uvm/CSYS-395-evolutionary-robotics/eracs/results/r07/ap-jump1-03/individual05.bin")
+  (call-interactively 'read-brain "/Users/shane/School/uvm/CSYS-395-evolutionary-robotics/eracs/results/r07/ap-jump1-06/individual02.bin")
+  (set! *ditch-width* 1.)
+  (update-jump-obstacles)
+  (set! *target-position* (vector 0. 4. (- -3. *ditch-width*)))
+  (set! eval-robot-time 20.)
+
+  )

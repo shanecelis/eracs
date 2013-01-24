@@ -184,3 +184,30 @@ robot avoid the obstacle somehow.
 - Results for HLWP (alpha = 0.5) case is 70% success rate of reaching the target.
 
   In this case alpha is too large.  
+
+* Results for jump
+
+Ten trials for each, with a population size of 10, 50 generations,
+using NSGA-II.  Success is defined as the robot being on the other
+side of the gap at the end of the simulation and with a y coordinate
+above zero.
+
+- Results for AP (no passive) case is 30% success rate of crossing width 1 gap.
+
+- Results for control case is 0% success rate of crossing width 1 gap.
+
+- Results for HLWP case is 0% success rate of crossing width 1 gap.
+
+
+- Results for AP (no passive) case is 0% success rate of crossing width 2 gap.
+
+- Results for control case is 0% success rate of crossing width 2 gap.
+
+- Results for HLWP case is 0% success rate of crossing width 2 gap.
+
+
+- Results for AP (no passive) case is 0% success rate of crossing width 3 gap.
+
+- Results for control case is 0% success rate of crossing width 3 gap.
+
+- Results for HLWP case is 0% success rate of crossing width 3 gap.
