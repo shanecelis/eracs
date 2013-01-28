@@ -244,12 +244,12 @@
       ;; optimization procedure.
       (block-yield))
 
-  (let* ((seed-weights (car seed-population))
+  (let* (#;(seed-weights (car seed-population))
          (fitness-fn* (lambda (weights)
                         (with-fluids ((eval-robot-fluid eval-robot-headless))
                              (fitness-fn weights))))
-         (original-fitness (fitness-fn* seed-weights))
-         (objective-count (vector-length original-fitness))
+         #;(original-fitness (fitness-fn* seed-weights))
+         (objective-count (length (objectives fitness-fn)))
          ;; Had to use with-dynamic-state to make fluids work when crossing
          ;; into C code that called Scheme code.
          (results (nsga-ii-search 
@@ -263,8 +263,8 @@
     ;; Get rid of any duplicate individuals.
     (set! results (uniq results))
     (set! last-fitness-func fitness-fn)
-    (set! last-seed-fitness original-fitness)
-    (set! last-seed-weights seed-weights)
+    ;(set! last-seed-fitness original-fitness)
+    ;(set! last-seed-weights seed-weights)
     (set! results (sort! results (lambda (a b)
                                         (: (cdr a) @ 0 > (cdr b) @ 0))))
     (cons! results last-results)

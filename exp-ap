@@ -16,7 +16,9 @@
   (format (current-error-port) "       exp-ap plot-path <file.bin> <output.pdf>~%")
   (quit))
 
-(define option-spec '((pin-others (single-char #\p) (value #f)) 
+(define option-spec '((pin-others (single-char #\p) (value #f))
+                      (no-seed (single-char #\n) (value #f))
+                      (no-ap-error (single-char #\e) (value #f))
                       (help (single-char #\h) (value #f))
                       (popcount (single-char #\c) (value #t))
                       (generations (single-char #\g) (value #t))
@@ -80,27 +82,34 @@
                 ((ind gene obj)
                  (cons! (list generation ind obj) fitness-time-series))) ind-gene-obj)))
   (optimize 
-   ap-target
+   (if (option-ref options 'no-ap-error #f)
+       target-distance
+       ap-target)
    ;;30
    ;;50; *
    ;;100
    (read-from-string (option-ref options 'generations "100"))
    ;;2
    ;;3
+   
    (begin (test-ap-prefs3)
-          (ap-train)
           (when (option-ref options 'pin-others #f)
             (mylog "exp-ap" pri-info "Pinning other joints")
             (pin-other-joints))
-          (list (get-nn-weights (current-robot)))))
+          (if (option-ref options 'no-seed #f)
+              '()
+              (begin 
+                (ap-train)
+                (list (get-nn-weights (current-robot)))))))
   (format results "~a~%" (sexp->mathematica fitness-time-series))
   (close-port results)
-  (plot-fitness-time-series fitness-time-series (file "fitness-time-series.pdf"))
- (plot-front (file "front.pdf"))
+  #;(plot-fitness-time-series fitness-time-series (file "fitness-time-series.pdf"))
+  #;(plot-front (file "front.pdf"))
  (for-each-i (lambda (ind-weights number)
                (let ((filename (format #f "~a/individual~2'0d.bin" dir number)))
                  (write-brain ind-weights filename)
-                 (plot-path ind-weights (format #f "~a/individual~2'0d.pdf" dir number) number)))
+                 #;(plot-path ind-weights (format #f "~a/individual~2'0d.pdf" dir number) number)
+                 ))
              (map car (first last-results)))
  (call-with-output-file (file "results.txt")
    (lambda (port)

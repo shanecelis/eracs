@@ -240,7 +240,7 @@ active preference error."
              ;; Project only in the xz-plane (height displacement doesn't count).
              (distance (vector-norm (vector* xz-proj 
                                              (vector- target-position pos)))))
-        (message "Distance to target ~1,2f AP." distance)
+        (message "Distance to target ~1,2f." distance)
         (vector distance)))
     (eval-robot weights #:end-fn distance-to-target)))
 
