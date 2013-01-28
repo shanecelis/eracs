@@ -68,6 +68,9 @@ mathematicaToSexp[x_Real] := ToString[x]
 mathematicaToSexp[x_Integer] := ToString[x]
 
 
+path[{}] := {}
+
+
 path[points_] := Line[points]
 
 
@@ -75,8 +78,25 @@ box[pos_, dims_] := {Transparent, Cuboid[pos - dims/2, pos + dims/2]}
 
 
 plotRobotPathAndObstacles[points_, obstacles_, ind_:1,opts:OptionsPattern[Graphics3D]] :=
-Graphics3D[{{colorData[ind],path[points]}, Map[box@@#&,obstacles], {PointSize[Large],Green, Opacity[0.5], Point[points[[-1]]]},
-{PointSize[Large],Red, Opacity[0.5], Point[points[[1]]]}},Evaluate[FilterRules[{opts},Options[Graphics3D]]],Axes->{True, False, True},AxesLabel->{"x","y","z"},ViewPoint->{0,Infinity,0},ViewVertical->{0,0,-1}, PlotRangePadding -> 2, ImageSize -> pdfImageSize]
+Graphics3D[{{colorData[ind],path[points]}, Map[box@@#&,obstacles], 
+If[Length[points] > 0,{{PointSize[Large],Green, Opacity[0.5], Point[points[[-1]]]},
+{PointSize[Large],Red, Opacity[0.5], Point[points[[1]]]}},
+{}]
+},
+Evaluate[FilterRules[{opts},Options[Graphics3D]]],Axes->{True, False, True},AxesLabel->{"x","y","z"},ViewPoint->{0,Infinity,0},ViewVertical->{0,0,-1}, PlotRangePadding -> 2, ImageSize -> pdfImageSize]
+
+
+boxyCylinder[radius_, length_, axis_] := Module[{dims}, dims = {1,1,1} radius * 2;
+dims[[axis]] = length;
+dims]
+
+
+plotScene[] := Module[{target, wall, body,legs},
+wall = {{0, 1, -5}, {10, 1, 1}};
+target = {{0,1,-10}, {1,1,1}};
+body = {{0,1,0}, {1,.2,1}};
+legs = {{{1,1,0},{0.1,1,1}},{{1.5,0.5,0},{0.1,1,2}},{{0,1,-1},{0.1,1,3}},{{0,0.5,-1.5},{0.1,1,2}},{{-1,1,0},{0.1,1,1}},{{-1.5,0.5,0},{0.1,1,2}},{{0,1,1},{0.1,1,3}},{{0,0.5,1.5},{0.1,1,2}}};
+plotRobotPathAndObstacles[{}, {wall,target, body, Sequence@@Map[{#[[1]], boxyCylinder@@#[[2]]}&, legs]},1, ImageSize -> Automatic]]
 
 
 plotRobotPathAndObstaclesSideView[args__] :=

@@ -456,30 +456,24 @@ distance to waypoint."
 
 (define-interactive
   (robot-avoids-obstacle? #:optional (weights (get-nn-weights (current-robot)))) 
-  "Return true if the robot gets within 5 units of the target at any point."
+  "Return true if the robot gets within 4.5 units of the target at any point."
   (let ((target-position #(0 1 -10))
-        (xz-proj (vector 1. 0. 1.))
-        (got-close? #f)
-        (at-time #f)
-        (min-distance 20.))
-    (define (distance-to-target robot)
+        (xz-proj (vector 1. 0. 1.)))
+    (define (check-distance-to-target robot)
       (let* ((pos (robot-position robot))
              ;; Project only in the xz-plane (height displacement doesn't count).
              (distance (vector-norm (vector* xz-proj 
                                              (vector- target-position pos)))))
-        (set! min-distance (min min-distance distance))
-        #;
-        (when (and (not got-close?) (< distance 5.0))
-          
-          (set! got-close? #t)
-          (set! at-time (robot-time robot))
-          )))
-    (eval-robot weights #:step-fn distance-to-target)
-    (set! got-close? (< min-distance 4.5))
-    (if got-close?
-        (message "Robot got close enough to target; minimum distance ~1,2f." min-distance)
-        (message "Robot did not get close enough to target; minimum distance ~1,2f." min-distance))
-    (values got-close? min-distance)))
+        (if (< distance 4.5)
+            (throw 'close-enough #t distance))))
+    (catch 'close-enough
+      (lambda () 
+        (eval-robot weights #:step-fn check-distance-to-target)
+        (message "Robot did not get close enough to target.")
+        #f)
+      (lambda (key result distance)
+        (message "Robot got close enough to target; distance ~1,2f." distance)
+        result))))
 
 (define-interactive
   (robot-crosses-gap? #:optional (weights (get-nn-weights (current-robot)))) 
