@@ -8,6 +8,9 @@ export PKG_CONFIG_PATH := /usr/local/lib/pkgconfig
 GUILE_CFLAGS = $(shell pkg-config guile-2.0 --cflags)
 GUILE_LDFLAGS = $(shell pkg-config guile-2.0 --libs)
 
+GSL_CFLAGS = $(shell pkg-config gsl --cflags)
+GSL_LDFLAGS = $(shell pkg-config gsl --libs)
+
 LOG4C_CFLAGS = -DWITH_LOG4C 
 LOG4C_LDFLAGS = -L/opt/local/lib -llog4c
 
@@ -19,22 +22,22 @@ EMACSY_CFLAGS = -Inoweb-emacsy
 
 FANN_LDFLAGS = -L/usr/local/lib -lm -ldoublefann  
 
-CPPFLAGS = -ferror-limit=3 -fmacro-backtrace-limit=1 -g $(GUILE_CFLAGS) $(EMACSY_CFLAGS) $(shell pkg-config bullet --cflags) $(LOG4C_CFLAGS)
+CPPFLAGS = -ferror-limit=3 -fmacro-backtrace-limit=1 -g $(GUILE_CFLAGS) $(EMACSY_CFLAGS) $(shell pkg-config bullet --cflags) $(LOG4C_CFLAGS) $(GSL_CFLAGS)
 
-LDFLAGS = $(GUILE_LDFLAGS) $(shell pkg-config libglfw --libs) -lVLCore -lVLGraphics $(EMACSY_LDFLAGS) -lstdc++ $(shell pkg-config bullet --libs) $(shell pkg-config liblo --libs) $(FANN_LDFLAGS) $(LOG4C_LDFLAGS)
+LDFLAGS = $(GUILE_LDFLAGS) $(shell pkg-config libglfw --libs) -lVLCore -lVLGraphics $(EMACSY_LDFLAGS) -lstdc++ $(shell pkg-config bullet --libs) $(shell pkg-config liblo --libs) $(FANN_LDFLAGS) $(LOG4C_LDFLAGS) $(GSL_LDFLAGS)
 
 TARGET = eracs
 VERSION = 0.1
 
-LITSRCS = eracs.nw main.nw render.nw physics.nw primitive-procedures.nw vlref-smob.nw scene-smob.nw sim-smob.nw rigid-body-smob.nw osc.nw nn.nw physics-buffer.nw camera.nw boiler-plate.nw physics-ui.nw nsga2.nw linear-spline.nw logging.nw util.nw util-cpp.nw
+LITSRCS = eracs.nw main.nw render.nw physics.nw primitive-procedures.nw vlref-smob.nw scene-smob.nw sim-smob.nw rigid-body-smob.nw osc.nw nn.nw physics-buffer.nw camera.nw boiler-plate.nw physics-ui.nw nsga2.nw linear-spline.nw logging.nw util.nw util-cpp.nw 
 
 TEXS := $(patsubst %.nw, %.tex, $(LITSRCS))
 
 DEFS := $(patsubst %.nw, %.defs, $(LITSRCS))
 
-SRCS = main.cpp render.cpp physics.cpp primitive-procedures.cpp vlref-smob.cpp scene-smob.cpp sim-smob.cpp rigid-body-smob.cpp nn.c dummy-opengl-context.cpp physics-buffer.scm camera.scm physics-ui.scm nsga2.c nsga2.scm osc.c osc.scm linear-spline.scm logging.c scm-logging.c logging.scm util.c util-cpp.cpp scene-smob.scm util.scm
+SRCS = main.cpp render.cpp physics.cpp primitive-procedures.cpp vlref-smob.cpp scene-smob.cpp sim-smob.cpp rigid-body-smob.cpp nn.c dummy-opengl-context.cpp physics-buffer.scm camera.scm physics-ui.scm nsga2.c nsga2.scm osc.c osc.scm linear-spline.scm logging.c scm-logging.c logging.scm util.c util-cpp.cpp scene-smob.scm util.scm 
 
-TESTS = nsga2.test.scm vlref-smob.test.scm sim-smob.test.scm linear-spline.test.scm template.test.scm active-preferences.test.scm
+TESTS = nsga2.test.scm vlref-smob.test.scm sim-smob.test.scm linear-spline.test.scm 
 
 #TESTS = sim-smob.test.scm
 
@@ -218,6 +221,8 @@ linear-spline.scm: linear-spline.nw
 linear-spline.paper.pdf: linear-spline.tex
 
 osc.paper.pdf: osc.tex
+
+ctrnn.paper.pdf: ctrnn.tex
 
 debug: eracs
 	gdb --args ./eracs

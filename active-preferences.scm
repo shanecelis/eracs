@@ -180,6 +180,7 @@ length, and origin."
       (apply + (map (lambda (ce) (ce t)) ces)))))
 
 (define (compute-error points f g)
+  ;; f is the old controller, g is the new controller
   (let ((composite (compose-triangles points))
         (delta (compose-triangles 
                 (map (match-lambda

@@ -137,10 +137,7 @@
       (begin (evaluate-robot parent))))))
 
 
-
-
 (define path '())
-
 
 (define (map-sleazy f . args)
   (let ((l (length (car args))))

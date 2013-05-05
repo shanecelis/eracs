@@ -16,6 +16,7 @@
             vector.
             vector-negate
             vector-move!
+            vector-move!*
             vector-angle
             range
             index-range
@@ -38,6 +39,7 @@
             list->matrix
             solve-line-intersect-2d
             list-op
+;            vector-map!
             vector-take
             vector-drop
             vector-append
@@ -133,6 +135,14 @@
               (vector-set! dest i (vector-ref src i))
               ) (range 0 (1- (vector-length dest)))))
 
+(define (vector-move!* dest di df src si sf)
+  (if (not (= (- sf si) (- df di)))
+      (throw 'different-ranges))
+  (for-each (lambda (i)
+              (generalized-vector-set! dest (+ di i) (generalized-vector-ref src (+ si i))))
+            (range 0 (- sf si)))
+  dest)
+
 (define* (make-matrix m #:optional (n m) (fill 0))
   (vector-map (lambda (i) (make-vector n fill)) (vector-range 0 (1- m))))
 
@@ -225,6 +235,9 @@
 
 (define-method (=? (a <vector>) (b <vector>) . rest)
   (apply =? (vector->list a) (vector->list b) rest))
+
+(define-method (=? (a <uvec>) (b <uvec>) . rest)
+  (apply =? (generalized-vector->list a) (generalized-vector->list b) rest))
 
 (define-method (=? a b . rest)
   #f)

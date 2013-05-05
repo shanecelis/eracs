@@ -11,18 +11,19 @@
              (statprof)
              (logging))
 
+
 (let ((orig emacsy-mode-line))
   (set! emacsy-mode-line 
         (lambda ()
-        (with-buffer (recent-buffer)
-          (format #f "~a FPS ~1,0f sim-time ~1,1f short-time ~1,2f long-time ~1,1f" 
-                  (orig) 
-                  (get-parameter 'FPS) 
-                  (let ((sim (current-sim))) (if sim (sim-time sim) 0.))
-                  (time-loop-value (current-robot))
-                  (long-time-loop-value (current-robot))
+          (with-buffer (recent-buffer)
+                       (format #f "~a FPS ~1,0f sim-time ~1,1f short-time ~1,2f long-time ~1,1f" 
+                               (orig) 
+                               (get-parameter 'FPS) 
+                               (let ((sim (current-sim))) (if sim (sim-time sim) 0.))
+                               (time-loop-value (current-robot))
+                               (long-time-loop-value (current-robot))
                   
-                  )))))
+                               )))))
 
 (define-interactive (reload-log-config)
   (log4c-reread))
@@ -69,7 +70,7 @@
   (spawn-publish-service "" "_osc._udp." "ERACS" 7770)
   ;; CTRL-c should still work but it doesn't after some threads are spawned.
   ;; This next line fixes that.
-  (restore-signals))
+  #;(restore-signals))
 
 (set-parameter! 'camera-position #(4 4 3))
 (load "quadruped2.scm")
@@ -79,14 +80,17 @@
 (load "colors.scm")
 
 (load "hill-climber.scm")
+;(switch-to-brain low-level-brain)
+
 
 ;(optimize 1)
-(restore-signals)
+;(restore-signals)
 
-(add-hook! post-window-open-hook 
+#;(add-hook! post-window-open-hook 
            (lambda ()
              (randomize-brain)
              (set! (controller (current-robot)) run-nn-brain)
              (clear-brain)
              (set! (controller (current-robot)) ap-controller)) 
            #t)
+;(load "beer-experiment.scm")

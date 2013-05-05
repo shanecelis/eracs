@@ -269,6 +269,48 @@ SCM_DEFINE (scm_add_line, "add-line", 2, 1, 0,
   }
 @ 
 
+<<Primitives>>=
+SCM_DEFINE (scm_add_sphere, "add-sphere", 2, 2, 0,
+            (SCM scene, SCM origin, SCM radius, SCM color),
+            "Add a sphere to the scene; return actor. Expects a scene object, an origin vector, and a size 4 vector for color optionally.")
+  // displays a closed or open path, with or without points
+//  vl::Actor* showPath(const std::vector<vl::fvec3>& ctrl_points, const vl::fvec4& color, bool points=false, bool loop=false)
+{
+    struct scene *sc = unwrap_scene(scene);
+    // Simple effect
+    vl::vec4 colorx;
+    if (SCM_UNBNDP(color)) {
+      colorx = vl::white;
+    } else {
+      colorx = vector_to_vl_vec4(color);
+    }
+
+    double r;
+    if (SCM_UNBNDP(radius)) {
+      r = 1.0;
+    } else {
+      r = scm_to_double(radius);
+    }
+
+    vl::ref<vl::Effect> effect = new vl::Effect;
+    effect->shader()->enable(vl::EN_DEPTH_TEST);
+    effect->shader()->gocPointSize()->set(4);
+    effect->shader()->gocColor()->setValue(colorx);
+
+    // Generates the line/points geometry.
+    vl::vec3 o = vector_to_vl_vec3(origin);
+    // XXX VisualizationLibrary has a bug where it says it's accepting the radius,
+    // but it's actually the diameter.
+    vl::ref<vl::Geometry>   geom       = vl::makeUVSphere(o,r * 2.);
+
+    // Adds the geometry to the scene.
+    SCM actor = scm_c_wrap_vlref(sc->scene_manager->tree()->addActor( geom.get(), effect.get(), NULL), "actor", "sphere");
+    <<Add a cleanup hook.>>
+    return actor;
+  }
+@ 
+
+
 <<Add a cleanup hook.>>=
 struct vlref* vlref = unwrap_vlref(actor);
 scm_c_hook_add(&(vlref->before_free_hook), remove_actor_hook, (void *)scene, 1);

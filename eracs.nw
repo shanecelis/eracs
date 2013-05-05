@@ -11,6 +11,7 @@
 \usepackage{listings}
 \usepackage{noweb}
 \usepackage{color}
+\usepackage{todonotes}
 %\usepackage{framed}
 \usepackage{textcomp}
 \usepackage{parskip}

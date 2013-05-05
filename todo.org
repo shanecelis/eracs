@@ -65,6 +65,14 @@
   - [ ] have backtraces go to logs
   - [ ] get rid of noise in emacsy (noise?) log noise?
   - [ ] implement coroutines in Guile using [[http://www.lua.org/manual/5.2/manual.html][Lua API]] and [[http://wingolog.org/archives/2011/08/30/the-gnu-extension-language][this]] as a basis
+    It'd be nice if the coroutines were interruptable.  Maybe [[http://lists.gnu.org/archive/html/guile-user/2011-10/msg00038.html][this would help.]]
+    This is a [[http://pllab.is.ocha.ac.jp/~asai/cw2011tutorial/main-e.pdf][good tutorial]] on shift and reset.
+
+    Commands should be marked as suspendable.  Suspendable commands
+    will be executed in their own coroutine that may be suspended,
+    resumed, resumed in the background, or killed.  This is similar to
+    the split between builtin commands in shell and regular commands.
+    God, this is going to be COOL!
   - [ ] make debugging work in emacsy
   - [ ] fix kill of all buffers bug
   - [X] fix extra renderers being added when physics-add-scene is called DOUBLE DRAWING!
@@ -100,6 +108,12 @@
   - [ ] determine the spatial dimensional units.
   - [ ] restarting physics doesn't clear fixed bodies from graphics
     (nor do I know if they're cleared from the simulation)
+  - [ ] [[https://github.com/technomancy/find-file-in-project/blob/master/find-file-in-project.el][Try this find-file-in-project]]
+  - [ ] look at coursera mobile robotics
+  - [ ] I should stop evolving once I hit my success condition--oops
+  - [ ] Emacsy licensing [[http://ext.ensible.com/store/][Something like these guys?]]
+  - [ ] [[https://groups.google.com/forum/m/?fromgroups#!msg/comp.emacs/j_fNPgtbavM/DVygGrzgQgMJ][Great introduction]] to the bare minimum you need to know to use
+    Emacs
 
 * TODO before GECCO
   - [X] fix the scene since it's not displaying
@@ -115,8 +129,8 @@
   - [X] need to be able to see prior evaluations
   - [X] plot fitness correctly: need to know what's being minimized
     and maximized; need axes labels.
-  - [X] save binary vector values for the NN
 
+  - [X] save binary vector values for the NN
   - [X] rename fitness functions so they can be more easily understood
   - [X] run some tests using the high level waypoint
   - [X] write a script to run an automated test.
@@ -137,13 +151,19 @@
   - [X] should the neural network have a more long range timer?
   - [X] test other values of alpha
   - [X] write a robot-avoids-obstacle? success condition.
-  - [ ] try the jumping task? NOPE
-  - [ ] write the introduction
-  - [ ] write the methods section
+  - [X] try the jumping task? NOPE
+  - [X] write the introduction
+  - [X] write the methods section
   - [X] missing ap-passive-29 from results
-  - [ ] I should stop evolving once I hit my success condition--oops
+  - [ ] finish up the low-level section
+  - [ ] reference mouret
+  - [ ] reference von Ahn
+  - [ ] write the results section
+  - [ ] write the discussion section
+  - [X] include Greg as an author? YES
+  - [ ] submit to GECCO (thursday midnight)
 
-
+Good set of articles on [[http://www.freesoftwaremagazine.com/articles/catalog_of_reusable_solutions][autotools]]
 
 * Results for jump
 

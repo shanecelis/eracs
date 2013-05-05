@@ -189,8 +189,24 @@ if (! scm_is_false(seed_population)) {
        j++,           list = scm_cdr(list)) {
     individual *ind = &(parent_pop->ind[0]);
     SCM src = scm_car(seed_population);
-    for (int i = 0; i < nreal; i++)
-      ind->xreal[i] = scm_to_double(scm_c_vector_ref(src, i));
+
+#define GET_READ_DOUBLE_HANDLE(scm_var, double_array) \
+  scm_t_array_handle scm_var ## _handle; \
+  scm_array_get_handle(scm_var, &scm_var ## _handle); \
+  const double* double_array = scm_array_handle_f64_elements(&scm_var ## _handle);
+
+#define RELEASE_HANDLE(scm_var) \
+  scm_array_handle_release(&scm_var ## _handle);
+
+  GET_READ_DOUBLE_HANDLE(src, src_array);
+
+  
+
+  memcpy(ind->xreal, src_array, nreal * sizeof(double));                                
+  RELEASE_HANDLE(src);
+
+//   for (int i = 0; i < nreal; i++)
+//      ind->xreal[i] = scm_to_double(scm_c_vector_ref(src, i));
   }
   if (scm_is_pair(list))
     mylog("nsga2", PRI_WARN, "seed population %d larger than population size %d", scm_c_length(seed_population), popsize);
