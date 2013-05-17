@@ -233,7 +233,7 @@ header file.
   const int mode_line_height = 20; /* XXX this should be dynamic with font size */
 @ We will refresh the state from Emacsy with each render.
 
-\todo{This echo_area should be handled more carefully.  It needs to
+\todo{This [[echo_area]] should be handled more carefully.  It needs to
   deal with text that is too large (that can slow down the whole
   program), and it needs to resize the minibuffer window when
   necessary.}
