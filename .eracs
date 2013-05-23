@@ -11,20 +11,6 @@
              (statprof)
              (logging))
 
-
-(let ((orig emacsy-mode-line))
-  (set! emacsy-mode-line 
-        (lambda ()
-          (with-buffer (recent-buffer)
-                       (format #f "~a FPS ~1,0f sim-time ~1,1f short-time ~1,2f long-time ~1,1f" 
-                               (orig) 
-                               (get-parameter 'FPS) 
-                               (let ((sim (current-sim))) (if sim (sim-time sim) 0.))
-                               (time-loop-value (current-robot))
-                               (long-time-loop-value (current-robot))
-                  
-                               )))))
-
 (define-interactive (reload-log-config)
   (log4c-reread))
 
@@ -32,6 +18,16 @@
   (set! message
         (lambda args
           (mylog "emacsy.message" pri-info (apply orig args)))))
+
+;; This should be substituted with
+;; (define-advice message (after log4c-message activate)
+;;    (log4c-message result . args)
+;;    (mylog "emacsy.message" pri-info result))
+;;
+;; Or as an around
+;; (define-advice message (around log4c-message activate)
+;;    (log4c-message . args)
+;;    (mylog "emacsy.message" pri-info (apply next-advice args)))
 
 (set! emacsy-log-error (lambda (format-msg . args)
                     (apply mylog "emacsy" pri-error format-msg args)))
@@ -72,25 +68,7 @@
   ;; This next line fixes that.
   #;(restore-signals))
 
-(set-parameter! 'camera-position #(4 4 3))
-(load "quadruped2.scm")
-(load "active-preferences.scm")
-(load "record-robot.scm")
-(load "fitness-functions.scm")
-(load "colors.scm")
+(restore-signals)
+;(load "quadruped-experiment.scm")
 
-(load "hill-climber.scm")
-;(switch-to-brain low-level-brain)
-
-
-;(optimize 1)
-;(restore-signals)
-
-#;(add-hook! post-window-open-hook 
-           (lambda ()
-             (randomize-brain)
-             (set! (controller (current-robot)) run-nn-brain)
-             (clear-brain)
-             (set! (controller (current-robot)) ap-controller)) 
-           #t)
-;(load "beer-experiment.scm")
+(load "beer-experiment.scm")

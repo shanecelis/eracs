@@ -12,6 +12,8 @@ the following assumptions: real valued genes only, no constraints.
 #include "logging.h"
 #include "util.h"
 
+<<Macro>>
+
 <<State>>
 
 <<Helper Function>>
@@ -243,6 +245,23 @@ SCM scm_c_array_to_vector(int count, double* array)
 }
 @ 
 
+<<Macro>>=
+#define C_STRING_TO_SYMBOL(str) scm_string_to_symbol(scm_from_locale_string(str))
+@ 
+
+
+<<Helper Function>>=
+SCM scm_c_array_to_f64_vector(int count, double* array) 
+{
+  int i;
+  SCM v = scm_make_typed_array(C_STRING_TO_SYMBOL("f64"), SCM_UNSPECIFIED, scm_list_1(scm_from_int(count)));
+  for (i = 0; i < count; i++) 
+    scm_array_set_x(v, scm_from_double(array[i]), scm_list_1(scm_from_int(i)));
+  return v;
+}
+@ 
+
+
 <<Helper Function>>=
 void scm_c_vector_to_array(SCM v, int count, double* array) 
 {
@@ -344,7 +363,7 @@ SCM scm_report_feasible(population *pop)
       SCM genome;
       // XXX Switch these to uniform vectors
       objective = scm_c_array_to_vector(nobj,  pop->ind[i].obj);
-      genome    = scm_c_array_to_vector(nreal, pop->ind[i].xreal);
+      genome    = scm_c_array_to_f64_vector(nreal, pop->ind[i].xreal);
       // Add it to the list.
       list = scm_cons(scm_cons(genome, objective), list);
     }

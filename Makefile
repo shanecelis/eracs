@@ -109,6 +109,7 @@ NOTANGLE = $(TOP)/bin/mynotangle $@
 
 all: 
 	make -C noweb-emacsy
+	make -C ctrnn
 	$(MAKE) source
 	$(MAKE) $(LIBS)
 	$(MAKE) $(TARGET)

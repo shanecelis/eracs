@@ -114,6 +114,7 @@
   - [ ] Emacsy licensing [[http://ext.ensible.com/store/][Something like these guys?]]
   - [ ] [[https://groups.google.com/forum/m/?fromgroups#!msg/comp.emacs/j_fNPgtbavM/DVygGrzgQgMJ][Great introduction]] to the bare minimum you need to know to use
     Emacs
+  - [ ] How to make [[http://www.gnu.org/software/guile/docs/docs-2.0/guile-ref/Identifier-Macros.html#Identifier-Macros][variable aliases]]
 
 * TODO before GECCO
   - [X] fix the scene since it's not displaying
