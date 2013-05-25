@@ -5,6 +5,9 @@
   #:use-module (oop goops)
   #:use-module ((rnrs) #:select (vector-map vector-for-each))
   #:export (vector-fold
+            vector-sum
+            vector-every
+            vector-any
             vector-norm
             vector-normalize
             vector-min
@@ -59,6 +62,20 @@
 ;; XXX should return a vector?
 (define (vector-fold f init v)
   (fold f init (vector->list v)))
+
+(define (vector-every f v)
+  (vector-fold (lambda (a b) (and a b))
+               #t (vector-map f v)))
+
+(define (vector-any f v)
+  (vector-fold (lambda (a b) (or a b))
+               #f (vector-map f v)))
+
+(define (vector-sum v)
+  (vector-fold + 0 v))
+
+(define (vector-mean v)
+  (/ (vector-sum v) (vector-length v)))
 
 (define (vector-norm-squared v)
   (let ((sv (vector-map * v v)))

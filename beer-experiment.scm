@@ -19,6 +19,7 @@
 (define effector-count 2)
 (define node-count (+ sensor-count internode-count effector-count))
 (define body-count 3) ;; 1 agent, 2 objects
+(define body-count 2)
 (define agent-diameter 30)
 (define object-diameter 26)
 (define motor-constant 5)
@@ -56,11 +57,7 @@
 (define (make-effector-func ctrnn-state)
   (lambda (t i)
     (let ((first-effector-index (1+ sensor-count)))
-      (: ctrnn-state @ (first-effector-index + (i - 1)))
-      ;0.                                ; No motors
-      )))
-
-(define effector-func (make-effector-func ctrnn-state))
+      (: ctrnn-state @ (first-effector-index + (i - 1))))))
 
 (define (random-range low high)
   (if (> low high)
@@ -77,26 +74,24 @@
     (: k @ 2 := (begin (apply random-range horizontal-velocity)))
     (: k @ 3 := (begin (apply random-range vertical-velocity-1)))
     ;; object 2 velocity
-    (: k @ 4 := (begin (apply random-range horizontal-velocity)))
-    (: k @ 5 := (begin (apply random-range vertical-velocity-2)))
+    ;; (: k @ 4 := (begin (apply random-range horizontal-velocity)))
+    ;; (: k @ 5 := (begin (apply random-range vertical-velocity-2)))
     )
   fode-params)
 
-(define fode (adjust-fode (make-fode body-count effector-func)))
+(define fode (adjust-fode (make-fode body-count (make-effector-func ctrnn-state))))
 
 (define (make-fode-state* fode-params)
   (let ((ty (make-fode-state fode-params)))
     ;; agent
-    (: ty @ 1 := 0.)
-    (: ty @ 2 := 0.)
+    (set! (object-x ty 0) 0.)
+    (set! (object-y ty 0) 0.)
     ;; object 1 position
-    (: ty @ 3 := -2.)
-    ;(: ty @ 4 := max-height)
-    (generalized-vector-set! ty 4 max-height)
+    (set! (object-x ty 1) -2.)
+    (set! (object-y ty 1) max-height)
     ;; object 2 position
-    (: ty @ 5 := 2.)
-    ;(: ty @ 6 := max-height)
-    (generalized-vector-set! ty 6 max-height)
+    ;; (set! (object-x ty 2) 2.)
+    ;; (set! (object-y ty 2) max-height)
     ty
     ))
 
@@ -104,16 +99,15 @@
   (set! emacsy-mode-line 
         (lambda ()
         (with-buffer (recent-buffer)
-          (format #f "~a sim-time ~1,1f agent (~1,1f, ~1,1f) object1 (~1,1f, ~1,1f) object2 (~1,1f, ~1,1f)" 
-                  (orig) 
-                  (: fode-state @ 0)
-                  (: fode-state @ 1)
-                  (: fode-state @ 2)
-                  (: fode-state @ 3)
-                  (: fode-state @ 4)
-                  (: fode-state @ 5)
-                  (: fode-state @ 6)
-                                    
+          (format #f "~a sim-time ~1,1f agent (~1,1f, ~1,1f) object1 (~1,1f, ~1,1f)"; " object2 (~1,1f, ~1,1f)" 
+                  (orig)
+                  (fode-time fode-state)
+                  (object-x fode-state 0)
+                  (object-y fode-state 0)
+                  (object-x fode-state 1)
+                  (object-y fode-state 1)
+                  ;(object-x fode-state 2)
+                  ;(object-y fode-state 2)                  
                   )))))
 
 (define (in-range? x list)
@@ -127,33 +121,34 @@
         (k (cadr fode-params)))
       ;; Set the heights to the same thing.
     ;; object 1 yi
-    (generalized-vector-set! ty 4 max-height)
-    ;; object 2 yi
-    (generalized-vector-set! ty 6 max-height)
+    (set! (object-y ty 1) max-height)
     ;; object 1 position
-    (: ty @ 3 := (begin (apply random-range horizontal-position)))
+    (set! (object-x ty 1) (apply random-range horizontal-position))
     ;; object 1 velocity
-    (: k @ 2 := (begin (apply random-range horizontal-velocity)))
-    (: k @ 3 := (begin (apply random-range vertical-velocity-1)))
+    (set! (object-vx k 1) (apply random-range horizontal-velocity))
+    (set! (object-vy k 1) (apply random-range vertical-velocity-1))
     
-    ;; Compute x1
-    (let* ((t1 (/ (: ty @ 4) (: k @ 3)))
-           (x1 (+ (: ty @ 3) (* (: k @ 4) t1)))
-           (v2y (apply random-range vertical-velocity-2))
-           (t2 (/ (: ty @ 6) v2y))
-           (beta (* motor-constant alpha (abs (- t1 t2))))
-           (x2 (random-range (- x1 beta) (+ beta x1)))
-           (v2x (apply random-range horizontal-velocity))
-           (x2i (- x2 (* v2x t2)))
-           )
-      ;; object 2 position
-      (: ty @ 5 := x2i)
-      ;; object 2 velocity
-      (: k @ 4 := v2x) ;; vx
-      (: k @ 5 := v2y) ;; vy
-      (if (in-range? x2i horizontal-position)
-          (message "Initial conditions: object 1 r (~1,1f, ~1,1f) v (~1,1f, ~1,1f) object 2 r (~1,1f, ~1,1f) v (~1,1f, ~1,1f)" (: ty @ 3) (: ty @ 4) (: k @ 2) (: k @ 3) (: ty @ 5) (: ty @ 6) (: k @ 4) (: k @ 5))
-          (choose-initial-conditions fode-params fode-state)))))
+    (unless (= n 2)
+      ;; object 2 yi
+      (set! (object-y ty 2) max-height)
+      ;; Compute x1
+      (let* ((t1 (/ (: ty @ 4) (: k @ 3)))
+             (x1 (+ (: ty @ 3) (* (: k @ 4) t1)))
+             (v2y (apply random-range vertical-velocity-2))
+             (t2 (/ (: ty @ 6) v2y))
+             (beta (* motor-constant alpha (abs (- t1 t2))))
+             (x2 (random-range (- x1 beta) (+ beta x1)))
+             (v2x (apply random-range horizontal-velocity))
+             (x2i (- x2 (* v2x t2)))
+             )
+        ;; object 2 position
+        (: ty @ 5 := x2i)
+        ;; object 2 velocity
+        (: k @ 4 := v2x) ;; vx
+        (: k @ 5 := v2y) ;; vy
+        (if (in-range? x2i horizontal-position)
+            (message "Initial conditions: object 1 r (~1,1f, ~1,1f) v (~1,1f, ~1,1f) object 2 r (~1,1f, ~1,1f) v (~1,1f, ~1,1f)" (: ty @ 3) (: ty @ 4) (: k @ 2) (: k @ 3) (: ty @ 5) (: ty @ 6) (: k @ 4) (: k @ 5))
+            (choose-initial-conditions fode-params fode-state))))))
 
 (define fode-state (make-fode-state* fode))
 
@@ -312,26 +307,33 @@
 (define-fitness
   ((minimize "Distance to objects"))
   (beer-selective-attention #:optional (genome current-genome))
-  (message "Calling fitness.")
+  ;(message "Calling fitness.")
   (let ((d1 #f)
         (d2 #f)
+        (d (make-vector body-count #f))
         (fitness #f))
+    ;; Set the agent body to a distance of zero.
     (define (step-func fode-state)
-      (let ((y0 (object-y fode-state 0))
-            (y1 (object-y fode-state 1))
-            (y2 (object-y fode-state 2)))
-       (when (and (not d1) (: y1 < 0))
-         (set! d1 (- (object-x fode-state 1) (object-x fode-state 0))))
-       (when (and (not d2) (: y2 < 0))
-         (set! d2 (- (object-x fode-state 2) (object-x fode-state 0))))
-       ;; Stop when d1 and d2 are set.
-       (not (and d1 d2))))
+      (for-each 
+       (lambda (i)
+         (when (and (not (vector-ref d i)) (< (object-y fode-state i) 0))
+           (vector-set! d i (- (object-x fode-state i) (object-x fode-state 0)))))
+       (range 1 (1- body-count)))
+      #;(when (and (not d1) (: y1 < 0))
+      (set! d1 (- (object-x fode-state 1) (object-x fode-state 0))))
+      #;(when (and (not d2) (: y2 < 0))
+      (set! d2 (- (object-x fode-state 2) (object-x fode-state 0))))
+      ;; Stop when d1 and d2 are set.
+      ;;(not (and d1 d2))
+      (not (vector-every identity d)))
     (define (end-func fode-state)
-      (if (and d1 d2)
-          (vector (+ (abs d1) (abs d2)))
+      (if #;(and d1 d2) (vector-every identity d)
+          (vector (vector-sum (vector-map abs d)))
           #;(throw 'invalid-fitness)
           (vector 1000) ;; Big number for terrible fitness.
           ))
+    (vector-set! d 0 0.)
+        
     (set! fitness (eval-beer-robot genome 
                                    #:step-fn step-func 
                                    #:end-fn end-func))
