@@ -432,6 +432,40 @@ SCM_DEFINE (scm_scene_parameter, "scene-parameter", 2, 0, 0,
 }
 @ 
 
+\subsection{Updating Actors}
+
+So far we've allowed the drawing and removing of actors.  However,
+this seems to have an adverse effect on performance, so I want to try
+being able to update an existing actor.
+
+<<Primitives>>=
+SCM_DEFINE (scm_update_line, "update-line", 2, 1, 0,
+            (SCM actor, SCM points, SCM color),
+            "Updates a line return true if successful. Expects a line actor, a list of size three vectors, and a size 4 vector for color optionally.")
+{
+  struct vlref *ref = unwrap_vlref(actor);
+  vl::ref<vl::Actor> vlactor = (vl::Actor *) ref->object;
+  vl::ref<vl::Geometry> geom = (vl::Geometry *) vlactor->lod(0);
+  vl::ref<vl::ArrayFloat3> array = (vl::ArrayFloat3 *) geom->vertexArray();
+
+  size_t i = 0;
+  size_t len = scm_c_length(points);
+  while (i < len && scm_is_pair(points)) {
+    SCM value = scm_car(points);
+    (*array)[i] = vector_to_vl_vec3(value);
+    points = scm_cdr(points);
+    i++;
+  }
+  //geom->setVertexArray(array.get());
+  /* geom->setDisplayListDirty(true); */
+  /* geom->setBufferObjectDirty(true); */
+  geom->updateDirtyBufferObject(vl::BUM_KeepRamBufferAndForceUpdate);
+
+  return SCM_BOOL_T;
+}
+@
+
+
 
 \subsection{Drawing State}
 

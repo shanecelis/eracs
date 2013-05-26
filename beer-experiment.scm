@@ -18,7 +18,7 @@
 (define internode-count 10)
 (define effector-count 2)
 (define node-count (+ sensor-count internode-count effector-count))
-(define body-count 3) ;; 1 agent, 2 objects
+;(define body-count 3) ;; 1 agent, 2 objects
 (define body-count 2)
 (define agent-diameter 30)
 (define object-diameter 26)
@@ -41,7 +41,7 @@
 
 (define scene-actors '())
 
-(define h 0.5) ;; time step
+(define h 0.1) ;; time step
 
 (define population-count 10)
 
@@ -114,7 +114,10 @@
   (and (>= x (car list))
        (<= x (cadr list))))
 
-(define (choose-initial-conditions fode-params fode-state)
+
+
+(define (beer-choose-initial-conditions fode-params fode-state)
+  "This is how beer chooses his initial conditions for 1 or 2 objects."
   ;; Pick the initial x1 and v1
   (let ((ty fode-state)
         (n (car fode-params))
@@ -148,19 +151,74 @@
         (: k @ 5 := v2y) ;; vy
         (if (in-range? x2i horizontal-position)
             (message "Initial conditions: object 1 r (~1,1f, ~1,1f) v (~1,1f, ~1,1f) object 2 r (~1,1f, ~1,1f) v (~1,1f, ~1,1f)" (: ty @ 3) (: ty @ 4) (: k @ 2) (: k @ 3) (: ty @ 5) (: ty @ 6) (: k @ 4) (: k @ 5))
-            (choose-initial-conditions fode-params fode-state))))))
+            (beer-choose-initial-conditions fode-params fode-state))))))
+
+(define (case-1-IC fode-params fode-state)
+  (let ((n (car fode-params))
+        (k (cadr fode-params)))
+    (if (> n 2)
+        (throw 'invalid-object-count n))
+    (set! (object-x fode-state 1) 0.)
+    (set! (object-y fode-state 1) max-height)
+    (set! (object-vx k 1) 0.)
+    (set! (object-vy k 1) (car vertical-velocity-1))))
+
+(define (case-2-IC fode-params fode-state)
+  (let ((n (car fode-params))
+        (k (cadr fode-params)))
+    (if (> n 2)
+        (throw 'invalid-object-count n))
+    (set! (object-x fode-state 1) 0.)
+    (set! (object-y fode-state 1) max-height)
+    (set! (object-vx k 1) (car horizontal-velocity))
+    (set! (object-vy k 1) (car vertical-velocity-1))))
+
+(define (case-3-IC fode-params fode-state)
+  (let ((n (car fode-params))
+        (k (cadr fode-params)))
+    (if (> n 2)
+        (throw 'invalid-object-count n))
+    (set! (object-x fode-state 1) 0.)
+    (set! (object-y fode-state 1) max-height)
+    (set! (object-vx k 1) (cadr horizontal-velocity))
+    (set! (object-vy k 1) (car vertical-velocity-1))))
+
+(define (case-4-IC fode-params fode-state)
+  (let ((n (car fode-params))
+        (k (cadr fode-params)))
+    (if (> n 2)
+        (throw 'invalid-object-count n))
+    (set! (object-x fode-state 1) (apply random-range horizontal-position))
+    (set! (object-y fode-state 1) max-height)
+    (set! (object-vx k 1) (apply random-range horizontal-velocity))
+    (set! (object-vy k 1) (apply random-range vertical-velocity-1))))
+
+
+(define choose-initial-conditions beer-choose-initial-conditions)
+(define choose-initial-conditions case-4-IC)
 
 (define fode-state (make-fode-state* fode))
 
-(define vision-line-actors '())
+(define vision-line-actors #f)
+(define vision-line-actors-index 0)
 (define (draw-vision-lines agent-position end-point)
   #;(format #t "draw-vision-lines ~a ~a~%" agent-position end-point)
   (let ((scene (current-scene)))
+    (when (or (not vision-line-actors) 
+              (not (= (vector-length vision-line-actors) sensor-count)))
+      ;; initialize the actors
+      (set! vision-line-actors (make-vector sensor-count #f)))
     (when scene
       #;(format #t "draw-vision-lines add-line ~a ~a~%" agent-position end-point)
-      (cons! (add-line scene (list (vector-append agent-position #(0.))
-                                   (vector-append end-point #(0.))))
-             vision-line-actors))))
+      (if (not (: vision-line-actors @ vision-line-actors-index))
+          (vector-set! vision-line-actors vision-line-actors-index 
+                       (add-line scene (list (vector-append agent-position #(0.))
+                                             (vector-append end-point #(0.)))))
+          (update-line (: vision-line-actors @ vision-line-actors-index)
+                       (list (vector-append agent-position #(0.))
+                             (vector-append end-point #(0.)))))
+      (set! vision-line-actors-index 
+            (mod (1+ vision-line-actors-index) sensor-count)))))
 
 (define current-genome (make-genome-for-n-ctrnn node-count))
 (define gene-count (generalized-vector-length current-genome))
@@ -196,11 +254,9 @@
       (unless pause-fode?
         (step-fode fode-state h fode)
         (when (= 0 (mod tick-count update-ctrnn-freq))
-          (if draw-display?
+          #;(if draw-display?
               (for-each (lambda (actor) (remove-actor scene actor)) vision-line-actors))
           (step-ctrnn ctrnn-state h ctrnn)))
-                                        ;(format #t "~a\n" fode-state)
-      
       (if draw-display?
        (cons! (add-sphere scene (vector 
                                  (object-x fode-state 0) 
@@ -222,15 +278,9 @@
                              #;(* .9 object-diameter)
                              #(0 0 0 1)
                              ) scene-actors))
-         #;(cons! (add-line scene 
-                          (list (vector+ #(0 50 0) position)
-                                (vector+ (vector (/ object-diameter 2) 50 0) position)
-                                )
-                          ) scene-actors)
+
         (if (> (object-y fode-state i) 0)
-            (set! restart? #f))
-        #;(format #t "drawing object ~a at position ~a~%" i position))
-       ) 
+            (set! restart? #f)))) 
        (range 1 (1- body-count)))
       (when restart?
         ;; restart
@@ -307,31 +357,28 @@
 (define-fitness
   ((minimize "Distance to objects"))
   (beer-selective-attention #:optional (genome current-genome))
-  ;(message "Calling fitness.")
-  (let ((d1 #f)
-        (d2 #f)
-        (d (make-vector body-count #f))
+  (let ((d (make-vector body-count #f))
         (fitness #f))
     ;; Set the agent body to a distance of zero.
     (define (step-func fode-state)
       (for-each 
        (lambda (i)
-         (when (and (not (vector-ref d i)) (< (object-y fode-state i) 0))
-           (vector-set! d i (- (object-x fode-state i) (object-x fode-state 0)))))
+         (when (and (not (vector-ref d i)) 
+                    (< (object-y fode-state i) 0))
+           (vector-set! d i (- (object-x fode-state i) 
+                               (object-x fode-state 0)))))
        (range 1 (1- body-count)))
-      #;(when (and (not d1) (: y1 < 0))
-      (set! d1 (- (object-x fode-state 1) (object-x fode-state 0))))
-      #;(when (and (not d2) (: y2 < 0))
-      (set! d2 (- (object-x fode-state 2) (object-x fode-state 0))))
-      ;; Stop when d1 and d2 are set.
-      ;;(not (and d1 d2))
+      
+      ;; Return true if we have distances set for all objects.
       (not (vector-every identity d)))
     (define (end-func fode-state)
-      (if #;(and d1 d2) (vector-every identity d)
+      (format #t "d = ~a~%" d)
+      (if (vector-every identity d)
           (vector (vector-sum (vector-map abs d)))
           #;(throw 'invalid-fitness)
-          (vector 1000) ;; Big number for terrible fitness.
+          (vector 10000) ;; Big number for terrible fitness.
           ))
+    ;; We set the distance for the agent (object 0) to 0.
     (vector-set! d 0 0.)
         
     (set! fitness (eval-beer-robot genome 
@@ -350,13 +397,16 @@
      (incr! sum (vector-ref (beer-selective-attention genome) 0)))
    (vector (/ sum trials))))
 
+(define init-ctrnn-state (make-ctrnn-state ctrnn))
+(randomize-ctrnn-state! init-ctrnn-state)
+
 (define*
   (eval-beer-robot genome
                    #:key 
                    (step-fn identity)
                    (begin-fn identity)
                    (end-fn identity)
-                   (max-tick-count 500)
+                   (max-tick-count 2000)
                    )
   (let* ((ctrnn (make-n-ctrnn node-count))
          (ctrnn-state (make-ctrnn-state ctrnn))
@@ -378,22 +428,29 @@
                                           max-sight-output))
          (tick-count 0))
     (choose-initial-conditions fode fode-state)
+    ;(randomize-ctrnn-state! ctrnn-state)
+    ;(vector-move-left! init-ctrnn-state 0 (vector-length init-ctrnn-state) ctrnn-state 0)
+    (array-copy! init-ctrnn-state ctrnn-state)
     (genome->ctrnn genome ctrnn)
     (set! (input-func ctrnn) vision-input)
+    (format #t "begin state ~a~%~%" (vector-sum ctrnn-state))
     (begin-fn fode-state)
     (while (and 
             (< tick-count max-tick-count) 
             (step-fn fode-state))
       (if (= 0 (mod tick-count update-ctrnn-freq))
-          (step-ctrnn ctrnn-state h ctrnn))
-      (step-fode fode-state h fode)
+          (if (not (step-ctrnn ctrnn-state h ctrnn))
+              (throw 'step-ctrnn-error)))
+      (if (not (step-fode fode-state h fode))
+          (throw 'step-fode-error))
       (step-fn fode-state)
       (incr! tick-count)
       #;(format #t "Tick ~a~%" tick-count))
+    (format #t "after state ~a~%" (vector-sum ctrnn-state))
     (end-fn fode-state)))
 
 (define last-fitness-func #f) 
-
+(define last-results #f)
 (define-interactive
   (optimize 
    #:optional 
@@ -438,7 +495,12 @@
     #;(set! results (uniq results))
     (set! last-fitness-func fitness-fn)
     (set! results (sort! results (lambda (a b)
-                                        (: (cdr a) @ 0 > (cdr b) @ 0))))
+                                   ;; XXX The < or > needs to be used
+                                   ;; in reference to whether this is
+                                   ;; being minimized or maximized.
+                                   (: (cdr a) @ 0 < (cdr b) @ 0))))
+    (set! last-results results)
+
     (set! current-genome (caar results))
     (genome->ctrnn current-genome ctrnn)
     (reset-fode)

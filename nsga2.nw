@@ -64,8 +64,8 @@ Let's try to maximize our genes.
 <<test>>=
 (let ((result  (car (nsga-ii-search (lambda (x) (vector-map - x)) 
                                 #:random-seed 0.1 #:generation-count 100))))
-  (check (car result) (=> vector=?) #(1.0))
-  (check (cdr result) (=> vector=?) #(-1.0)))
+  (check (car result) (=> vector=?) #(1.0)) ;; genome
+  (check (cdr result) (=> vector=?) #(-1.0))) ;; fitness
 @ 
 
 Let's try to minimize our genes.
@@ -73,8 +73,8 @@ Let's try to minimize our genes.
 <<test>>=
 (let ((result  (car (nsga-ii-search (lambda (x) x) 
                                 #:random-seed 0.1 #:generation-count 100))))
-  (check (car result) (=> vector=?) #(-1.0))
-  (check (cdr result) (=> vector=?) #(-1.0)))
+  (check (car result) (=> vector=?) #(-1.0)) ;; genome
+  (check (cdr result) (=> vector=?) #(-1.0))) ;; fitness
 
 @ 
 

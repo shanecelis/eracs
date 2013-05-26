@@ -61,7 +61,7 @@
 
 ;; XXX should return a vector?
 (define (vector-fold f init v)
-  (fold f init (vector->list v)))
+  (fold f init (array->list v)))
 
 (define (vector-every f v)
   (vector-fold (lambda (a b) (and a b))
