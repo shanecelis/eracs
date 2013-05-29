@@ -52,6 +52,11 @@ btVector3 vector_to_btVector3(SCM vector);
 <<Free>>
 <<Mark>>
 <<Print>>
+
+<<Primitive>>
+
+// We need the initialization to come last because of the SNARFing.
+<<Initialize.>>
 @ All SMOBs must implement three functions: \verb|free|, \verb|mark| ,
 and \verb|print|.
 
@@ -136,9 +141,7 @@ void init_rigid_body_type(void)
 is an \verb|SCM| type.  This will allow one to export a C object to
 Scheme.
 
-<<file:rigid-body-smob.cpp>>=
-
-
+<<Primitive>>=
 SCM wrap_rigid_body(btRigidBody* btrb, char* name, SCM contact_func)
 {
   SCM smob;
@@ -178,10 +181,9 @@ SCM wrap_rigid_body(btRigidBody* btrb, char* name, SCM contact_func)
 }
 @ Now let's allow ourselves to create this C object from Scheme.
 
-<<file:rigid-body-smob.cpp>>=
-
+<<Primitive>>=
 // XXX Rename this to make-box or include a parameter for shape.
-SCM_DEFINE (make_box, "make-box", 2, 3, 0,
+SCM_DEFINE (scm_make_box, "make-box", 2, 3, 0,
             (SCM pos, SCM dims, SCM mass, SCM name, SCM contact_func),
             "Make a rigid body.")
 {
@@ -302,7 +304,7 @@ btVector3 vector_to_btVector3(SCM vector) {
 #include "sim-smob.h"
 @ \subsection{Getting Center of Mass}
 
-<<file:rigid-body-smob.cpp>>=
+<<Primitive>>=
 SCM_DEFINE (scm_get_position, 
             "get-position", 
             1, 0, 0,
@@ -314,6 +316,21 @@ SCM_DEFINE (scm_get_position,
   return btVector3_to_vector3(rb->body->getCenterOfMassPosition());
 }
 
+SCM_DEFINE (scm_set_position_x, 
+            "set-position!", 
+            2, 0, 0,
+            (SCM rb_smob, SCM value),
+            "Set position of body from simulation.")
+{
+  scm_assert_smob_type(rigid_body_tag, rb_smob);
+  struct rigid_body *rb = (struct rigid_body*) SCM_SMOB_DATA(rb_smob);
+  btTransform CoM = rb->body->getCenterOfMassTransform();
+  CoM.setOrigin(vector_to_btVector3(value));
+  rb->body->setCenterOfMassTransform(CoM);
+  return SCM_UNSPECIFIED;
+}
+@ 
+<<Primitive>>=
 SCM_DEFINE (scm_local_to_global_position, 
             "local->global-position", 
             2, 0, 0,
@@ -345,7 +362,7 @@ SCM btVector3_to_vector3(btVector3 vector) {
 @
 \subsection{Handling Collisions}
 
-<<file:rigid-body-smob.cpp>>=
+<<Helper Functions>>=
 
 void physics_call_contact_func(SCM rigid_body_smob)
 {
@@ -360,7 +377,7 @@ void physics_call_contact_func(SCM rigid_body_smob)
   }
   scm_remember_upto_here_1 (rigid_body_smob);
 }
-<<file:rigid-body-smob.cpp>>=
+<<Helper Functions>>=
 
 bool contact_callback(btManifoldPoint& cp,
                       void* body0, void* body1)
@@ -389,7 +406,7 @@ attaching it to some world object.
 
 
 gContactProcessedCallback = contact_callback;
-<<file:rigid-body-smob.cpp>>=
+<<Primitive>>=
 
 SCM_DEFINE (set_contact_func_x, 
             "set-contact-func!", 
@@ -509,7 +526,7 @@ init_constraint_type();
 pointer to a constraint and creates a SMOB, which is an \verb|SCM|
 type.
 
-<<file:rigid-body-smob.cpp>>=
+<<Helper Functions>>=
 
 SCM wrap_constraint(btTypedConstraint* bttc, 
                     char* name, char* type_label, 
@@ -560,7 +577,7 @@ struct constraint* unwrap_constraint(SCM joint)
 
 @ Let's write \verb|make-hinge| so one can create joints from Scheme.
 
-<<file:rigid-body-smob.cpp>>=
+<<Primitive>>=
 
 SCM_DEFINE (make_hinge, "make-hinge", 6, 2, 0,
             (SCM body_a, SCM body_b, 
@@ -618,7 +635,7 @@ SCM_DEFINE (make_hinge, "make-hinge", 6, 2, 0,
   // XXX Add the update_function here.
   return smob;
 }
-<<file:rigid-body-smob.cpp>>=
+<<Primitive>>=
 
 SCM_DEFINE (scm_sim_add_constraint, "sim-add-constraint", 2, 0, 0,
             (SCM sim, SCM joint),
@@ -638,7 +655,7 @@ SCM_DEFINE (scm_sim_add_constraint, "sim-add-constraint", 2, 0, 0,
   scm_gc_protect_object(sim);
   return SCM_BOOL_T;
 }
-<<file:rigid-body-smob.cpp>>=
+<<Primitive>>=
 
 SCM_DEFINE (scm_sim_remove_constraint, "sim-remove-constraint", 2, 0, 0,
             (SCM sim, SCM joint),
@@ -668,8 +685,7 @@ SCM_DEFINE (scm_sim_remove_constraint, "sim-remove-constraint", 2, 0, 0,
 }
 @ \subsection{Actuate Joint}
 
-<<file:rigid-body-smob.cpp>>=
-
+<<Primitive>>=
 SCM_DEFINE (actuate_joint, "actuate-joint", 2, 2, 0,
             (SCM joint_smob, SCM target_angle, SCM dt, SCM max_impulse),
             "Actuate a joint.")
@@ -696,9 +712,105 @@ SCM_DEFINE (actuate_joint, "actuate-joint", 2, 2, 0,
   }
   return SCM_BOOL_T;
 }
-@ We need the initialization to come last because of the SNARFing.
-
-<<file:rigid-body-smob.cpp>>=
-
-<<Initialize.>>
 @ 
+
+\subsection{Friction}
+
+We need to be able to get and set the friction of a body.
+
+<<Primitive>>=
+SCM_DEFINE (scm_get_friction, 
+            "get-friction", 
+            1, 0, 0,
+            (SCM rb_smob),
+            "Get the friction of body from simulation.")
+{
+  scm_assert_smob_type(rigid_body_tag, rb_smob);
+  struct rigid_body *rb = (struct rigid_body*) SCM_SMOB_DATA(rb_smob);
+  return scm_from_double(rb->body->getFriction());
+}
+@ 
+
+<<Primitive>>=
+SCM_DEFINE (scm_set_friction_x, 
+            "set-friction!", 
+            2, 0, 0,
+            (SCM rb_smob, SCM value),
+            "Set the friction of body from simulation.")
+{
+  scm_assert_smob_type(rigid_body_tag, rb_smob);
+  struct rigid_body *rb = (struct rigid_body*) SCM_SMOB_DATA(rb_smob);
+  rb->body->setFriction(scm_to_double(value));
+  return SCM_UNSPECIFIED;
+}
+@ 
+
+\subsection{Velocity}
+
+We need to be able to get and set the friction of a body.
+
+<<Primitive>>=
+SCM_DEFINE (scm_get_velocity, 
+            "get-velocity", 
+            1, 0, 0,
+            (SCM rb_smob),
+            "Get the velocity of body from simulation.")
+{
+  scm_assert_smob_type(rigid_body_tag, rb_smob);
+  struct rigid_body *rb = (struct rigid_body*) SCM_SMOB_DATA(rb_smob);
+  return btVector3_to_vector(rb->body->getLinearVelocity());
+}
+@ 
+
+<<Primitive>>=
+SCM_DEFINE (scm_set_velocity_x, 
+            "set-velocity!", 
+            2, 0, 0,
+            (SCM rb_smob, SCM value),
+            "Set the velocity of body from simulation.")
+{
+  scm_assert_smob_type(rigid_body_tag, rb_smob);
+  struct rigid_body *rb = (struct rigid_body*) SCM_SMOB_DATA(rb_smob);
+  rb->body->setLinearVelocity(vector_to_btVector3(value));
+  return SCM_UNSPECIFIED;
+}
+@ 
+
+
+\subsection{Application of Deadly Force}
+
+<<Primitive>>=
+SCM_DEFINE (scm_apply_force, 
+            "apply-force", 
+            3, 0, 0,
+            (SCM rb_smob, SCM force_vector, SCM relative_position),
+            "Apply the force to body at a relative_position wrt the body.")
+{
+  scm_assert_smob_type(rigid_body_tag, rb_smob);
+  struct rigid_body *rb = (struct rigid_body*) SCM_SMOB_DATA(rb_smob);
+  btVector3 fv = vector_to_btVector3(force_vector);
+  btVector3 rp = vector_to_btVector3(relative_position);
+  rb->body->applyForce(fv, rp);
+  return SCM_UNSPECIFIED;
+}
+@ 
+
+<<Primitive>>=
+SCM_DEFINE (scm_apply_impulse, 
+            "apply-impulse", 
+            3, 0, 0,
+            (SCM rb_smob, SCM force_vector, SCM relative_position),
+            "Apply the force to body at a relative_position wrt the body.")
+{
+  scm_assert_smob_type(rigid_body_tag, rb_smob);
+  struct rigid_body *rb = (struct rigid_body*) SCM_SMOB_DATA(rb_smob);
+  btVector3 fv = vector_to_btVector3(force_vector);
+  btVector3 rp = vector_to_btVector3(relative_position);
+  rb->body->applyImpulse(fv, rp);
+  return SCM_UNSPECIFIED;
+}
+@ 
+
+
+
+

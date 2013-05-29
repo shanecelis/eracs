@@ -20,7 +20,7 @@ void physics_update_scene(btDynamicsWorld *world);
 void physics_clear_scene();
 
 void scene_add_physics(struct scene* scene, btDynamicsWorld *world);
-void scene_update_physics(struct scene* scene, btDynamicsWorld *world);
+int scene_update_physics(struct scene* scene, btDynamicsWorld *world);
 void scene_clear_physics(struct scene* scene);
 @ And the body will be similar to \verb|render.cpp|.
 
@@ -274,10 +274,11 @@ void physics_update_scene(btDynamicsWorld* world)
   scene_update_physics(scm_c_current_scene(), world);
 }
 
-void scene_update_physics(struct scene* scene, btDynamicsWorld *world)
+int scene_update_physics(struct scene* scene, btDynamicsWorld *world)
 {
   btScalar        M[16];
   const int       numObjects = world->getNumCollisionObjects();
+  int err = 0;
   for(int i = 0; i < numObjects; i++) {
     btCollisionObject* colObj = world->getCollisionObjectArray()[i];
     btRigidBody*                 body = btRigidBody::upcast(colObj);
@@ -301,8 +302,10 @@ void scene_update_physics(struct scene* scene, btDynamicsWorld *world)
       //mylog("physics", PRI_DEBUG, "Updated transform.");
     } else {
       mylog("physics", PRI_WARN, "Unable to update transform.");
+      err++;
     }
   }
+  return err;
 }
 
 SCM_DEFINE (scm_scene_update_physics, "scene-update-physics", 2, 0, 0,
@@ -311,8 +314,8 @@ SCM_DEFINE (scm_scene_update_physics, "scene-update-physics", 2, 0, 0,
 {
   struct scene *sc = unwrap_scene(scene);
   struct sim *s = unwrap_sim(sim);
-  scene_update_physics(sc, s->world);
-  return SCM_UNSPECIFIED;
+  int err = scene_update_physics(sc, s->world);
+  return err == 0 ? SCM_BOOL_T : SCM_BOOL_F;
 }
 /* SCM_DEFINE (scm_physics_update_scene, "physics-update-scene", 1, 0, 0, */
 /*             (SCM sim), */

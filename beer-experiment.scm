@@ -43,10 +43,9 @@
 
 (define h 0.1) ;; time step
 
-(define population-count 10)
+(define population-count 12)
 
 (define ctrnn (make-n-ctrnn node-count))
-
 (define ctrnn-state (make-ctrnn-state ctrnn))
 
 (define (go-right t i)
@@ -64,56 +63,38 @@
       (random-range high low)
       (+ (random (- high low)) low)))
 
-(define (adjust-fode fode-params)
-  (let ((n (car fode-params))
-        (k (cadr fode-params)))
-    ;; agent velocity
-    (: k @ 0 := motor-constant)
-    (: k @ 1 := 0)
-    ;; object 1 velocity
-    (: k @ 2 := (begin (apply random-range horizontal-velocity)))
-    (: k @ 3 := (begin (apply random-range vertical-velocity-1)))
-    ;; object 2 velocity
-    ;; (: k @ 4 := (begin (apply random-range horizontal-velocity)))
-    ;; (: k @ 5 := (begin (apply random-range vertical-velocity-2)))
-    )
-  fode-params)
-
-(define fode (adjust-fode (make-fode body-count (make-effector-func ctrnn-state))))
+(define fode (make-fode body-count (make-effector-func ctrnn-state)))
 
 (define (make-fode-state* fode-params)
+  "Make an FODE state and initialize it to some fixed values."
   (let ((ty (make-fode-state fode-params)))
     ;; agent
     (set! (object-x ty 0) 0.)
     (set! (object-y ty 0) 0.)
     ;; object 1 position
-    (set! (object-x ty 1) -2.)
-    (set! (object-y ty 1) max-height)
-    ;; object 2 position
-    ;; (set! (object-x ty 2) 2.)
-    ;; (set! (object-y ty 2) max-height)
-    ty
-    ))
+    (for-each (lambda (i)
+                (set! (object-x ty i) (+ i -3.))
+                (set! (object-y ty 1) max-height))
+              (range 1 (1- body-count)))
+    ty))
 
 (let ((orig emacsy-mode-line))
   (set! emacsy-mode-line 
         (lambda ()
         (with-buffer (recent-buffer)
-          (format #f "~a sim-time ~1,1f agent (~1,1f, ~1,1f) object1 (~1,1f, ~1,1f)"; " object2 (~1,1f, ~1,1f)" 
+          (format #f "~a sim-time ~1,1f agent (~1,1f, ~1,1f)~{ object (~1,1f, ~1,1f)~}"; " object2 (~1,1f, ~1,1f)" 
                   (orig)
                   (fode-time fode-state)
                   (object-x fode-state 0)
                   (object-y fode-state 0)
-                  (object-x fode-state 1)
-                  (object-y fode-state 1)
-                  ;(object-x fode-state 2)
-                  ;(object-y fode-state 2)                  
-                  )))))
+                  (append-map (lambda (i)
+                                (list (object-x fode-state i)
+                                      (object-y fode-state i)))
+                       (range 1 (1- body-count))))))))
 
 (define (in-range? x list)
   (and (>= x (car list))
        (<= x (cadr list))))
-
 
 
 (define (beer-choose-initial-conditions fode-params fode-state)
@@ -186,15 +167,16 @@
 (define (case-4-IC fode-params fode-state)
   (let ((n (car fode-params))
         (k (cadr fode-params)))
-    (if (> n 2)
-        (throw 'invalid-object-count n))
-    (set! (object-x fode-state 1) (apply random-range horizontal-position))
-    (set! (object-y fode-state 1) max-height)
-    (set! (object-vx k 1) (apply random-range horizontal-velocity))
-    (set! (object-vy k 1) (apply random-range vertical-velocity-1))))
+    (for-each (lambda (i)
+                (set! (object-x fode-state i) (apply random-range horizontal-position))
+                (set! (object-y fode-state i) max-height)
+
+                (set! (object-vx k i) (apply random-range horizontal-velocity))
+                (set! (object-vy k i) (apply random-range vertical-velocity-1)))
+              (range 1 (1- body-count)))))
 
 
-(define choose-initial-conditions beer-choose-initial-conditions)
+;(define choose-initial-conditions beer-choose-initial-conditions)
 (define choose-initial-conditions case-4-IC)
 
 (define fode-state (make-fode-state* fode))
@@ -223,7 +205,7 @@
 (define current-genome (make-genome-for-n-ctrnn node-count))
 (define gene-count (generalized-vector-length current-genome))
 
-(add-hook! physics-tick-hook #.\ (my-physics-tick))
+(add-hook! physics-tick-hook #.\ (fode-physics-tick))
 (define tick-count 0)
 
 (define update-ctrnn-freq 1)
@@ -244,7 +226,30 @@
 
 (define-key eracs-mode-map (kbd "p")   'toggle-pause-fode)
 
-(define (my-physics-tick)
+(define (draw-fode scene fode-state)
+  ;; Draw the agent.
+  (cons! (add-sphere scene (vector 
+                            (object-x fode-state 0) 
+                            (object-y fode-state 0) 
+                            0)
+                     (/ agent-diameter 2)) scene-actors)
+  ;; Draw the objects.
+  (for-each 
+   (lambda (i)
+     (let ((position (vector (object-x fode-state i) 
+                             (object-y fode-state i) 
+                             0)))
+       (if draw-display?
+           (cons! (add-sphere scene 
+                              position
+                              (/ object-diameter 2)
+                              #;object-diameter
+                              #;(* .9 object-diameter)
+                              #(0 0 0 1)
+                              ) scene-actors)))) 
+   (range 1 (1- body-count))))
+
+(define (fode-physics-tick)
   (let* ((scene (current-scene)) ;; This should be attached to the buffer.
          (restart? #t))
     (when scene
@@ -258,30 +263,15 @@
               (for-each (lambda (actor) (remove-actor scene actor)) vision-line-actors))
           (step-ctrnn ctrnn-state h ctrnn)))
       (if draw-display?
-       (cons! (add-sphere scene (vector 
-                                 (object-x fode-state 0) 
-                                 (object-y fode-state 0) 
-                                 0)
-                          (/ agent-diameter 2)
-                          ) scene-actors))
+          (draw-fode scene fode-state))
       
+      ;; Check if we should restart the simulation.
       (for-each 
        (lambda (i)
-       (let ((position (vector (object-x fode-state i) 
-                               (object-y fode-state i) 
-                               0)))
-         (if draw-display?
-             (cons! (add-sphere scene 
-                             position
-                             (/ object-diameter 2)
-                             #;object-diameter
-                             #;(* .9 object-diameter)
-                             #(0 0 0 1)
-                             ) scene-actors))
-
-        (if (> (object-y fode-state i) 0)
-            (set! restart? #f)))) 
+         (if (> (object-y fode-state i) 0)
+             (set! restart? #f))) 
        (range 1 (1- body-count)))
+
       (when restart?
         ;; restart
         (reset-fode)))
@@ -319,7 +309,7 @@
                                         visual-angle
                                         max-sight-output
                                         draw-vision-lines
-                                        )   
+                                        )
   )
 
 (define-interactive (reset-fode)
@@ -372,7 +362,7 @@
       ;; Return true if we have distances set for all objects.
       (not (vector-every identity d)))
     (define (end-func fode-state)
-      (format #t "d = ~a~%" d)
+      #;(format #t "d = ~a~%" d)
       (if (vector-every identity d)
           (vector (vector-sum (vector-map abs d)))
           #;(throw 'invalid-fitness)
@@ -384,17 +374,25 @@
     (set! fitness (eval-beer-robot genome 
                                    #:step-fn step-func 
                                    #:end-fn end-func))
-    (message "Fitness ~a." fitness)
+    #;(message "Fitness ~a." fitness)
     fitness))
 
+(define initial-conditions (list case-1-IC case-2-IC case-3-IC))
+
 (define-fitness
-  ((minimize "Average distance to objects"))
+  ((minimize "Average distance to objects for different initial conditions."))
   (beer-selective-attention-n #:optional (genome current-genome))
-  (let ((trials 10)
+  (let ((trials (length initial-conditions))
+        (last-body-count body-count)
+        (last-IC choose-initial-conditions)
         (sum 0.0))
-   (do ((i 1 (1+ i)))
-       ((> i trials))
-     (incr! sum (vector-ref (beer-selective-attention genome) 0)))
+    (set! body-count 2)
+    (do ((i 1 (1+ i)))
+        ((> i trials))
+      (set! choose-initial-conditions (list-ref initial-conditions (1- i)))
+      (incr! sum (vector-ref (beer-selective-attention genome) 0)))
+   (set! choose-initial-conditions last-IC)
+   (set! body-count last-body-count)
    (vector (/ sum trials))))
 
 (define init-ctrnn-state (make-ctrnn-state ctrnn))
@@ -411,7 +409,7 @@
   (let* ((ctrnn (make-n-ctrnn node-count))
          (ctrnn-state (make-ctrnn-state ctrnn))
          (effector-func (make-effector-func ctrnn-state))
-         (fode (adjust-fode (make-fode body-count effector-func)))
+         (fode (make-fode body-count effector-func))
          (fode-state (make-fode-state* fode))
          (vision-input (list 'c-vision-input fode-state
                                           (1- body-count) ;; object count
@@ -433,7 +431,7 @@
     (array-copy! init-ctrnn-state ctrnn-state)
     (genome->ctrnn genome ctrnn)
     (set! (input-func ctrnn) vision-input)
-    (format #t "begin state ~a~%~%" (vector-sum ctrnn-state))
+    #;(format #t "begin state ~a~%~%" (vector-sum ctrnn-state))
     (begin-fn fode-state)
     (while (and 
             (< tick-count max-tick-count) 
@@ -446,7 +444,7 @@
       (step-fn fode-state)
       (incr! tick-count)
       #;(format #t "Tick ~a~%" tick-count))
-    (format #t "after state ~a~%" (vector-sum ctrnn-state))
+    #;(format #t "after state ~a~%" (vector-sum ctrnn-state))
     (end-fn fode-state)))
 
 (define last-fitness-func #f) 
@@ -469,7 +467,10 @@
                                             ;:history* 'generation-count
                                             )))
    (seed-population (list current-genome)))
-  
+  "Optimizes the given fitness function for a certain number of
+generations with a given seed population.  The results are a list
+of ((genome . fitness) ...) sorted in ascending order of the first
+objective. Genome and fitness are #f64 arrays."
   (message "nsga-ii optimizing ~a" (fitness-desc fitness-fn))
   (if (called-interactively?) 
       ;; Let's the message be displayed before going into the big
@@ -504,13 +505,39 @@
     (set! current-genome (caar results))
     (genome->ctrnn current-genome ctrnn)
     (reset-fode)
-    (message "Feasible fitnesses ~a" (map cdr results))
+    #;(message "Feasible fitnesses ~a" (map cdr results))
+    results
     #;
     (when (called-interactively?) 
       (call-interactively 'set-pareto-front-index 0)
       (call-interactively 'plot-front))
     #;(set! (controller (current-robot)) run-nn-brain)
     ))
+
+(define (generation-count-to-do my-initial-conditions)
+  "Determine the number of generations required to succeed at the
+given tasks."
+  (let ((fitness-fn beer-selective-attention-n)
+        (best-fitness 1000.)
+        (results '())
+        (gen-count 0)
+        (last initial-conditions)
+        (successful-distance (+ (/ object-diameter 2)
+                                (/ agent-diameter 2))))
+    (set! initial-conditions my-initial-conditions)
+    (while (> best-fitness successful-distance)
+      (set! results (optimize fitness-fn 1 (map car results)))
+      (set! best-fitness (generalized-vector-ref (cdar results) 0))
+      (incr! gen-count))
+    (set! initial-conditions last)
+    gen-count))
+
+(define (mean lst)
+  (exact->inexact (/ (apply + lst) (length lst))))
+
+(define (std lst)
+  (define (square x) (* x x))
+  (exact->inexact (sqrt (- (mean (map square lst)) (square (mean lst))))))
 
 ;(optimize beer-selective-attention 1)
 

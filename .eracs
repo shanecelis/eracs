@@ -71,4 +71,5 @@
 (restore-signals)
 ;(load "quadruped-experiment.scm")
 
-(load "beer-experiment.scm")
+;(load "beer-experiment.scm")
+(load "bullet-beer.scm")
