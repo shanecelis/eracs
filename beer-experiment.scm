@@ -475,7 +475,7 @@ objective. Genome and fitness are #f64 arrays."
     #;(set! (controller (current-robot)) run-nn-brain)
     ))
 
-(define (generation-count-to-do my-initial-conditions)
+(define* (generation-count-to-do my-initial-conditions #:optional (max-generations #f))
   "Determine the number of generations required to succeed at the
 given tasks."
   (let ((fitness-fn beer-selective-attention-n)
@@ -486,7 +486,10 @@ given tasks."
         (successful-distance (+ (/ object-diameter 2)
                                 (/ agent-diameter  2))))
     (set! initial-conditions my-initial-conditions)
-    (while (> best-fitness successful-distance)
+    (while (and (> best-fitness successful-distance)
+                (if max-generations 
+                    (< gen-count max-generations)
+                    #t))
       (set! results (optimize fitness-fn 1 (map car results)))
       (set! best-fitness (generalized-vector-ref (cdar results) 0))
       (incr! gen-count))
