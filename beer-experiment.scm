@@ -3,7 +3,9 @@
 ;; replication of the selecive attention experiment
 (use-modules 
  (minimal-cognition ctrnn)
- (minimal-cognition fode)
+ ;(minimal-cognition fode)
+ ((minimal-cognition fode)
+             #:renamer (symbol-prefix-proc 'fode:))
  (minimal-cognition vision)
  (nsga2) 
  (fitness)
@@ -11,47 +13,18 @@
  (srfi srfi-11) ;; let-values
 )
 
-(define (scale-by a list)
-  (map (lambda (x) (* a x)) list))
-
-(define sensor-count 9)
-(define internode-count 10)
-(define effector-count 2)
-(define node-count (+ sensor-count internode-count effector-count))
-;(define body-count 3) ;; 1 agent, 2 objects
-(define body-count 2)
-(define agent-diameter 30)
-(define object-diameter 26)
-(define motor-constant 5)
-(define max-sight-distance 205)
-(define visual-angle (/ pi 6))
-(define max-sight-output 10)
-(define max-height 180.)
-(define horizontal-position (scale-by 80 '(-1. 1.)))
-;; This is what the paper says, but it then will take max-height
-;; seconds for object 2 to actually fall, which seems pretty lengthly.
-(define horizontal-velocity (scale-by 2 '(-2. 2.)))
-(define vertical-velocity-1 (scale-by -3 '(3. 4.)))
-(define vertical-velocity-2 (scale-by -3 '(1. 2.)))
-
-(define horizontal-velocity (scale-by 1 '(-2. 2.)))
-(define vertical-velocity-1 (scale-by -1 '(3. 4.)))
-(define vertical-velocity-2 (scale-by -1 '(1. 2.)))
-(define alpha 0.7)
-
-(define scene-actors '())
-
-(define h 0.1) ;; time step
-
-(define population-count 12)
+(define physics-class <fode-physics>)
+(define physics-class <bullet-physics>)
 
 (define ctrnn (make-n-ctrnn node-count))
 (define ctrnn-state (make-ctrnn-state ctrnn))
 
 (define (go-right t i)
-  (if (= i 1)
-      1.
-      0.))
+  (let ((result (if (= i 1)
+             1.
+             0.)))
+    (format #t "GO-RIGHT ~1,1f ~a -> ~1,1f~%" t i result)
+    result))
 
 (define (make-effector-func ctrnn-state)
   (lambda (t i)
@@ -63,19 +36,26 @@
       (random-range high low)
       (+ (random (- high low)) low)))
 
-(define fode (make-fode body-count (make-effector-func ctrnn-state)))
+;(define fode (make-fode body-count (make-effector-func ctrnn-state)))
 
-(define (make-fode-state* fode-params)
+(define fode #f)
+
+(define ;(make-fode-state* fode-params)
+  (fix-physics physics)
   "Make an FODE state and initialize it to some fixed values."
-  (let ((ty (make-fode-state fode-params)))
+  (let ((ty physics))
     ;; agent
     (set! (object-x ty 0) 0.)
     (set! (object-y ty 0) 0.)
-    ;; object 1 position
+    ; NEVER set the initial velocity, it's actually a parameter for the input.
+    (set! (object-vx ty 0) motor-constant)
+    (set! (object-vy ty 0) 0.)
+
+    ;; object positions
     (for-each (lambda (i)
                 (set! (object-x ty i) (+ i -3.))
                 (set! (object-y ty 1) max-height))
-              (range 1 (1- body-count)))
+              (range 1 (1- (object-count physics))))
     ty))
 
 (let ((orig emacsy-mode-line))
@@ -84,7 +64,7 @@
         (with-buffer (recent-buffer)
           (format #f "~a sim-time ~1,1f agent (~1,1f, ~1,1f)~{ object (~1,1f, ~1,1f)~}"; " object2 (~1,1f, ~1,1f)" 
                   (orig)
-                  (fode-time fode-state)
+                  (get-time fode-state)
                   (object-x fode-state 0)
                   (object-y fode-state 0)
                   (append-map (lambda (i)
@@ -100,17 +80,17 @@
 (define (beer-choose-initial-conditions fode-params fode-state)
   "This is how beer chooses his initial conditions for 1 or 2 objects."
   ;; Pick the initial x1 and v1
-  (let ((ty fode-state)
-        (n (car fode-params))
-        (k (cadr fode-params)))
+  (let ((ty (fp:state fode-state))
+        (n (object-count fode-params))
+        (k  (fp:k-params fode-params)))
       ;; Set the heights to the same thing.
     ;; object 1 yi
-    (set! (object-y ty 1) max-height)
+    (set! (object-y fode-params 1) max-height)
     ;; object 1 position
-    (set! (object-x ty 1) (apply random-range horizontal-position))
+    (set! (object-x fode-params 1) (apply random-range horizontal-position))
     ;; object 1 velocity
-    (set! (object-vx k 1) (apply random-range horizontal-velocity))
-    (set! (object-vy k 1) (apply random-range vertical-velocity-1))
+    (set! (object-vx fode-params 1) (apply random-range horizontal-velocity))
+    (set! (object-vy fode-params 1) (apply random-range vertical-velocity-1))
     
     (unless (= n 2)
       ;; object 2 yi
@@ -135,8 +115,8 @@
             (beer-choose-initial-conditions fode-params fode-state))))))
 
 (define (case-1-IC fode-params fode-state)
-  (let ((n (car fode-params))
-        (k (cadr fode-params)))
+  (let ((n (object-count fode-params))
+        (k fode-params))
     (if (> n 2)
         (throw 'invalid-object-count n))
     (set! (object-x fode-state 1) 0.)
@@ -145,8 +125,8 @@
     (set! (object-vy k 1) (car vertical-velocity-1))))
 
 (define (case-2-IC fode-params fode-state)
-  (let ((n (car fode-params))
-        (k (cadr fode-params)))
+  (let ((n (object-count fode-params))
+        (k fode-params))
     (if (> n 2)
         (throw 'invalid-object-count n))
     (set! (object-x fode-state 1) 0.)
@@ -155,8 +135,8 @@
     (set! (object-vy k 1) (car vertical-velocity-1))))
 
 (define (case-3-IC fode-params fode-state)
-  (let ((n (car fode-params))
-        (k (cadr fode-params)))
+  (let ((n (object-count fode-params))
+        (k fode-params))
     (if (> n 2)
         (throw 'invalid-object-count n))
     (set! (object-x fode-state 1) 0.)
@@ -165,21 +145,26 @@
     (set! (object-vy k 1) (car vertical-velocity-1))))
 
 (define (case-4-IC fode-params fode-state)
-  (let ((n (car fode-params))
-        (k (cadr fode-params)))
+  (let ((n (object-count fode-params))
+        (k fode-params))
+    (set! (object-x fode-state 0) 0)
+    (set! (object-y fode-state 0) 0)
+    (set! (object-vx fode-state 0) 0)
+    (set! (object-vy fode-state 0) 0)
     (for-each (lambda (i)
-                (set! (object-x fode-state i) (apply random-range horizontal-position))
+                (set! (object-x fode-state i) 
+                      (apply random-range horizontal-position))
                 (set! (object-y fode-state i) max-height)
 
                 (set! (object-vx k i) (apply random-range horizontal-velocity))
                 (set! (object-vy k i) (apply random-range vertical-velocity-1)))
-              (range 1 (1- body-count)))))
+              (range 1 (1- n)))))
 
 
 ;(define choose-initial-conditions beer-choose-initial-conditions)
-(define choose-initial-conditions case-4-IC)
+(define choose-initial-conditions case-1-IC)
 
-(define fode-state (make-fode-state* fode))
+(define fode-state #f)
 
 (define vision-line-actors #f)
 (define vision-line-actors-index 0)
@@ -208,7 +193,6 @@
 (add-hook! physics-tick-hook #.\ (fode-physics-tick))
 (define tick-count 0)
 
-(define update-ctrnn-freq 1)
 
 ;; Instead of just having local variables, shouldn't we just have
 ;; buffer variables?
@@ -226,44 +210,19 @@
 
 (define-key eracs-mode-map (kbd "p")   'toggle-pause-fode)
 
-(define (draw-fode scene fode-state)
-  ;; Draw the agent.
-  (cons! (add-sphere scene (vector 
-                            (object-x fode-state 0) 
-                            (object-y fode-state 0) 
-                            0)
-                     (/ agent-diameter 2)) scene-actors)
-  ;; Draw the objects.
-  (for-each 
-   (lambda (i)
-     (let ((position (vector (object-x fode-state i) 
-                             (object-y fode-state i) 
-                             0)))
-       (if draw-display?
-           (cons! (add-sphere scene 
-                              position
-                              (/ object-diameter 2)
-                              #;object-diameter
-                              #;(* .9 object-diameter)
-                              #(0 0 0 1)
-                              ) scene-actors)))) 
-   (range 1 (1- body-count))))
-
 (define (fode-physics-tick)
   (let* ((scene (current-scene)) ;; This should be attached to the buffer.
          (restart? #t))
-    (when scene
-      (if draw-display?
-       (for-each (lambda (actor) (remove-actor scene actor)) scene-actors))
-      (set! scene-actors '())
+    (when  scene
       (unless pause-fode?
-        (step-fode fode-state h fode)
+        (if (not (step-physics fode-state h))
+            (throw 'step-physics-error))
         (when (= 0 (mod tick-count update-ctrnn-freq))
           #;(if draw-display?
               (for-each (lambda (actor) (remove-actor scene actor)) vision-line-actors))
           (step-ctrnn ctrnn-state h ctrnn)))
       (if draw-display?
-          (draw-fode scene fode-state))
+          (draw-physics scene fode-state))
       
       ;; Check if we should restart the simulation.
       (for-each 
@@ -295,7 +254,7 @@
                                         )
   ;; Here's how to use the C implementation of vision.
    
-    (list 'c-vision-input fode-state
+    (list 'c-vision-input (fp:state fode-state)
                                         (1- body-count) ;; object count
                                         sensor-count
                                         ;; We're going to treat the
@@ -315,15 +274,14 @@
 (define-interactive (reset-fode)
   (genome->ctrnn current-genome ctrnn)
   (randomize-ctrnn-state! ctrnn-state)
-  (set! fode (adjust-fode (make-fode body-count (make-effector-func ctrnn-state))))
-  (set! fode-state (make-fode-state* fode))
+  (when fode
+    (reset-physics fode))
+  (set! fode (make physics-class
+               #:object-count body-count 
+               #:effector-func (make-effector-func ctrnn-state)))
+  (set! fode-state (fix-physics fode))
   (choose-initial-conditions fode fode-state)
   (set! (input-func ctrnn) (make-current-vision-input))
-  ;(randomize-genome! current-genome)
-  ;(genome->ctrnn current-genome ctrnn)
-  ;(set! (input-func ctrnn) vision-input)
-  ;(set! ctrnn-state (make-ctrnn-state ctrnn))
-  ;(set! effector-func (make-effector-func ctrnn-state))
   )
 
 
@@ -362,7 +320,7 @@
       ;; Return true if we have distances set for all objects.
       (not (vector-every identity d)))
     (define (end-func fode-state)
-      #;(format #t "d = ~a~%" d)
+      (format #t "d = ~a~%" d)
       (if (vector-every identity d)
           (vector (vector-sum (vector-map abs d)))
           #;(throw 'invalid-fitness)
@@ -374,7 +332,7 @@
     (set! fitness (eval-beer-robot genome 
                                    #:step-fn step-func 
                                    #:end-fn end-func))
-    #;(message "Fitness ~a." fitness)
+    (message "Fitness ~a." fitness)
     fitness))
 
 (define initial-conditions (list case-1-IC case-2-IC case-3-IC))
@@ -409,9 +367,11 @@
   (let* ((ctrnn (make-n-ctrnn node-count))
          (ctrnn-state (make-ctrnn-state ctrnn))
          (effector-func (make-effector-func ctrnn-state))
-         (fode (make-fode body-count effector-func))
-         (fode-state (make-fode-state* fode))
-         (vision-input (list 'c-vision-input fode-state
+         (fode (make physics-class
+                 #:object-count body-count 
+                 #:effector-func effector-func))
+         (fode-state (fix-physics fode))
+         (vision-input (list 'c-vision-input (fp:state fode)
                                           (1- body-count) ;; object count
                                           sensor-count
                                           ;; We're going to treat the
@@ -435,12 +395,13 @@
     (begin-fn fode-state)
     (while (and 
             (< tick-count max-tick-count) 
-            (step-fn fode-state))
+            ;; step-physics was being called twice.
+            #;(step-physics fode-state))
       (if (= 0 (mod tick-count update-ctrnn-freq))
           (if (not (step-ctrnn ctrnn-state h ctrnn))
               (throw 'step-ctrnn-error)))
-      (if (not (step-fode fode-state h fode))
-          (throw 'step-fode-error))
+      (if (not (step-physics fode-state h))
+          (throw 'step-physics-error))
       (step-fn fode-state)
       (incr! tick-count)
       #;(format #t "Tick ~a~%" tick-count))
@@ -523,7 +484,7 @@ given tasks."
         (gen-count 0)
         (last initial-conditions)
         (successful-distance (+ (/ object-diameter 2)
-                                (/ agent-diameter 2))))
+                                (/ agent-diameter  2))))
     (set! initial-conditions my-initial-conditions)
     (while (> best-fitness successful-distance)
       (set! results (optimize fitness-fn 1 (map car results)))

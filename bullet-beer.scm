@@ -19,62 +19,70 @@
 (use-modules 
  (oop goops))
 
-(define max-height 180.)
-(define h 0.1)
-(define tick-count 0)
-(define draw-display? #t)
-
 (define-class <physics> ()
   ;; Number of effectors/muscles/outputs the agent has.
   (effector-count #:accessor effector-count #:init-keyword #:effector-count #:init-value 2)
   ;; Number of objects in the scene including agent.
   (object-count #:accessor object-count #:init-keyword #:object-count #:init-value 1)
   ;; Number of nodes that can be provided with input for the controller.
-  (node-count #:accessor node-count #:init-keyword #:node-count #:init-value 1)
+  ;(input-count #:accessor input-count #:init-keyword #:input-count #:init-value 1)
   ;; (effector-func t i) -> [-1, 1]
   ;; accepts a time t and an effector identifier i \in [1, effector-count]
-  (effector-func #:accessor effector-func #:init-value #f)
+  (effector-func #:accessor effector-func #:init-keyword #:effector-func #:init-value #f)
   ;; (input-func t i) -> [-1, 1]
   ;; accepts a time t and a input number i \in [1, input-count]
-  (input-func #:accessor input-func #:init-value #f)
+  ;(input-func #:accessor input-func #:init-value #f)
   ;; All the parameters should probably be placed in here.
-  (agent-diameter #:getter agent-diameter #:init-value 30)
-  (object-diameter #:getter object-diameter #:init-value 26)
-  (motor-constant #:getter motor-constant #:init-value 5)
+  ;; (agent-diameter #:getter agent-diameter #:init-value 30)
+  ;; (object-diameter #:getter object-diameter #:init-value 26)
+  ;; (motor-constant #:getter motor-constant #:init-value 5)
   #;(max-sight-distance #:getter max-sight-distance #:init-value 205)
   )
 
 (define-class <bullet-physics> (<physics>)
   (sim #:accessor bp:sim #:init-keyword #:sim #:init-form (current-sim))
   (objects #:accessor bp:objects #:init-value '())
-  (force-constant #:accessor force-constant #:init-value 4.)
+  (force-constant #:accessor force-constant #:init-value 2.)
+  (fake-state #:getter fp:state #:init-value #f)
   )
 
 (define-method (initialize (bp <bullet-physics>) initargs)
   (define (process-body body)
-    (set-friction! body 0.001)
+    (set-friction! body 0.0001)
     (sim-add-body (bp:sim bp) body)
     body)
   (next-method)
   (sim-add-ground-plane2 (bp:sim bp))
   
   (let ((body (make-box #(0 0 0) 
-                        (vector (agent-diameter bp) 
+                        (vector agent-diameter
                                 1 
-                                (agent-diameter bp)) 1. "agent")))
+                                agent-diameter) 1. "agent")))
     (set! 
      (bp:objects bp) 
      (cons body 
            (map 
             (lambda (i)
               (make-box (vector (- i 2.) 0 (- max-height)) 
-                        (vector (object-diameter bp) 
+                        (vector object-diameter 
                                 1 
-                                (object-diameter bp)) 
+                                object-diameter) 
                         1. 
                         (format #f "object ~d" i)))
             (range 1 (1- (object-count bp)))))))
-  (for-each process-body (bp:objects bp)))
+  (for-each process-body (bp:objects bp))
+  
+  ;; Make a fake state vector to interact with the c-vision-input
+  (slot-set! bp 'fake-state (make-typed-array 'f64 0.0 (1+ (* 2 (object-count bp))))))
+
+(define-method (update-fake-state (bp <bullet-physics>))
+  "Update this fake state vector as a means of communicating with the
+CTRNN."
+  (generalized-vector-set! (fp:state bp) 0 (get-time bp))
+  (for-each (lambda (i)
+              (generalized-vector-set! (fp:state bp) (+ (* 2 i) 1) (object-x bp i))
+              (generalized-vector-set! (fp:state bp) (+ (* 2 i) 2) (object-y bp i)))
+            (range 0 (1- (object-count bp)))))
 
 (define-method (draw-physics scene (bp <bullet-physics>))
   "Draws the bullet physics simulation."
@@ -94,6 +102,9 @@
 (define-method (get-time (bp <bullet-physics>))
   (sim-time (bp:sim bp)))
 
+(define-method (set-time! (bp <bullet-physics>) t)
+  (sim-time-set! (bp:sim bp) t))
+
 (define-method (step-physics (bp <bullet-physics>) h)
   "Apply the effectors and step the physics simulation forward by h
 seconds."
@@ -103,15 +114,24 @@ seconds."
             (agent (car (bp:objects bp))))
         (apply-force agent 
                      (vector 
-                      (* (force-constant bp) (motor-constant bp) (- e1 e2)) 
+                      (* (force-constant bp) motor-constant (- e1 e2)) 
                       0. 
                       0.) 
                      #(0. 0. 0.))))
+  (update-fake-state bp)
   (sim-tick (bp:sim bp) h))
 
 (define-method (reset-physics (bp <bullet-physics>))
-  (format #t "NYI - RESET!")
-  )
+  (set-time! bp 0.)
+  (map (lambda (body)
+         (sim-remove-body (bp:sim bp) body)
+         ) (bp:objects bp))
+  (set! (bp:objects bp) '())
+  (scene-clear-physics (current-scene)))
+
+(define x-axis 0)
+(define y-axis 2) ;; The y-axis for the experiment is the z-axis for
+                  ;; Bullet.
 
 (define-method (object-x-ref (bp <bullet-physics>) i)
   (let ((p (get-position (list-ref (bp:objects bp) i))))
@@ -119,7 +139,7 @@ seconds."
 
 (define-method (object-y-ref (bp <bullet-physics>) i)
   (let ((p (get-position (list-ref (bp:objects bp) i))))
-    (vector-ref p 1)))
+    (- (vector-ref p y-axis))))
 
 (define-method (object-x-set! (bp <bullet-physics>) i v)
   (let* ((body (list-ref (bp:objects bp) i))
@@ -130,27 +150,34 @@ seconds."
 (define-method (object-y-set! (bp <bullet-physics>) i v)
   (let* ((body (list-ref (bp:objects bp) i))
         (p (get-position body)))
-    (vector-set! p 1 v)
+    (vector-set! p y-axis (- v))
     (set-position! body p)))
 
 (define-method (object-vx-ref (bp <bullet-physics>) i)
   (let ((p (get-velocity (list-ref (bp:objects bp) i))))
-    (vector-ref p 0)))
+    (from-velocity (vector-ref p 0))))
 
 (define-method (object-vy-ref (bp <bullet-physics>) i)
   (let ((p (get-velocity (list-ref (bp:objects bp) i))))
-    (vector-ref p 1)))
+    (- (from-velocity (vector-ref p y-axis)))))
+
+(define velocity-factor 6.)
+(define (to-velocity v)
+  (* velocity-factor v))
+
+(define (from-velocity v)
+  (/ v velocity-factor))
 
 (define-method (object-vx-set! (bp <bullet-physics>) i v)
   (let* ((body (list-ref (bp:objects bp) i))
         (p (get-velocity body)))
-    (vector-set! p 0 v)
+    (vector-set! p 0 (to-velocity v))
     (set-velocity! body p)))
 
 (define-method (object-vy-set! (bp <bullet-physics>) i v)
   (let* ((body (list-ref (bp:objects bp) i))
         (p (get-velocity body)))
-    (vector-set! p 1 v)
+    (vector-set! p y-axis (- (to-velocity v)))
     (set-velocity! body p)))
 
 (define object-x (make-procedure-with-setter object-x-ref object-x-set!))
@@ -163,7 +190,7 @@ seconds."
 (define eval-robot-render-speed 1)
 
 (define (sim-add-ground-plane2 sim)
-  (sim-add-fixed-box sim #(0. -10. 0.) #(400. 20. 400.)))
+  (sim-add-fixed-box sim #(0. -10. 0.) #(400. 20. 400.) 0.0001))
 
 (define (init-scene sim)
   (sim-add-ground-plane2 sim)
@@ -188,18 +215,15 @@ seconds."
         (scene-update-physics (current-scene) (current-sim)))))
    (filter (cut is-a? <> <physics-buffer>) (buffer-list))))
 
-(define bp #f)
-(define (my-physics-tick)
+;(define bp #f)
+#;(define (bullet-physics-tick)
   (let* ((scene (current-scene)) ;; This should be attached to the buffer.
          (restart? #t))
     (when scene
       
       (step-physics bp h)
-      #;(when (= 0 (mod tick-count update-ctrnn-freq))
-
-        (step-ctrnn ctrnn-state h ctrnn))
-      (if draw-display?
-          (draw-physics scene bp))
+      #;(step-ctrnn ctrnn-state h ctrnn)
+      (draw-physics scene bp))
       
       ;; Check if we should restart the simulation.
       (for-each 
@@ -210,11 +234,10 @@ seconds."
 
       (when restart?
         ;; restart
-        (reset-physics)))
-    (incr! tick-count)))
+        (reset-physics))))
 
-(define robot #f)
-(add-hook! post-window-open-hook 
+;(define robot #f)
+#;(add-hook! post-window-open-hook 
            (lambda ()
              (set! bp (make-instance <bullet-physics> #:object-count 2))
              (set! (effector-func bp) go-left)
@@ -225,17 +248,7 @@ seconds."
                               (vector 0.0 260.0 -82.0))
               
               (set-parameter! 'camera-target 
-                              (vector 0.0 0.0   (- middle)))))
-           #;(lambda ()
-             (set! robot (init-scene (current-sim)))
-             (sim-add-body (current-sim) robot)
-             ;(set! (buffer-robot eracs-buffer) robot)
-             (scene-add-physics (current-scene) (current-sim))
-             (format #t "friction ~a~%" (get-friction robot))
-             ;(set-friction! robot 0.001)
-             (format #t "friction ~a~%" (get-friction robot))
-             (apply-impulse robot #(1. 0. 0.) #(0. 0. 0.))
-             ) 
-           #t)
+                              (vector 0.0 0.0   (- middle)))))) 
 
-(add-hook! physics-tick-hook #.\ (my-physics-tick))
+
+#;(add-hook! physics-tick-hook #.\ (my-physics-tick))

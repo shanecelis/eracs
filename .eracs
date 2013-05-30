@@ -71,5 +71,8 @@
 (restore-signals)
 ;(load "quadruped-experiment.scm")
 
-;(load "beer-experiment.scm")
+(load "beer-parameters.scm") 
+(load "bullet-beer.scm") ; XXX rename to bullet-physics.scm
+(load "fode-physics.scm")
+(load "beer-experiment.scm")
 (load "bullet-beer.scm")

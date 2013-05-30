@@ -253,8 +253,8 @@ SCM_DEFINE (scm_sim_time_set_x, "sim-time-set!", 2, 0, 0,
 @ Just a stop gap measure.
 
 <<Primitives>>=
-SCM_DEFINE (scm_sim_add_fixed_box, "sim-add-fixed-box", 3, 0, 0,
-            (SCM sim, SCM pos, SCM dims),
+SCM_DEFINE (scm_sim_add_fixed_box, "sim-add-fixed-box", 3, 1, 0,
+            (SCM sim, SCM pos, SCM dims, SCM friction),
             "Add a fixed box to the simulation.  It will not move.")
 {
   btCollisionShape* groundShape;
@@ -271,6 +271,8 @@ SCM_DEFINE (scm_sim_add_fixed_box, "sim-add-fixed-box", 3, 0, 0,
   fixedGround = new btCollisionObject();
   fixedGround->setCollisionShape(groundShape);
   fixedGround->setWorldTransform(groundTransform);
+  if (SCM_UNBNDP(friction))
+    fixedGround->setFriction(scm_to_double(friction));
   s->world->addCollisionObject(fixedGround);
   return SCM_BOOL_T;
 }
