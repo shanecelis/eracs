@@ -19,13 +19,6 @@
 (define ctrnn (make-n-ctrnn node-count))
 (define ctrnn-state (make-ctrnn-state ctrnn))
 
-(define (go-right t i)
-  (let ((result (if (= i 1)
-             1.
-             0.)))
-    (format #t "GO-RIGHT ~1,1f ~a -> ~1,1f~%" t i result)
-    result))
-
 (define (make-effector-func ctrnn-state)
   (lambda (t i)
     (let ((first-effector-index (1+ sensor-count)))
@@ -35,8 +28,6 @@
   (if (> low high)
       (random-range high low)
       (+ (random (- high low)) low)))
-
-;(define fode (make-fode body-count (make-effector-func ctrnn-state)))
 
 (define fode #f)
 
@@ -174,7 +165,8 @@
     (when (or (not vision-line-actors) 
               (not (= (vector-length vision-line-actors) sensor-count)))
       ;; initialize the actors
-      (set! vision-line-actors (make-vector sensor-count #f)))
+      (set! vision-line-actors (make-vector sensor-count #f))
+      (set! vision-line-actors-index 0))
     (when scene
       #;(format #t "draw-vision-lines add-line ~a ~a~%" agent-position end-point)
       (if (not (: vision-line-actors @ vision-line-actors-index))
@@ -278,10 +270,16 @@
     (reset-physics fode))
   (set! fode (make physics-class
                #:object-count body-count 
-               #:effector-func (make-effector-func ctrnn-state)))
+               #:effector-func 
+               (make-effector-func ctrnn-state)
+;               go-nowhere
+;               go-left
+               
+               ))
   (set! fode-state (fix-physics fode))
   (choose-initial-conditions fode fode-state)
   (set! (input-func ctrnn) (make-current-vision-input))
+  (set! vision-line-actors #f)
   )
 
 
@@ -320,7 +318,7 @@
       ;; Return true if we have distances set for all objects.
       (not (vector-every identity d)))
     (define (end-func fode-state)
-      (format #t "d = ~a~%" d)
+      ;(format #t "d = ~a~%" d)
       (if (vector-every identity d)
           (vector (vector-sum (vector-map abs d)))
           #;(throw 'invalid-fitness)
@@ -466,7 +464,7 @@ objective. Genome and fitness are #f64 arrays."
     (set! current-genome (caar results))
     (genome->ctrnn current-genome ctrnn)
     (reset-fode)
-    #;(message "Feasible fitnesses ~a" (map cdr results))
+    (message "Feasible fitnesses ~a" (map cdr results))
     results
     #;
     (when (called-interactively?) 

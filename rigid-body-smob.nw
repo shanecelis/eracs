@@ -235,22 +235,26 @@ This is handled by protecting the sim.
 <<Add rigid body to simulation.>>=
 SCM_DEFINE (scm_sim_add_body, 
             "sim-add-body", 
-            2, 0, 0,
-            (SCM sim, SCM body),
+            2, 2, 0,
+            (SCM sim, SCM body, SCM group, SCM mask),
             "Add rigid body to simulation.")
 {
   struct sim *s = unwrap_sim(sim);
 
   scm_assert_smob_type(rigid_body_tag, body);
   struct rigid_body *rb = (struct rigid_body*) SCM_SMOB_DATA(body);
-  s->world->addRigidBody(rb->body);
+  if (SCM_UNBNDP(group) || SCM_UNBNDP(mask)) {
+    s->world->addRigidBody(rb->body);
+  } else {
+    s->world->addRigidBody(rb->body, scm_to_int(group), scm_to_int(mask));
+  }
   rb->world = s->world;
   rb->sim = sim;
   scm_gc_protect_object(rb->sim);
   return SCM_BOOL_T;
 }
+@ 
 <<Remove rigid body from simulation.>>=
-
 SCM_DEFINE (scm_sim_remove_body, 
             "sim-remove-body", 
             2, 0, 0,

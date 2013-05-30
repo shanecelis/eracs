@@ -46,11 +46,29 @@
   (fake-state #:getter fp:state #:init-value #f)
   )
 
+;; Agent and Objects need to be placed in separate collision groups.
+;; http://bulletphysics.org/Bullet/BulletFull/classbtDiscreteDynamicsWorld.html#a8636fbb78c9d0d730262db987201840a
+(define agent-group 128)
+(define object-group 64) 
+(define floor-group 3)                  ; StaticFilter
 (define-method (initialize (bp <bullet-physics>) initargs)
-  (define (process-body body)
+  (define (process-agent agent)
+    (set-friction! agent 0.0001)
+    (sim-add-body (bp:sim bp) 
+                  agent
+                  agent-group           ; is-a
+                  (logior 
+                   floor-group)        ; collides with
+                  )
+    )
+  (define (process-object body)
     (set-friction! body 0.0001)
-    (sim-add-body (bp:sim bp) body)
-    body)
+    (sim-add-body (bp:sim bp) 
+                  body
+                  object-group          ; is-a
+                  (logior 
+                   floor-group)         ; collides with
+                  ))
   (next-method)
   (sim-add-ground-plane2 (bp:sim bp))
   
@@ -70,7 +88,8 @@
                         1. 
                         (format #f "object ~d" i)))
             (range 1 (1- (object-count bp)))))))
-  (for-each process-body (bp:objects bp))
+  (process-agent (car (bp:objects bp)))
+  (for-each process-object (cdr (bp:objects bp)))
   
   ;; Make a fake state vector to interact with the c-vision-input
   (slot-set! bp 'fake-state (make-typed-array 'f64 0.0 (1+ (* 2 (object-count bp))))))
@@ -95,9 +114,14 @@ CTRNN."
       0.0))
 
 (define (go-left t i)
+  (format #t "GO LEFT~%")
   (if (= i 1)
       0.0
       1.0))
+
+(define (go-nowhere t i)
+  0.)
+
 
 (define-method (get-time (bp <bullet-physics>))
   (sim-time (bp:sim bp)))
@@ -109,12 +133,14 @@ CTRNN."
   "Apply the effectors and step the physics simulation forward by h
 seconds."
   (if (effector-func bp)
-      (let ((e1 ((effector-func bp) (get-time bp) 1))
-            (e2 ((effector-func bp) (get-time bp) 2))
-            (agent (car (bp:objects bp))))
+      (let* ((e1 ((effector-func bp) (get-time bp) 1))
+             (e2 ((effector-func bp) (get-time bp) 2))
+             (de (- e1 e2))
+             (v (object-vx bp 0))
+             (agent (car (bp:objects bp))))
         (apply-force agent 
                      (vector 
-                      (* (force-constant bp) motor-constant (- e1 e2)) 
+                      (* (force-constant bp) motor-constant (- de v)) 
                       0. 
                       0.) 
                      #(0. 0. 0.))))
@@ -191,12 +217,6 @@ seconds."
 
 (define (sim-add-ground-plane2 sim)
   (sim-add-fixed-box sim #(0. -10. 0.) #(400. 20. 400.) 0.0001))
-
-(define (init-scene sim)
-  (sim-add-ground-plane2 sim)
-  
-  (let ((body (make-box #(0 1 0) #(1 .2 1) 1. "root")))
-    body))
 
 #;(define (my-physics-tick)
   (for-each 
