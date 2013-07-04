@@ -14,11 +14,11 @@ GSL_LDFLAGS = $(shell pkg-config gsl --libs)
 LOG4C_CFLAGS = -DWITH_LOG4C 
 LOG4C_LDFLAGS = -L/opt/local/lib -llog4c
 
-LIB_EMACSY = /Users/shane/School/uvm/CSYS-395-evolutionary-robotics/noweb-eracs/noweb-emacsy/libemacsy.a
+LIB_EMACSY = /Users/shane/School/uvm/CSYS-395-evolutionary-robotics/noweb-eracs/emacsy/src/emacsy/.libs/libemacsy.a
 
 EMACSY_LDFLAGS = $(LIB_EMACSY)
 
-EMACSY_CFLAGS = -Inoweb-emacsy
+EMACSY_CFLAGS = -Iemacsy/src/emacsy
 
 FANN_LDFLAGS = -L/usr/local/lib -lm -ldoublefann  
 
@@ -57,8 +57,8 @@ LIBS = libguile-nsga2.dylib libguile-osc.dylib
 DIST = Makefile README $(LITSRCS) $(TARGET)doc.tex $(SRCS) $(HDRS) $(BIBS) $(STYS)
 
 GRAPHICS_PATH = 
-
-NOTANGLE_LISP_FLAGS = -filter 'docs2comments -one -scm' -L
+#docs2comment does NOT WORK with -L
+#NOTANGLE_LISP_FLAGS = -filter 'docs2comments -one -scm' -L
 NOTANGLE_LISP_FLAGS = -L
 #NOTANGLE_C_FLAGS = -L'\#line %L "%F"%N' -filter 'docs2comments -one -c' 
 #NOTANGLE_C_FLAGS = -filter 'docs2comments -one -c' 
@@ -108,7 +108,7 @@ NOTANGLE = $(TOP)/bin/mynotangle $@
 	nodefs $< > $@
 
 all: 
-	make -C noweb-emacsy
+	make -C emacsy
 	make -C ctrnn
 	$(MAKE) source
 	$(MAKE) $(LIBS)

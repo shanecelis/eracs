@@ -1,4 +1,4 @@
-; .eracs
+; .eracs.scm
 ;
 ; XXX Having dot files is probably a bad idea.  They should be more
 ; explicit and visible.
@@ -72,7 +72,7 @@
 ;(load "quadruped-experiment.scm")
 
 (load "beer-parameters.scm") 
-(load "bullet-beer.scm") ; XXX rename to bullet-physics.scm
+(load "bullet-physics.scm") ; XXX rename to bullet-physics.scm
+(load "bullet-physics-car.scm")
 (load "fode-physics.scm")
 (load "beer-experiment.scm")
-(load "bullet-beer.scm")

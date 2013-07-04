@@ -5,8 +5,8 @@
 (define internode-count 10)
 (define effector-count 2)
 (define node-count (+ sensor-count internode-count effector-count))
-;(define body-count 3) ;; 1 agent, 2 objects
-(define body-count 2)
+(define body-count 3) ;; 1 agent, 2 objects
+;(define body-count 2)
 (define agent-diameter 30)
 (define object-diameter 26)
 (define motor-constant 5)

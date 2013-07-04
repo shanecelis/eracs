@@ -154,7 +154,10 @@ argv += (optind - 1);
 <<Run script.>>=
 if (! scm_is_false(script)) {
  if (access(optarg, R_OK) != -1) {
-   scm_primitive_load(script);
+   //int load_file_safe(const char *filename);
+   //scm_primitive_load(script);
+   //load_file_safe(scm_to_locale_string(script));
+   my_load_file(scm_to_locale_string(script));
  }
 }
 @ 
@@ -347,13 +350,13 @@ int my_load_file(const char *filename)
 glfwSetWindowSizeCallback(resize_callback); 
 @ \section{Local Configuration}
 
-In the spirit of Emacs, we load the \verb|.eracs| file if it exists.
+In the spirit of Emacs, we load the \verb|.eracs.scm| file if it exists.
 
 <<Load personal configuration.>>=
 
-if (access(".eracs", R_OK) != -1) {
-  //scm_c_primitive_load(".eracs");
-  my_load_file(".eracs");
+if (access(".eracs.scm", R_OK) != -1) {
+  //scm_c_primitive_load(".eracs.scm");
+  my_load_file(".eracs.scm");
 }
 @ \section{The Run Loop}
 

@@ -36,7 +36,6 @@
 (define-method (object-y-set! (fp <fode-physics>) i v)
   (set! (fode:object-y (fp:state fp) i) v))
 
-
 (define-method (object-vx-ref (fp <fode-physics>) i)
   (fode:object-vx (fp:k-params fp) i))
 
@@ -44,14 +43,24 @@
   (fode:object-vy (fp:k-params fp) i))
 
 (define-method (object-vx-set! (fp <fode-physics>) i v)
+  (if (and (= i 0) (not (= v 0.))) ;; agent
+      (mylog 'pri-warn "Setting agent x velocity to non-zero ~a" v))
   (set! (fode:object-vx (fp:k-params fp) i) v))
+
+(define-method (agent-motor-constant-set! (fp <fode-physics>) k)
+  (set! (fode:object-vx (fp:k-params fp) 0) k))
+
+(define-method (agent-motor-constant-ref (fp <fode-physics>))
+  (object-vx-ref fp i))
 
 (define-method (object-vy-set! (fp <fode-physics>) i v)
   (set! (fode:object-vy (fp:k-params fp) i) v))
 
+(define fode-step-count 10)
+
 (define-method (step-physics (fp <fode-physics>) h)
   ;(format #t "params ~a~%" (fp:params fp))
-  (fode:step-fode (fp:state fp) h (fp:params fp)))
+  (fode:step-fode (fp:state fp) h (fp:params fp) fode-step-count))
 
 (define-method (get-time (fp <fode-physics>))
   (fode:fode-time (fp:state fp)))
@@ -83,9 +92,13 @@
               (fp:scene-actors fp)))) 
    (range 1 (1- (object-count fp)))))
 
+(define-method (undraw-physics scene (fp <fode-physics>))
+  (when scene
+   (for-each (lambda (actor) (remove-actor scene actor)) (fp:scene-actors fp))))
+
+
 (define-method (reset-physics (fp <fode-physics>))
-  #f
-  )
+  #f)
 
 ;; (define object-x (make-procedure-with-setter object-x-ref object-x-set!))
 ;; (define object-y (make-procedure-with-setter object-y-ref object-y-set!))

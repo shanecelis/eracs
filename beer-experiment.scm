@@ -10,11 +10,22 @@
  (nsga2) 
  (fitness)
  (infix)
+ (srfi srfi-8) ;; receive
  (srfi srfi-11) ;; let-values
+ (mathematica plot)
+ (freeze-random)
 )
 
 (define physics-class <fode-physics>)
-(define physics-class <bullet-physics>)
+;(define physics-class <bullet-physics>)
+;(define physics-class <bullet-physics-car>)
+
+
+(define-interactive (toggle-physics)
+  (if (eq? physics-class <fode-physics>)
+      (set! physics-class <bullet-physics-car>)
+      (set! physics-class <fode-physics>))
+  (reset-fode))
 
 (define ctrnn (make-n-ctrnn node-count))
 (define ctrnn-state (make-ctrnn-state ctrnn))
@@ -39,8 +50,9 @@
     (set! (object-x ty 0) 0.)
     (set! (object-y ty 0) 0.)
     ; NEVER set the initial velocity, it's actually a parameter for the input.
-    (set! (object-vx ty 0) motor-constant)
+    (set! (object-vx ty 0) 0.)
     (set! (object-vy ty 0) 0.)
+    (agent-motor-constant-set! ty motor-constant)
 
     ;; object positions
     (for-each (lambda (i)
@@ -53,15 +65,17 @@
   (set! emacsy-mode-line 
         (lambda ()
         (with-buffer (recent-buffer)
-          (format #f "~a sim-time ~1,1f agent (~1,1f, ~1,1f)~{ object (~1,1f, ~1,1f)~}"; " object2 (~1,1f, ~1,1f)" 
-                  (orig)
-                  (get-time fode-state)
-                  (object-x fode-state 0)
-                  (object-y fode-state 0)
-                  (append-map (lambda (i)
-                                (list (object-x fode-state i)
-                                      (object-y fode-state i)))
-                       (range 1 (1- body-count))))))))
+                     (if fode-state
+                      (format #f "~a sim-time ~1,1f agent (~1,1f, ~1,1f)~{ object (~1,1f, ~1,1f)~}" ; " object2 (~1,1f, ~1,1f)" 
+                              (orig)
+                              (get-time fode-state)
+                              (object-x fode-state 0)
+                              (object-y fode-state 0)
+                              (append-map (lambda (i)
+                                            (list (object-x fode-state i)
+                                                  (object-y fode-state i)))
+                                          (range 1 (1- body-count))))
+                      (orig))))))
 
 (define (in-range? x list)
   (and (>= x (car list))
@@ -73,7 +87,7 @@
   ;; Pick the initial x1 and v1
   (let ((ty (fp:state fode-state))
         (n (object-count fode-params))
-        (k  (fp:k-params fode-params)))
+        #;(k  (fp:k-params fode-params)))
       ;; Set the heights to the same thing.
     ;; object 1 yi
     (set! (object-y fode-params 1) max-height)
@@ -83,12 +97,20 @@
     (set! (object-vx fode-params 1) (apply random-range horizontal-velocity))
     (set! (object-vy fode-params 1) (apply random-range vertical-velocity-1))
     
-    (unless (= n 2)
+    ;(format #t "N is ~a~%" n )
+    (when (= n 3)
       ;; object 2 yi
-      (set! (object-y ty 2) max-height)
+      (set! (object-y fode-state 2) max-height)
       ;; Compute x1
-      (let* ((t1 (/ (: ty @ 4) (: k @ 3)))
-             (x1 (+ (: ty @ 3) (* (: k @ 4) t1)))
+      (let* ((t1 (/ 
+                  #;(: ty @ 4) 
+                  (object-y fode-state 1)
+                  #;(: k @ 3)
+                  (object-vy fode-state 1)))
+             (x1 (+ #;(: ty @ 3) 
+                  (object-x fode-state 1)
+                  (* #;(: k @ 4) (object-vx fode-state 2)
+                                  t1)))
              (v2y (apply random-range vertical-velocity-2))
              (t2 (/ (: ty @ 6) v2y))
              (beta (* motor-constant alpha (abs (- t1 t2))))
@@ -97,12 +119,25 @@
              (x2i (- x2 (* v2x t2)))
              )
         ;; object 2 position
-        (: ty @ 5 := x2i)
+        (set! (object-x fode-state 2) x2i)
+        ;; (: ty @ 5 := x2i)
         ;; object 2 velocity
-        (: k @ 4 := v2x) ;; vx
-        (: k @ 5 := v2y) ;; vy
+        (set! (object-vx fode-state 2) v2x)
+        (set! (object-vy fode-state 2) v2y)
+        ;; (: k @ 4 := v2x) ;; vx
+        ;; (: k @ 5 := v2y) ;; vy
         (if (in-range? x2i horizontal-position)
-            (message "Initial conditions: object 1 r (~1,1f, ~1,1f) v (~1,1f, ~1,1f) object 2 r (~1,1f, ~1,1f) v (~1,1f, ~1,1f)" (: ty @ 3) (: ty @ 4) (: k @ 2) (: k @ 3) (: ty @ 5) (: ty @ 6) (: k @ 4) (: k @ 5))
+            (message "Initial conditions: object 1 r (~1,1f, ~1,1f) v (~1,1f, ~1,1f) object 2 r (~1,1f, ~1,1f) v (~1,1f, ~1,1f)" 
+                     ;(: ty @ 3) (: ty @ 4) 
+                     (object-x fode-state 1) (object-y fode-state 1) 
+                     
+                     ;(: k @ 2) (: k @ 3) 
+                     (object-vx fode-state 1)  (object-vy fode-state 1)
+                     ;(: ty @ 5) (: ty @ 6) 
+                     (object-x fode-state 2) (object-y fode-state 2) 
+                     ;(: k @ 4) (: k @ 5)
+                     (object-vx fode-state 2)  (object-vy fode-state 2)
+                     )
             (beer-choose-initial-conditions fode-params fode-state))))))
 
 (define (case-1-IC fode-params fode-state)
@@ -152,8 +187,13 @@
               (range 1 (1- n)))))
 
 
-;(define choose-initial-conditions beer-choose-initial-conditions)
-(define choose-initial-conditions case-1-IC)
+(define choose-initial-conditions (make-freeze-random beer-choose-initial-conditions))
+;(define choose-initial-conditions case-2-IC)
+
+(define-interactive (change-IC)
+  (set! choose-initial-conditions (make-freeze-random beer-choose-initial-conditions)))
+
+
 
 (define fode-state #f)
 
@@ -178,6 +218,13 @@
                              (vector-append end-point #(0.)))))
       (set! vision-line-actors-index 
             (mod (1+ vision-line-actors-index) sensor-count)))))
+
+(define (undraw-vision-lines)
+  (let ((scene (current-scene)))
+   (when (and scene vision-line-actors)
+     (vector-for-each (lambda (actor) (remove-actor scene actor)) vision-line-actors)
+     (set! vision-line-actors #f) 
+     (set! vision-line-actors-index 0))))
 
 (define current-genome (make-genome-for-n-ctrnn node-count))
 (define gene-count (generalized-vector-length current-genome))
@@ -205,7 +252,7 @@
 (define (fode-physics-tick)
   (let* ((scene (current-scene)) ;; This should be attached to the buffer.
          (restart? #t))
-    (when  scene
+    (when  (and scene fode-state)
       (unless pause-fode?
         (if (not (step-physics fode-state h))
             (throw 'step-physics-error))
@@ -265,15 +312,19 @@
 
 (define-interactive (reset-fode)
   (genome->ctrnn current-genome ctrnn)
-  (randomize-ctrnn-state! ctrnn-state)
+  ;(randomize-ctrnn-state! ctrnn-state)
+  (array-copy! init-ctrnn-state ctrnn-state)
+  (undraw-vision-lines)
   (when fode
+    (undraw-physics (current-scene) fode)
     (reset-physics fode))
   (set! fode (make physics-class
                #:object-count body-count 
                #:effector-func 
-               (make-effector-func ctrnn-state)
+               ;(make-effector-func ctrnn-state)
 ;               go-nowhere
 ;               go-left
+                go-right
                
                ))
   (set! fode-state (fix-physics fode))
@@ -300,6 +351,28 @@
              (reset-fode)) 
            #t)
 
+(define-interactive
+  (graph-distance-over-time #:optional (genome current-genome))
+    (let ((distances '()))
+    ;; Set the agent body to a distance of zero.
+    (define (step-func fode-state)
+      (cons! (cons (- (get-time fode-state)) 
+                   (map 
+                    (lambda (i)
+                      (- (object-x fode-state i) 
+                         (object-x fode-state 0)))
+                    (range 1 (1- body-count)))) 
+             distances)
+      
+      ;; Return true if we have distances set for all objects.
+      (not (every (lambda (i) (< (object-y fode-state i) 0)) (range 1 (1- body-count)))))
+        
+    (eval-beer-robot genome 
+                     #:step-fn step-func)
+    (mathematica (format #f "ListPlot[~a, AxesLabel -> {\"delta d\", \"t\"}, PlotRange -> {{-100, 100}, Automatic}, Epilog -> {{Dashed, Line@{{~a, 0}, {~:*~a, -200}}}, {Dashed, Line@{{-~:*~a, 0}, {-~:*~a, -200}}}}];" 
+                         (sexp->mathematica (reverse! (map reverse distances))) 
+                         successful-distance))))
+
 (define-fitness
   ((minimize "Distance to objects"))
   (beer-selective-attention #:optional (genome current-genome))
@@ -320,7 +393,7 @@
     (define (end-func fode-state)
       ;(format #t "d = ~a~%" d)
       (if (vector-every identity d)
-          (vector (vector-sum (vector-map abs d)))
+          (vector (max-of-vector (vector-map abs d)))
           #;(throw 'invalid-fitness)
           (vector 10000) ;; Big number for terrible fitness.
           ))
@@ -341,18 +414,20 @@
   (let ((trials (length initial-conditions))
         (last-body-count body-count)
         (last-IC choose-initial-conditions)
-        (sum 0.0))
+        (fitnesses '()))
     (set! body-count 2)
     (do ((i 1 (1+ i)))
         ((> i trials))
       (set! choose-initial-conditions (list-ref initial-conditions (1- i)))
-      (incr! sum (vector-ref (beer-selective-attention genome) 0)))
+      (cons! (vector-ref (beer-selective-attention genome) 0) fitnesses))
    (set! choose-initial-conditions last-IC)
    (set! body-count last-body-count)
-   (vector (/ sum trials))))
+   (vector (apply max fitnesses))))
 
 (define init-ctrnn-state (make-ctrnn-state ctrnn))
 (randomize-ctrnn-state! init-ctrnn-state)
+
+
 
 (define*
   (eval-beer-robot genome
@@ -393,14 +468,13 @@
     (begin-fn fode-state)
     (while (and 
             (< tick-count max-tick-count) 
-            ;; step-physics was being called twice.
-            #;(step-physics fode-state))
+            (step-fn fode-state))
       (if (= 0 (mod tick-count update-ctrnn-freq))
           (if (not (step-ctrnn ctrnn-state h ctrnn))
               (throw 'step-ctrnn-error)))
       (if (not (step-physics fode-state h))
           (throw 'step-physics-error))
-      (step-fn fode-state)
+      ;(step-fn fode-state)
       (incr! tick-count)
       #;(format #t "Tick ~a~%" tick-count))
     #;(format #t "after state ~a~%" (vector-sum ctrnn-state))
@@ -408,6 +482,16 @@
 
 (define last-fitness-func #f) 
 (define last-results #f)
+
+(define successful-distance (+ (/ object-diameter 2)
+                                (/ agent-diameter  2)))
+
+(define (individual-succeeded? fitness)
+  "Did the individual come in contact with the object."
+  (format #t "checking fitness ~a~%" fitness)
+  (let ((distance (generalized-vector-ref fitness 0)))
+    (<= distance successful-distance)))
+
 (define-interactive
   (optimize 
    #:optional 
@@ -426,10 +510,20 @@
                                             ;:history* 'generation-count
                                             )))
    (seed-population (list current-genome)))
+  
+  
+  (define (continue-searching? generation results)
+    "Returns true if we haven't found a successful candidate.  Input is (rank genome objective)."
+    (format #t "Continue? ~a~%" generation)
+    (not (any (compose individual-succeeded? caddr)  results))
+    #;(format #t "Continue? DONE~%")
+    )
+  
   "Optimizes the given fitness function for a certain number of
 generations with a given seed population.  The results are a list
 of ((genome . fitness) ...) sorted in ascending order of the first
 objective. Genome and fitness are #f64 arrays."
+
   (message "nsga-ii optimizing ~a" (fitness-desc fitness-fn))
   (if (called-interactively?) 
       ;; Let's the message be displayed before going into the big
@@ -441,16 +535,26 @@ objective. Genome and fitness are #f64 arrays."
           (lambda (weights)
             (with-fluids ((eval-robot-fluid eval-robot-headless))
               (fitness-fn weights))))
+         (eval-count 0)
+         (fitness-fn* 
+          (lambda (weights)
+            (incr! eval-count)
+            (fitness-fn weights)))
+         (generation-count 0)
          (objective-count (length (objectives fitness-fn)))
          ;; Had to use with-dynamic-state to make fluids work when crossing
          ;; into C code that called Scheme code.
          (results (nsga-ii-search 
-                   fitness-fn
+                   fitness-fn*
                    #:objective-count objective-count
                    #:gene-count gene-count
                    #:population-count population-count
                    #:generation-count max-generations
-                   #:seed-population seed-population)))
+                   #:seed-population seed-population
+                   #:generation-tick-func (lambda args
+                                            (incr! generation-count)
+                                            (apply continue-searching? args))
+                   )))
     ;; Get rid of any duplicate individuals.
     #;(set! results (uniq results))
     (set! last-fitness-func fitness-fn)
@@ -465,7 +569,7 @@ objective. Genome and fitness are #f64 arrays."
     (genome->ctrnn current-genome ctrnn)
     (reset-fode)
     (message "Feasible fitnesses ~a" (map cdr results))
-    results
+    (values results generation-count eval-count)
     #;
     (when (called-interactively?) 
       (call-interactively 'set-pareto-front-index 0)
@@ -473,26 +577,18 @@ objective. Genome and fitness are #f64 arrays."
     #;(set! (controller (current-robot)) run-nn-brain)
     ))
 
+
 (define* (generation-count-to-do my-initial-conditions #:optional (max-generations #f))
   "Determine the number of generations required to succeed at the
 given tasks."
   (let ((fitness-fn beer-selective-attention-n)
-        (best-fitness 1000.)
-        (results '())
-        (gen-count 0)
-        (last initial-conditions)
-        (successful-distance (+ (/ object-diameter 2)
-                                (/ agent-diameter  2))))
+        (last initial-conditions))
     (set! initial-conditions my-initial-conditions)
-    (while (and (> best-fitness successful-distance)
-                (if max-generations 
-                    (< gen-count max-generations)
-                    #t))
-      (set! results (optimize fitness-fn 1 (map car results)))
-      (set! best-fitness (generalized-vector-ref (cdar results) 0))
-      (incr! gen-count))
-    (set! initial-conditions last)
-    gen-count))
+    (receive (results gen-count eval-count) (optimize 
+                                             fitness-fn
+                                             max-generations)
+      (set! initial-conditions last)
+      (list gen-count eval-count))))
 
 (define (mean lst)
   (exact->inexact (/ (apply + lst) (length lst))))

@@ -212,8 +212,8 @@ SCM_DEFINE (scm_make_sim, "make-sim", 0, 0, 0,
 @ 
 
 <<Primitives>>=
-SCM_DEFINE (scm_sim_tick, "sim-tick", 1, 1, 0,
-            (SCM sim, SCM time_step),
+SCM_DEFINE (scm_sim_tick, "sim-tick", 1, 2, 0,
+            (SCM sim, SCM time_step, SCM step_count),
             "Simulate physics for one time step.")
 {
   scm_assert_smob_type(sim_tag, sim);
@@ -221,9 +221,15 @@ SCM_DEFINE (scm_sim_tick, "sim-tick", 1, 1, 0,
   btScalar dt = SCM_UNBNDP(time_step) 
     ? DEFAULT_TIME_STEP 
     : scm_to_double(time_step);
+  int count = SCM_UNBNDP(step_count) 
+    ? 1
+    : scm_to_int(step_count);
+  
   if (s->world) {
-    s->world->stepSimulation(dt);
-    s->elapsed_time += dt;
+    for (int i = 0; i < count; i++) {
+      s->world->stepSimulation(dt);
+      s->elapsed_time += dt;
+    }
   }
   return scm_from_double(s->elapsed_time);
   scm_remember_upto_here_1 (sim);

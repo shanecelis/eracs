@@ -7,7 +7,6 @@ collected.  We'll define two types of SMOBs: rigid body, and
 constraint (or joint).  
 
 <<file:rigid-body-smob.h>>=
-
 #ifndef SCM_MAGIC_SNARFER
 #include <btBulletDynamicsCommon.h>
 #endif
@@ -23,6 +22,7 @@ struct rigid_body {
 };
 
 SCM wrap_rigid_body(btRigidBody* rb, char *name, SCM contact_func);
+struct rigid_body* wrap_rigid_body(SCM rb_smob);
 
 void call_contact_func(SCM smob);
 void init_rigid_body_type(void);
@@ -179,7 +179,17 @@ SCM wrap_rigid_body(btRigidBody* btrb, char* name, SCM contact_func)
   mylog("rigid-body-smob", PRI_DEBUG, "wrap_rigid_body 0x%x '%s'.", rb->body, scm_to_locale_string(rb->name));
   return smob;  
 }
-@ Now let's allow ourselves to create this C object from Scheme.
+@ 
+
+<<Helper Functions>>=
+struct rigid_body* unwrap_rigid_body(SCM rb_smob)
+{
+  scm_assert_smob_type(rigid_body_tag, rb_smob);
+  return (struct rigid_body*) SCM_SMOB_DATA(rb_smob);
+}
+@ 
+
+Now let's allow ourselves to create this C object from Scheme.
 
 <<Primitive>>=
 // XXX Rename this to make-box or include a parameter for shape.
@@ -217,7 +227,50 @@ SCM_DEFINE (scm_make_box, "make-box", 2, 3, 0,
                          : scm_to_locale_string(name), 
                          contact_func);
 }
-@ Initialize the rigid body SMOB when the application starts.
+@ 
+
+<<Primitive>>=
+// XXX Rename this to make-box or include a parameter for shape.
+SCM_DEFINE (scm_make_cylinder, "make-cylinder", 2, 3, 0,
+            (SCM pos, SCM dims, /*SCM axis,*/ SCM mass, SCM name, SCM contact_func),
+            "Make a rigid body.")
+{
+  btTransform transform;
+  btDefaultMotionState* motionState;
+  btCylinderShape *shape;
+  btVector3 local_inertia(0.,0.,0.);
+  btRigidBody *body;
+
+  transform.setIdentity(); 
+  transform.setOrigin(vector_to_btVector3(pos));
+
+  motionState = new btDefaultMotionState(transform);
+  scm_gc_register_allocation(sizeof(*motionState));
+
+  // XXX One should be able to define the axis arbitrarily.
+  shape = new btCylinderShape(0.5 * vector_to_btVector3(dims));
+  
+  scm_gc_register_allocation(sizeof(*shape));
+  shape->calculateLocalInertia(SCM_UNBNDP(mass) 
+                               ? 1. : scm_to_double(mass), 
+                               local_inertia);
+  //shape->setUserPointer(&IDs[index]);
+  //shape->initializePolyhedralFeatures();
+  btRigidBody::btRigidBodyConstructionInfo 
+    con_info(SCM_UNBNDP(mass) ? 1. : scm_to_double(mass),
+          motionState, shape, local_inertia);
+
+  body = new btRigidBody(con_info);
+  scm_gc_register_allocation(sizeof(*body));
+  return wrap_rigid_body(body, 
+                         SCM_UNBNDP(name) 
+                         ? NULL 
+                         : scm_to_locale_string(name), 
+                         contact_func);
+}
+@ 
+
+Initialize the rigid body SMOB when the application starts.
 
 <<+ Include submodules.>>=
 
@@ -356,6 +409,28 @@ SCM btVector3_to_vector(btVector3 vector) {
 }
 @ 
 
+<<Primitive>>=
+SCM_DEFINE (scm_rotate_body_x, 
+            "rotate-body!", 
+            4, 0, 0,
+            (SCM rb_smob, SCM yaw, SCM pitch, SCM roll),
+            "Rotate the body.")
+{
+  struct rigid_body *rb = unwrap_rigid_body(rb_smob);
+  btTransform tr;
+  tr.setIdentity();
+  btQuaternion quat;
+  quat.setEulerZYX(scm_to_double(yaw),
+                   scm_to_double(pitch),
+                   scm_to_double(roll)); 
+  tr.setRotation(quat);
+  btTransform world_transform = rb->body->getCenterOfMassTransform();
+  rb->body->setCenterOfMassTransform(world_transform*tr);
+  
+  return SCM_UNSPECIFIED;
+}
+@ 
+
 <<Helper Functions>>=
 SCM btVector3_to_vector3(btVector3 vector) {
   SCM v = scm_c_make_vector(3, SCM_UNDEFINED);
@@ -367,7 +442,6 @@ SCM btVector3_to_vector3(btVector3 vector) {
 \subsection{Handling Collisions}
 
 <<Helper Functions>>=
-
 void physics_call_contact_func(SCM rigid_body_smob)
 {
   if (rigid_body_smob 
@@ -381,8 +455,8 @@ void physics_call_contact_func(SCM rigid_body_smob)
   }
   scm_remember_upto_here_1 (rigid_body_smob);
 }
+@ 
 <<Helper Functions>>=
-
 bool contact_callback(btManifoldPoint& cp,
                       void* body0, void* body1)
 {
@@ -407,11 +481,8 @@ Unfortunately, this is done with a global variable rather than
 attaching it to some world object.
 
 <<Register contact handler.>>=
-
-
 gContactProcessedCallback = contact_callback;
 <<Primitive>>=
-
 SCM_DEFINE (set_contact_func_x, 
             "set-contact-func!", 
             2, 0, 0,
@@ -430,7 +501,6 @@ In addition to rigid bodies, ERACS handles constraints, or joints, as
 SMOBs.
 
 <<file:rigid-body-smob.h>>=
-
 struct constraint {
   btTypedConstraint* joint;
   btRigidBody *bodyA;
@@ -477,7 +547,8 @@ static size_t free_constraint (SCM constraint_smob)
       scm_sim_remove_constraint(constraint->sim, constraint_smob);
     }
     scm_gc_unprotect_object(constraint->body_a);
-    scm_gc_unprotect_object(constraint->body_b);
+    if (constraint->body_b)
+      scm_gc_unprotect_object(constraint->body_b);
 
     delete constraint->joint;
     constraint->joint = NULL;
@@ -531,7 +602,6 @@ pointer to a constraint and creates a SMOB, which is an \verb|SCM|
 type.
 
 <<Helper Functions>>=
-
 SCM wrap_constraint(btTypedConstraint* bttc, 
                     char* name, char* type_label, 
                     btRigidBody *a, btRigidBody *b)
@@ -582,7 +652,6 @@ struct constraint* unwrap_constraint(SCM joint)
 @ Let's write \verb|make-hinge| so one can create joints from Scheme.
 
 <<Primitive>>=
-
 SCM_DEFINE (make_hinge, "make-hinge", 6, 2, 0,
             (SCM body_a, SCM body_b, 
              SCM pos_a,  SCM pos_b, 
@@ -639,6 +708,72 @@ SCM_DEFINE (make_hinge, "make-hinge", 6, 2, 0,
   // XXX Add the update_function here.
   return smob;
 }
+@ 
+
+<<Primitive>>=
+SCM_DEFINE (scm_make_slider, "make-slider", 2, 2, 0,
+            (SCM body_a, SCM axis_a,
+             SCM name,   SCM update_func),
+            "Make a slider constraint.")
+{
+  struct rigid_body *rb_a;
+  btVector3 p_a, ax_a;
+
+  rb_a = unwrap_rigid_body(body_a);
+  
+  ax_a = vector_to_btVector3(axis_a);
+
+  btTransform frame_a;
+  frame_a.setIdentity();
+
+  btSliderConstraint *sc =
+    new btSliderConstraint(*(rb_a->body),
+                           frame_a, 
+                           false);
+  scm_gc_register_allocation(sizeof(*sc));
+
+  sc->setLowerLinLimit(-100.);
+  sc->setUpperLinLimit(100.);
+  sc->setPoweredLinMotor(false);
+  sc->setPoweredAngMotor(false);
+  sc->setRestitutionDirLin(0.01);
+  /*
+  if (SCM_UNBNDP(update_func)) {
+    rb->update_func = SCM_BOOL_F;
+  } else {
+    rb->update_func = update_func;
+  }*/
+  /* Step 3: Create the smob.
+   */
+  SCM smob = wrap_constraint(sc,
+                             SCM_UNBNDP(name) 
+                             ? NULL 
+                             : scm_to_locale_string(name),
+                             (char *) "slider",
+                             rb_a->body,
+                             NULL);
+  
+  // We don't want to let these bodies be garbage collected before
+  // the joints have been disposed of.
+  scm_gc_protect_object(body_a);
+  // We need to remember them to unprotect them when this joint is freed.
+
+  struct constraint* c = unwrap_constraint(smob);
+  c->body_a = body_a;
+  c->body_b = NULL;
+
+  // XXX Add the update_function here.
+  return smob;
+}
+@ 
+
+
+We also want to be able to create a 1 DoF rotational motor joint.
+This code was informed by this
+\href{http://www.bulletphysics.org/Bullet/phpBB3/viewtopic.php?p=&f=9&t=3598}{posting}.
+Nevermind.  I can just use the hinge joint.  *Whew.*
+
+
 <<Primitive>>=
 
 SCM_DEFINE (scm_sim_add_constraint, "sim-add-constraint", 2, 0, 0,
@@ -676,7 +811,6 @@ SCM_DEFINE (scm_sim_remove_constraint, "sim-remove-constraint", 2, 0, 0,
     mylog("rigid-body-smob", 
           PRI_WARN, 
           "sim-remove-constraint: constraint world and sim world are different");
-    return SCM_BOOL_F;
   } 
   if (c->joint && c->world) {
     c->world->removeConstraint(c->joint);
@@ -687,7 +821,41 @@ SCM_DEFINE (scm_sim_remove_constraint, "sim-remove-constraint", 2, 0, 0,
   }
   return SCM_BOOL_F;
 }
-@ \subsection{Actuate Joint}
+@ \subsection{Actuate Angular Motor}
+
+In other cases though, we want the joint to behave like a motor on a
+wheel and achieve a particular target angular velocity.
+
+<<Primitive>>=
+SCM_DEFINE (scm_actuate_angular_motor, "actuate-angular-motor", 2, 1, 0,
+            (SCM joint_smob, SCM target_velocity, SCM max_impulse),
+            "Actuate a joint.")
+{
+  struct constraint *constraint;
+  btHingeConstraint* hinge;
+  scm_assert_smob_type(constraint_tag, joint_smob);
+  constraint = (struct constraint*) SCM_SMOB_DATA(joint_smob);
+
+  if (constraint->joint->getConstraintType() != HINGE_CONSTRAINT_TYPE) 
+    // XXX should throw
+    return SCM_BOOL_F;
+  hinge = (btHingeConstraint*) constraint->joint;
+  constraint->bodyA->forceActivationState(ACTIVE_TAG);
+  constraint->bodyB->forceActivationState(ACTIVE_TAG);
+  if (scm_is_bool(target_velocity)) {
+    hinge->enableMotor(scm_is_true(target_velocity) ? true : false);
+  } else {
+    hinge->enableAngularMotor(true, 
+                              scm_to_double(target_velocity), 
+                              // XXX default_max_impulse should be defined somewhere.
+                              SCM_UNBNDP(max_impulse) 
+                              ? 1. : scm_to_double(max_impulse));
+  }
+  return SCM_BOOL_T;
+}
+@ 
+\subsection{Actuate Joint}
+We want to be able to actuate the joint.
 
 <<Primitive>>=
 SCM_DEFINE (actuate_joint, "actuate-joint", 2, 2, 0,
@@ -717,6 +885,7 @@ SCM_DEFINE (actuate_joint, "actuate-joint", 2, 2, 0,
   return SCM_BOOL_T;
 }
 @ 
+
 
 \subsection{Friction}
 

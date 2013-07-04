@@ -188,8 +188,6 @@
     (when (called-interactively?)
       (preview filename))))
 
-
-
 (define-interactive (reload-mathematica)
   (mathematica "<<\"plot-front.m\""))
 
@@ -308,23 +306,6 @@
     (lambda (key . args)
       (mylog "hill-climber" pri-warn "Got system error"))))
 
-(define-method (sexp->mathematica (sexp <vector>))
-  (sexp->mathematica (vector->list sexp)))
-
-(define-method (sexp->mathematica (sexp <string>))
-  (format #f "\"~a\"" sexp))
-
-(define-method (sexp->mathematica (sexp <integer>))
-  (format #f "~d" sexp))
-
-(define-method (sexp->mathematica (sexp <real>))
-  (format #f "~f" sexp))
-
-(define-method (sexp->mathematica (sexp <symbol>))
-  (format #f "~a" (symbol->string sexp)))
-
-(define-method (sexp->mathematica (sexp <list>))
-  (format #f "{~{~a~^,~}}" (map sexp->mathematica sexp)))
 
 ;; XXX need to handle display of fitness better.
 (define-interactive (plot-front #:optional (filename "tmp-plot.pdf"))

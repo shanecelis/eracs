@@ -42,14 +42,15 @@
 (define-class <bullet-physics> (<physics>)
   (sim #:accessor bp:sim #:init-keyword #:sim #:init-form (current-sim))
   (objects #:accessor bp:objects #:init-value '())
-  (force-constant #:accessor force-constant #:init-value 2.)
   (fake-state #:getter fp:state #:init-value #f)
+  (force-constant)
   )
 
 ;; Agent and Objects need to be placed in separate collision groups.
 ;; http://bulletphysics.org/Bullet/BulletFull/classbtDiscreteDynamicsWorld.html#a8636fbb78c9d0d730262db987201840a
 (define agent-group 128)
 (define object-group 64) 
+(define wheel-group 256) 
 (define floor-group 3)                  ; StaticFilter
 (define-method (initialize (bp <bullet-physics>) initargs)
   (define (process-agent agent)
@@ -72,7 +73,7 @@
   (next-method)
   (sim-add-ground-plane2 (bp:sim bp))
   
-  (let ((body (make-box #(0 0 0) 
+  (let ((body (make-box #(0 10 0) 
                         (vector agent-diameter
                                 1 
                                 agent-diameter) 1. "agent")))
@@ -99,8 +100,10 @@
 CTRNN."
   (generalized-vector-set! (fp:state bp) 0 (get-time bp))
   (for-each (lambda (i)
-              (generalized-vector-set! (fp:state bp) (+ (* 2 i) 1) (object-x bp i))
-              (generalized-vector-set! (fp:state bp) (+ (* 2 i) 2) (object-y bp i)))
+              (generalized-vector-set! 
+               (fp:state bp) (+ (* 2 i) 1) (object-x bp i))
+              (generalized-vector-set! 
+               (fp:state bp) (+ (* 2 i) 2) (object-y bp i)))
             (range 0 (1- (object-count bp)))))
 
 (define-method (draw-physics scene (bp <bullet-physics>))
@@ -108,15 +111,20 @@ CTRNN."
   (if (not (scene-update-physics scene (bp:sim bp)))
       (scene-add-physics scene (bp:sim bp))))
 
+(define-method (undraw-physics scene (bp <bullet-physics>))
+  "Draws the bullet physics simulation."
+  (scene-clear-physics scene))
+
+
 (define (go-right t i)
   (if (= i 1)
       1.0
-      0.0))
+      -1.0))
 
 (define (go-left t i)
-  (format #t "GO LEFT~%")
+  ;(format #t "GO LEFT~%")
   (if (= i 1)
-      0.0
+      0.0 ;; or -1.0
       1.0))
 
 (define (go-nowhere t i)
@@ -129,6 +137,8 @@ CTRNN."
 (define-method (set-time! (bp <bullet-physics>) t)
   (sim-time-set! (bp:sim bp) t))
 
+(define bullet-step-count 10)
+
 (define-method (step-physics (bp <bullet-physics>) h)
   "Apply the effectors and step the physics simulation forward by h
 seconds."
@@ -140,18 +150,18 @@ seconds."
              (agent (car (bp:objects bp))))
         (apply-force agent 
                      (vector 
-                      (* (force-constant bp) motor-constant (- de v)) 
+                      (* (agent-motor-constant-ref bp) (- de v)) 
                       0. 
                       0.) 
                      #(0. 0. 0.))))
   (update-fake-state bp)
-  (sim-tick (bp:sim bp) h))
+  (sim-tick (bp:sim bp) h bullet-step-count))
 
 (define-method (reset-physics (bp <bullet-physics>))
   (set-time! bp 0.)
   (map (lambda (body)
-         (sim-remove-body (bp:sim bp) body)
-         ) (bp:objects bp))
+         (sim-remove-body (bp:sim bp) body)) 
+       (bp:objects bp))
   (set! (bp:objects bp) '())
   (scene-clear-physics (current-scene)))
 
@@ -186,6 +196,12 @@ seconds."
 (define-method (object-vy-ref (bp <bullet-physics>) i)
   (let ((p (get-velocity (list-ref (bp:objects bp) i))))
     (- (from-velocity (vector-ref p y-axis)))))
+
+(define-method (agent-motor-constant-set! (bp <bullet-physics>) k)
+  (slot-set! bp 'force-constant k))
+
+(define-method (agent-motor-constant-ref (bp <bullet-physics>))
+  (slot-ref bp 'force-constant))
 
 (define velocity-factor 6.)
 (define (to-velocity v)

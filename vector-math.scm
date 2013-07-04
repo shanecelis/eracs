@@ -5,6 +5,7 @@
   #:use-module (oop goops)
   #:use-module ((rnrs) #:select (vector-map vector-for-each))
   #:export (vector-fold
+            vector-fold1
             vector-sum
             vector-every
             vector-any
@@ -21,6 +22,8 @@
             vector-move!
             vector-move!*
             vector-angle
+            min-of-vector
+            max-of-vector
             range
             index-range
             make-matrix
@@ -60,8 +63,17 @@
 
 
 ;; XXX should return a vector?
+
+;; XXX possible convention:
+;; fold-vector should not return a vector.
+;; vector-fold should.
 (define (vector-fold f init v)
   (fold f init (array->list v)))
+
+(define (vector-fold1 f v)
+  (let ((lst (array->list v)))
+   (fold f (car lst) (cdr lst))))
+
 
 (define (vector-every f v)
   (vector-fold (lambda (a b) (and a b))
@@ -98,6 +110,12 @@
 
 (define (vector-min a b)
   (scalar-vector-fn min a b))
+
+(define (min-of-vector v)
+  (vector-fold1 min v))
+
+(define (max-of-vector v)
+  (vector-fold1 max v))
 
 (define (vector-max a b)
   (scalar-vector-fn max a b))

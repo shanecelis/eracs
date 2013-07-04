@@ -18,6 +18,7 @@
   - [ ] eccentricity of path
 * TODO add labels to legends in gnuplot output.
 * TODO Gosh, do I want to somehow just use Mathematica here?
+
     
 ** What should the Scheme interface look like?
    Limit it to a real valued search.
@@ -115,6 +116,13 @@
   - [ ] [[https://groups.google.com/forum/m/?fromgroups#!msg/comp.emacs/j_fNPgtbavM/DVygGrzgQgMJ][Great introduction]] to the bare minimum you need to know to use
     Emacs
   - [ ] How to make [[http://www.gnu.org/software/guile/docs/docs-2.0/guile-ref/Identifier-Macros.html#Identifier-Macros][variable aliases]]
+  - [ ] the noweb filter docs2comments does not work with noweb's line pragmas
+  - [ ] How to [[http://stackoverflow.com/questions/6201339/a-clean-system-for-github-pages-with-local-plugins][use local plugins for github pages]] along with a script in [[https://gist.github.com/ryanjm/2628759][gist]]
+  - [ ] how to do [[https://github.com/davexunit/gnumaku/blob/rebirth/gnumaku/coroutine.scm][coroutines]] in guile
+  - [ ] How do syscalls work when Emacsy is in batch mode?
+    
+    Populate event buffer from file handle?  Are syscalls even required
+    if we're not in interactive mode?
 
 * TODO before GECCO
   - [X] fix the scene since it's not displaying
@@ -162,7 +170,7 @@
   - [ ] write the results section
   - [ ] write the discussion section
   - [X] include Greg as an author? YES
-  - [ ] submit to GECCO (thursday midnight)
+  - [X] submit to GECCO (thursday midnight)
 
 Good set of articles on [[http://www.freesoftwaremagazine.com/articles/catalog_of_reusable_solutions][autotools]]
 

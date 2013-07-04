@@ -59,6 +59,8 @@
   #:use-module (logging)
   #:use-module (os process)
   #:use-module (ice-9 match)
+  #:use-module (oop goops)
+  #:export (sexp->mathematica)
   )
 
 (define mathematica-pid #f)
@@ -91,7 +93,7 @@
      )
     )
   ;(set! mathematica-port (open-input-output-pipe "./mymathematica"))
-  ;(mathematica "<<JavaGraphics`")
+  (mathematica "<<JavaGraphics`")
   (mathematica "<<\"plot-front.m\"")
   )
 
@@ -229,3 +231,21 @@
     (mathematica "Quit[]")
     (waitpid mathematica-pid)
     (set! mathematica-pid #f)))
+
+(define-method (sexp->mathematica (sexp <vector>))
+  (sexp->mathematica (vector->list sexp)))
+
+(define-method (sexp->mathematica (sexp <string>))
+  (format #f "\"~a\"" sexp))
+
+(define-method (sexp->mathematica (sexp <integer>))
+  (format #f "~d" sexp))
+
+(define-method (sexp->mathematica (sexp <real>))
+  (format #f "~f" sexp))
+
+(define-method (sexp->mathematica (sexp <symbol>))
+  (format #f "~a" (symbol->string sexp)))
+
+(define-method (sexp->mathematica (sexp <list>))
+  (format #f "{~{~a~^,~}}" (map sexp->mathematica sexp)))

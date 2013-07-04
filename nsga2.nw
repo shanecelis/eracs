@@ -132,7 +132,10 @@ SCM primitive_nsga_ii_search(
   decode_pop (parent_pop);
   evaluate_pop (parent_pop);
   assign_rank_and_crowding_distance (parent_pop);
+  SCM continue_p = SCM_BOOL_T;
   <<Call generation tick.>>
+  if (scm_is_false(continue_p))
+    goto no_loop;
   for (i = 2; i <= ngen; i++) {
     selection (parent_pop, child_pop);
     mylog("nsga2", PRI_TRACE, "start of generation %d", i);
@@ -144,11 +147,16 @@ SCM primitive_nsga_ii_search(
     /* Comment following four lines if information for all
        generations is not desired, it will speed up the execution */
     <<Call generation tick.>>
+    if (scm_is_false(continue_p))
+      break;
     //report_pop(parent_pop,fpt4);
     //fflush(fpt4);
     //printf("\n gen = %d",i);
     scm_gc();
   }
+
+no_loop:
+  ; /* workaround for Guile bug, I believe. */
   SCM results = scm_report_feasible(parent_pop);
   if (nreal!=0) {
     free (min_realvar);
@@ -166,7 +174,7 @@ SCM primitive_nsga_ii_search(
 
 <<Call generation tick.>>=
 if (! scm_is_false(generation_tick_func)) {
- scm_call_2(generation_tick_func, scm_from_int(i), scm_report(parent_pop));
+  continue_p = scm_call_2(generation_tick_func, scm_from_int(i), scm_report(parent_pop));
 }
 @ 
 
@@ -357,8 +365,9 @@ SCM scm_report_feasible(population *pop)
   SCM list = SCM_EOL;
   int i, j, k;
   for (i = 0; i < popsize; i++) {
-    if (pop->ind[i].constr_violation == 0.0 
-        && pop->ind[i].rank == 1) {
+    if (//pop->ind[i].constr_violation == 0.0 
+        //&& 
+        pop->ind[i].rank == 1) {
       SCM objective;
       SCM genome;
       // XXX Switch these to uniform vectors
@@ -378,14 +387,15 @@ SCM scm_report(population *pop)
   SCM list = SCM_EOL;
   int i, j, k;
   for (i = 0; i < popsize; i++) {
-    if (pop->ind[i].constr_violation == 0.0 
+    if (1
+      //pop->ind[i].constr_violation == 0.0 
     //&& pop->ind[i].rank == 1
     ) {
       SCM objective;
       SCM genome;
       // XXX Switch these to uniform vectors
       objective = scm_c_array_to_vector(nobj,  pop->ind[i].obj);
-      genome    = scm_c_array_to_vector(nreal, pop->ind[i].xreal);
+      genome    = scm_c_array_to_f64_vector(nreal, pop->ind[i].xreal);
       // Add it to the list.
       list = scm_cons(scm_list_3(scm_from_int(pop->ind[i].rank), genome, objective), list);
     }

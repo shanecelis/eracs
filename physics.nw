@@ -161,8 +161,41 @@ if (shape->getShapeType() == BOX_SHAPE_PROXYTYPE) {
   vl_transform->incReference();
   colObj->getCollisionShape()->setUserPointer(vl_transform.get());
   scene->rendering->transform()->addChild(vl_transform.get());
+} else if (shape->getShapeType() == CYLINDER_SHAPE_PROXYTYPE) {
+  const btCylinderShape* cylinderShape;
+        btVector3 halfExtent;
+  cylinderShape = static_cast<const btCylinderShape*>(shape);
+  halfExtent = cylinderShape->getHalfExtentsWithMargin();
+  vl::ref<vl::Transform> vl_transform;
+  vl::ref<vl::Geometry> cylinder;
+  // halfExtend[0] should equal halfExtend[1]
+  cylinder = 
+    vl::makeCylinder(vl::vec3(0,0,0),
+                halfExtent[0] * 2.,
+                halfExtent[1] * 2.);
+  cylinder->computeNormals();
+  vl_transform = new vl::Transform;
+  vl::ref<vl::Actor> actor;
+  actor = scene_manager->tree()->addActor(cylinder.get(), 
+                                          effect.get(), 
+                                          vl_transform.get());
+
+  actor->actorEventCallbacks()->push_back( new vl::DepthSortCallback );
+
+  if (colObj->getCollisionShape()->getUserPointer()) {
+    vl::ref<vl::Transform> old_transform;
+    old_transform = (vl::Transform *) colObj->
+      getCollisionShape()->getUserPointer();
+    if (has_child(scene->rendering->transform()->childrenCount(),
+                  scene->rendering->transform()->children(), 
+                  old_transform.get())) 
+      scene->rendering->transform()->eraseChild(old_transform.get());
+  }
+  vl_transform->incReference();
+  colObj->getCollisionShape()->setUserPointer(vl_transform.get());
+  scene->rendering->transform()->addChild(vl_transform.get());
 } else {
-  fprintf(stderr, "warning: cannot draw any shape except a box.\n");
+  fprintf(stderr, "warning: cannot draw any shape except a box or a cylinder.\n");
 }
 <<Helper Functions>>=
 bool has_child(size_t n, vl::ref<vl::Transform> *children, vl::Transform *child)
