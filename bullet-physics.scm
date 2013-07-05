@@ -29,6 +29,7 @@
   ;; (effector-func t i) -> [-1, 1]
   ;; accepts a time t and an effector identifier i \in [1, effector-count]
   (effector-func #:accessor effector-func #:init-keyword #:effector-func #:init-value #f)
+  (step-count #:accessor step-count #:init-value 1)
   ;; (input-func t i) -> [-1, 1]
   ;; accepts a time t and a input number i \in [1, input-count]
   ;(input-func #:accessor input-func #:init-value #f)
@@ -40,7 +41,7 @@
   )
 
 (define-class <bullet-physics> (<physics>)
-  (sim #:accessor bp:sim #:init-keyword #:sim #:init-form (current-sim))
+  (sim #:accessor bp:sim #:init-keyword #:sim #:init-form (make-sim) #;(current-sim))
   (objects #:accessor bp:objects #:init-value '())
   (fake-state #:getter fp:state #:init-value #f)
   (force-constant)
@@ -72,7 +73,7 @@
                   ))
   (next-method)
   (sim-add-ground-plane2 (bp:sim bp))
-  
+  (set-time! bp 0.)
   (let ((body (make-box #(0 10 0) 
                         (vector agent-diameter
                                 1 
@@ -137,8 +138,6 @@ CTRNN."
 (define-method (set-time! (bp <bullet-physics>) t)
   (sim-time-set! (bp:sim bp) t))
 
-(define bullet-step-count 10)
-
 (define-method (step-physics (bp <bullet-physics>) h)
   "Apply the effectors and step the physics simulation forward by h
 seconds."
@@ -155,7 +154,7 @@ seconds."
                       0.) 
                      #(0. 0. 0.))))
   (update-fake-state bp)
-  (sim-tick (bp:sim bp) h bullet-step-count))
+  (sim-tick (bp:sim bp) h (step-count bp)))
 
 (define-method (reset-physics (bp <bullet-physics>))
   (set-time! bp 0.)

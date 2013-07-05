@@ -1,7 +1,7 @@
 
 (define (main)
- (define trials 10)
- (define max-generations 100)
+ (define trials 5)
+ (define max-generations 30)
  (define g1 '())
  (define g2 '())
  (define g23 '())
@@ -28,25 +28,31 @@
    (report "2 and 3" g23 t23)
    (report "1, 2 and 3" g123 t123)
    (format #t "END REPORT~%"))
+ 
+ (define pos-diff '(0.  40. 80. 120. 160. 3000.))
+ (define ICs (map make-parametric-IC pos-diff))
+ 
+(define (gen-count-for-IC IC)
+  (let ((gens '()))
+   (dotimes trials (cons! (generation-count-to-do (list IC) max-generations) gens))
+   (mean (map car gens))))
 
- (record-time t1 (dotimes trials (cons! (generation-count-to-do (list case-1-IC) max-generations) g1)))
- (report-everything)
+(define gens (map gen-count-for-IC ICs))
 
- (record-time t2 (dotimes trials (cons! (generation-count-to-do (list case-2-IC) max-generations) g2)))
- (report-everything)
+(line-plot (map list pos-diff gens))
 
- (record-time t23 (dotimes trials (cons! (generation-count-to-do (list case-2-IC case-3-IC) max-generations) g23)))
- (report-everything)
+ ;; (record-time t1 (dotimes trials (cons! (generation-count-to-do (list case-1-IC) max-generations) g1)))
+ ;; (report-everything)
+
+ ;; (record-time t2 (dotimes trials (cons! (generation-count-to-do (list case-2-IC) max-generations) g2)))
+ ;; (report-everything)
+
+ ;; (record-time t23 (dotimes trials (cons! (generation-count-to-do (list case-2-IC case-3-IC) max-generations) g23)))
+ ;; (report-everything)
 
  ;(record-time t123 (dotimes trials (cons! (generation-count-to-do (list case-1-IC case-2-IC case-3-IC) max-generations) g123)))
  ;(report-everything)
  )
 
-(format #t "BEGIN FODE~%")
 (main)
-(format #t "END FODE~%")
-(set! physics-class <bullet-physics-car>)
-(format #t "BEGIN BULLET~%")
-(main)
-(format #t "END BULLET~%")
 (exit 0)

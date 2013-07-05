@@ -54,43 +54,23 @@
         (wheel2 (cadr (bpc:wheels bpc)))
         (wheel3 (caddr (bpc:wheels bpc)))
         (wheel4 (cadddr (bpc:wheels bpc)))
-
-        (h1 #f)
-        (h2 #f)
-        (h3 #f)
-        (h4 #f)
         (x (/ agent-diameter 2.))
-        (z (/ agent-diameter 2.))
-        )
-    (set! h1 (make-hinge agent                                   wheel1
-                         (vector (- x) 0 z)                      (vector 0 0 0)
-                         #(0 0 1)                                #(0 1 0)
-                         "axis 1"))
+        (z (/ agent-diameter 2.)))
     
-    (set! h2 (make-hinge agent                                   wheel2
-                         (vector x 0 z)                          (vector 0 0 0)
-                         #(0 0 1)                                #(0 1 0)
-                         "axis 2"))
+    (set! (bpc:axes bpc) 
+          (map (lambda (position wheel)
+                 (set-position! wheel position)
+                 (make-hinge agent                            wheel
+                             position                         (vector 0 0 0)
+                             #(0 0 1)                         #(0 1 0)
+                             "axis"))
+               (list (vector (- x) 0 z)
+                     (vector x 0 z)
+                     (vector (- x) 0 (- z))
+                     (vector x 0 (- z)))
+               (bpc:wheels bpc)))
     
-    (set! h3 (make-hinge agent                                   wheel3
-                         (vector (- x) 0 (- z))                      (vector 0 0 0)
-                         #(0 0 1)                                #(0 1 0)
-                         "axis 3"))
-    
-    (set! h4 (make-hinge agent                                   wheel4
-                         (vector x 0 (- z))                          (vector 0 0 0)
-                         #(0 0 1)                                #(0 1 0)
-                         "axis 4"))
-
-    
-    (for-each process-joint (list h1 h2 
-                                  h3 h4
-                                  
-                                  ))
-    (set! (bpc:axes bpc) (list h1 h2 
-                               h3 h4
-                               
-                               ))
+    (for-each process-joint (bpc:axes bpc))
     
     ;; Let's put a constraint on the car to only move along the x-axis.
     (set! (bpc:slider bpc) (make-slider agent #(1 0 0)))

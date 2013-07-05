@@ -67,6 +67,9 @@
 (define mathematica-port #f)
 (define mathematica-input #f)
 
+(define mathematica-input-buffer "")
+(define mathematica-input-buffer-pos 0)
+
 (define (mathematica-open)
   (match (run-with-pipe "w" "./mymathematica")
     ((pid . (input . output))
@@ -93,8 +96,14 @@
      )
     )
   ;(set! mathematica-port (open-input-output-pipe "./mymathematica"))
-  (mathematica "<<JavaGraphics`")
-  (mathematica "<<\"plot-front.m\"")
+  #;(mathematica "<<JavaGraphics`")
+  #;(mathematica "<<\"plot-front.m\"")
+  )
+
+#;(define (expect regex timeout)
+  ;; read
+
+  (string-match regex )
   )
 
 (define (read-non-block port)
@@ -249,3 +258,8 @@
 
 (define-method (sexp->mathematica (sexp <list>))
   (format #f "{~{~a~^,~}}" (map sexp->mathematica sexp)))
+
+(define-method (sexp->mathematica (sexp <boolean>))
+  (if sexp
+      "True"
+      "False"))

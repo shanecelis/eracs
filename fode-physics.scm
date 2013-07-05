@@ -56,11 +56,9 @@
 (define-method (object-vy-set! (fp <fode-physics>) i v)
   (set! (fode:object-vy (fp:k-params fp) i) v))
 
-(define fode-step-count 10)
-
 (define-method (step-physics (fp <fode-physics>) h)
   ;(format #t "params ~a~%" (fp:params fp))
-  (fode:step-fode (fp:state fp) h (fp:params fp) fode-step-count))
+  (fode:step-fode (fp:state fp) h (fp:params fp) (step-count fp)))
 
 (define-method (get-time (fp <fode-physics>))
   (fode:fode-time (fp:state fp)))

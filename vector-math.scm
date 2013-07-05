@@ -11,6 +11,7 @@
             vector-any
             vector-norm
             vector-normalize
+            vector-abs
             vector-min
             vector-max
             vector-bound
@@ -73,6 +74,9 @@
 (define (vector-fold1 f v)
   (let ((lst (array->list v)))
    (fold f (car lst) (cdr lst))))
+
+(define (vector-abs v)
+  (vector-map abs v))
 
 
 (define (vector-every f v)

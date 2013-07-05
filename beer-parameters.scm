@@ -29,4 +29,7 @@
 (define h 0.1) ;; time step
 (define population-count 12)
 (define update-ctrnn-freq 1)
+(define record-vision-values? #f)
+
+(define use-c-vision? #t)
 

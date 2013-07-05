@@ -10,10 +10,12 @@
  (nsga2) 
  (fitness)
  (infix)
+ (srfi srfi-19)
  (srfi srfi-8) ;; receive
  (srfi srfi-11) ;; let-values
  (mathematica plot)
  (freeze-random)
+ (mathematica)
 )
 
 (define physics-class <fode-physics>)
@@ -29,6 +31,37 @@
 
 (define ctrnn (make-n-ctrnn node-count))
 (define ctrnn-state (make-ctrnn-state ctrnn))
+
+;; https://gist.github.com/valvallow/413146
+(define-syntax dotimes
+  (syntax-rules ()
+    ((_ n body ...)
+     (do ((i n (- i 1)))
+         ((not (< 0 i)))
+       body ...))))
+
+(define-syntax record-time
+  (syntax-rules ()
+    ((_ var body)
+     (begin 
+       (let ((start (current-time)))
+         body
+         (set! var (- (current-time) start)))))))
+
+(define-syntax record-time*
+  (syntax-rules ()
+    ((_ var body)
+     (begin 
+       (let ((start (current-time time-monotonic)))
+         body
+         (set! var (let* ((diff (time-difference! (current-time time-monotonic) start))
+                          (seconds (time-second diff))
+                          (nanoseconds (time-nanosecond diff)))
+                     (time->float diff)
+                     )))))))
+
+(define (time->float time)
+  (string->number (format #f "~a.~a" (time-second time) (time-nanosecond time))))
 
 (define (make-effector-func ctrnn-state)
   (lambda (t i)
@@ -89,6 +122,7 @@
         (n (object-count fode-params))
         #;(k  (fp:k-params fode-params)))
       ;; Set the heights to the same thing.
+    (format #t "choosing ICs~%")
     ;; object 1 yi
     (set! (object-y fode-params 1) max-height)
     ;; object 1 position
@@ -186,9 +220,21 @@
                 (set! (object-vy k i) (apply random-range vertical-velocity-1)))
               (range 1 (1- n)))))
 
+(define (make-parametric-IC position-difference)
+  (lambda (fode-params fode-state)
+   (let ((n (object-count fode-params))
+         (k fode-params))
+     (for-each (lambda (i)
+                 (set! (object-x fode-state i) (* (1- i) position-difference))
+                 (set! (object-y fode-state i) max-height)
+                 (set! (object-vx k i) 0.)
+                 (set! (object-vy k i) (car vertical-velocity-1)))
+               (range 1 (1- n))))))
 
-(define choose-initial-conditions (make-freeze-random beer-choose-initial-conditions))
-;(define choose-initial-conditions case-2-IC)
+
+
+;(define choose-initial-conditions (make-freeze-random beer-choose-initial-conditions))
+(define choose-initial-conditions (make-parametric-IC 30.))
 
 (define-interactive (change-IC)
   (set! choose-initial-conditions (make-freeze-random beer-choose-initial-conditions)))
@@ -256,7 +302,7 @@
       (unless pause-fode?
         (if (not (step-physics fode-state h))
             (throw 'step-physics-error))
-        (when (= 0 (mod tick-count update-ctrnn-freq))
+        (when #t #;(= 0 (mod tick-count update-ctrnn-freq))
           #;(if draw-display?
               (for-each (lambda (actor) (remove-actor scene actor)) vision-line-actors))
           (step-ctrnn ctrnn-state h ctrnn)))
@@ -275,40 +321,155 @@
         (reset-fode)))
     (incr! tick-count)))
 
-(define (make-current-vision-input)
-  #;(make-vision-input fode-state
-                                        (1- body-count) ;; object count
-                                        sensor-count
-                                        ;; We're going to treat the
-                                        ;; agent-diameter as though it
-                                        ;; is zero for vision
-                                        ;; purposes.
-                                        0 
+(define last-vision-values '())
+
+(define (make-collect-vision-values vision-input)
+  (set! last-vision-values '())
+  (let ((last-time #f))
+   (lambda (t i)
+     (let ((output (vision-input t i)))
+       (when (< i sensor-count)
+           (if (or #t (not (= output 10.)))
+               (format #t "output not 10 but ~a at time ~a for sensor ~a~%" output t i))
+           (when (not (equal? last-time t))
+             #;(format #t "Adding another vector for time ~a~%" t)
+             (cons! (cons t (make-vector sensor-count 0.)) last-vision-values)
+             (set! last-time t))
+           (vector-set! (cdar last-vision-values) i output))
+      output))))
+
+(define* (line-plot points 
+                    #:key 
+                    (axes-label #f)
+                    (plot-label #f)
+                    (joined #t)
+                    (plot-legends #f)
+                    (plot-range #f))
+  
+  (define (other-options)
+    (let ((strings '()))
+     (if axes-label
+         (cons! (format #f "AxesLabel -> ~a" (sexp->mathematica axes-label)) strings))
+     (if plot-label
+         (cons! (format #f "PlotLabel -> ~a" (sexp->mathematica plot-label)) strings))
+     (if plot-legends
+         (cons! (format #f "PlotLegends -> ~a" (sexp->mathematica plot-legends)) strings))
+     
+     (if plot-range
+         (cons! (format #f "PlotRange -> ~a" (sexp->mathematica plot-range)) strings))
+     (cons! (format #f "Joined -> ~a" (sexp->mathematica joined)) strings)
+     (string-join strings ", ")))
+  (let* ((filename (format #f "~a.pdf" (tmpnam)))
+         (expr (format #f "Export[\"~a\", ListPlot[~a, ~a]];" 
+                        filename
+                        (sexp->mathematica points)
+                        (other-options))))
+    (mylog "mathematica.input" pri-debug "~a" expr)
+   (mathematica-eval expr)
+   (system* "open" "-a" "Preview" filename)))
+
+(define* (vision-values->points vision-values #:optional (sensor-index #f))
+    ;; We have a list of ((t1 . #(v11 v12 ...)) (t2 . #(v21 v22
+    ;; ... ))) that we want to transform into '((t1 v11) (t2 v21) ...)
+    ;; for sensor 1 or a list of all lists if no sensor is given.
+    (if sensor-index
+        (map (lambda (entry)
+               (list (car entry) (+ (* 10 sensor-index) (vector-ref (cdr entry) sensor-index))))
+             vision-values)
+        (map (lambda (index)
+               (vision-values->points vision-values index))
+             (range 0 (1- sensor-count)))))
+  
+(define-interactive (show-vision-values #:optional (values last-vision-values))
+  (line-plot (vision-values->points values)
+             #:axes-label '("time" "sensor value")
+             #:plot-legends (map number->string (range 1 sensor-count))
+             #:plot-range 'Full
+             ))
+
+(define-interactive (show-input-difference #:optional (genome current-genome))
+  
+  (let ((prev-record record-vision-values?)
+        (prev-class physics-class)
+        (prev-values last-vision-values))
+    
+    (in-out
+     (begin
+       (set! record-vision-values? #t)
+       (set! physics-class <fode-physics>)
+       (set! last-vision-values '()))
+     (let ((fode-values #f)
+           (bullet-values #f)
+           (diff #f)
+           (points #f)
+           (tick-count 100))
+
+       (eval-beer-robot genome #:max-tick-count tick-count)
+       (set! fode-values (reverse last-vision-values))
+       (line-plot (vision-values->points fode-values)
+                  #:axes-label '("time" "sensor value")
+                  #:plot-label "FODE"
+                  #:plot-legends (map number->string (range 1 sensor-count))
+                  #:plot-range '(Automatic '(-.5 10.5)) #;'((0 10) (-.2 12))
+                  )
+       (set! physics-class <bullet-physics-car>)
+       (eval-beer-robot genome #:max-tick-count tick-count)
+       (set! bullet-values (reverse last-vision-values))
+       (line-plot (vision-values->points bullet-values)
+                  #:axes-label '("time" "sensor value")
+                  #:plot-label "Bullet"
+                  #:plot-legends (map number->string (range 1 sensor-count))
+                  )
+
+       (set! diff (map vector-sum (map vector-abs (map vector- 
+                                                       (map cdr fode-values)
+                                                       (map cdr bullet-values)))))
+       (set! points (map list (map car fode-values) diff))
+       (line-plot points #:axes-label '("time" "sum of abs difference")
+                  #:plot-label "Sensor differences"
+                  ))
+     (begin
+       (set! record-vision-values? prev-record)
+       (set! physics-class prev-class)
+       (set! last-vision-values prev-values)))))
+
+(define* (make-current-vision-input #:optional (draw? #t) (my-fode-state fode-state))
+  (if (and use-c-vision? (not record-vision-values?))
+            ;; Here's how to use the C implementation of vision.
+      (list 'c-vision-input (fp:state my-fode-state)
+                            (1- body-count) ;; object count
+                            sensor-count
+                            ;; We're going to treat the
+                            ;; agent-diameter as though it
+                            ;; is zero for vision
+                            ;; purposes.
+                            0 
                                         ;agent-diameter
-                                        (/ object-diameter 2)
-                                        max-sight-distance
-                                        visual-angle
-                                        max-sight-output
-                                        draw-vision-lines
-                                        )
-  ;; Here's how to use the C implementation of vision.
-   
-    (list 'c-vision-input (fp:state fode-state)
-                                        (1- body-count) ;; object count
-                                        sensor-count
-                                        ;; We're going to treat the
-                                        ;; agent-diameter as though it
-                                        ;; is zero for vision
-                                        ;; purposes.
-                                        0 
+                            (/ object-diameter 2)
+                            max-sight-distance
+                            visual-angle
+                            max-sight-output
+                            (and draw? draw-vision-lines))
+      
+      (let ((scheme-vision (make-vision-input (fp:state my-fode-state)
+                                                         (1- body-count) ;; object count
+                                                         sensor-count
+                                                         ;; We're going to treat the
+                                                         ;; agent-diameter as though it
+                                                         ;; is zero for vision
+                                                         ;; purposes.
+                                                         0 
                                         ;agent-diameter
-                                        (/ object-diameter 2)
-                                        max-sight-distance
-                                        visual-angle
-                                        max-sight-output
-                                        draw-vision-lines
-                                        )
-  )
+                                                         (/ object-diameter 2)
+                                                         max-sight-distance
+                                                         visual-angle
+                                                         max-sight-output
+                                                         (and draw? draw-vision-lines))))
+        (if record-vision-values?
+            ;; Let's use the old lisp version, because it's easier to collect the
+            ;; input.
+            (make-collect-vision-values scheme-vision)
+            scheme-vision))))
 
 (define-interactive (reset-fode)
   (genome->ctrnn current-genome ctrnn)
@@ -321,10 +482,10 @@
   (set! fode (make physics-class
                #:object-count body-count 
                #:effector-func 
-               ;(make-effector-func ctrnn-state)
+               (make-effector-func ctrnn-state)
 ;               go-nowhere
 ;               go-left
-                go-right
+;                go-right
                
                ))
   (set! fode-state (fix-physics fode))
@@ -435,8 +596,7 @@
                    (step-fn identity)
                    (begin-fn identity)
                    (end-fn identity)
-                   (max-tick-count 2000)
-                   )
+                   (max-tick-count 2000))
   (let* ((ctrnn (make-n-ctrnn node-count))
          (ctrnn-state (make-ctrnn-state ctrnn))
          (effector-func (make-effector-func ctrnn-state))
@@ -444,19 +604,9 @@
                  #:object-count body-count 
                  #:effector-func effector-func))
          (fode-state (fix-physics fode))
-         (vision-input (list 'c-vision-input (fp:state fode)
-                                          (1- body-count) ;; object count
-                                          sensor-count
-                                          ;; We're going to treat the
-                                          ;; agent-diameter as though it
-                                          ;; is zero for vision
-                                          ;; purposes.
-                                          0 
-                                          ;agent-diameter
-                                          (/ object-diameter 2)
-                                          max-sight-distance
-                                          visual-angle
-                                          max-sight-output))
+         (vision-input (make-current-vision-input #f ; don't draw.
+                                                  fode-state
+                                                  ))
          (tick-count 0))
     (choose-initial-conditions fode fode-state)
     ;(randomize-ctrnn-state! ctrnn-state)
@@ -469,15 +619,15 @@
     (while (and 
             (< tick-count max-tick-count) 
             (step-fn fode-state))
-      (if (= 0 (mod tick-count update-ctrnn-freq))
+      (if #t #;(= 0 (mod tick-count update-ctrnn-freq))
           (if (not (step-ctrnn ctrnn-state h ctrnn))
               (throw 'step-ctrnn-error)))
       (if (not (step-physics fode-state h))
           (throw 'step-physics-error))
-      ;(step-fn fode-state)
-      (incr! tick-count)
+      (incr! tick-count (step-count fode-state))
       #;(format #t "Tick ~a~%" tick-count))
     #;(format #t "after state ~a~%" (vector-sum ctrnn-state))
+    #;(format #t "step-count ~a~%"(step-count fode-state))
     (end-fn fode-state)))
 
 (define last-fitness-func #f) 
