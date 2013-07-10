@@ -29,7 +29,7 @@
    (report "1, 2 and 3" g123 t123)
    (format #t "END REPORT~%"))
  
- (define pos-diff '(0.  40. 80. 120. 160. 3000.))
+ (define pos-diff '(0.  40. 80. 120. 160. ))
  (define ICs (map make-parametric-IC pos-diff))
  
 (define (gen-count-for-IC IC)

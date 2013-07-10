@@ -19,7 +19,7 @@
              (srfi srfi-4 gnu)  ;; uniform vectors
              (srfi srfi-69) ;; hash-table
              (rnrs io ports)
-             (mathematica plot))
+             (mathematica-plot plot))
 
 (add-hook! emacsy-terminate-hook (lambda ()
                                    (mathematica-quit)))

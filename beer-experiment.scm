@@ -7,13 +7,15 @@
  ((minimal-cognition fode)
              #:renamer (symbol-prefix-proc 'fode:))
  (minimal-cognition vision)
+ (minimal-cognition unified-procedure)
+ (system foreign)
  (nsga2) 
  (fitness)
  (infix)
  (srfi srfi-19)
  (srfi srfi-8) ;; receive
  (srfi srfi-11) ;; let-values
- (mathematica plot)
+ (mathematica-plot plot)
  (freeze-random)
  (mathematica)
 )
@@ -402,7 +404,7 @@
            (bullet-values #f)
            (diff #f)
            (points #f)
-           (tick-count 100))
+           (tick-count 600))
 
        (eval-beer-robot genome #:max-tick-count tick-count)
        (set! fode-values (reverse last-vision-values))
@@ -436,20 +438,29 @@
 (define* (make-current-vision-input #:optional (draw? #t) (my-fode-state fode-state))
   (if (and use-c-vision? (not record-vision-values?))
             ;; Here's how to use the C implementation of vision.
-      (list 'c-vision-input (fp:state my-fode-state)
-                            (1- body-count) ;; object count
-                            sensor-count
-                            ;; We're going to treat the
-                            ;; agent-diameter as though it
-                            ;; is zero for vision
-                            ;; purposes.
-                            0 
+      (make-unified-procedure 
+       int 
+       vision-input-pointer
+       (list double 
+             int 
+             (list '*
+                   (make-c-vision-context
+                    (fp:state my-fode-state)
+                    (1- body-count) ;; object count
+                    sensor-count
+                    ;; We're going to treat the
+                    ;; agent-diameter as though it
+                    ;; is zero for vision
+                    ;; purposes.
+                    0 
                                         ;agent-diameter
-                            (/ object-diameter 2)
-                            max-sight-distance
-                            visual-angle
-                            max-sight-output
-                            (and draw? draw-vision-lines))
+                    (/ object-diameter 2)
+                    max-sight-distance
+                    visual-angle
+                    max-sight-output
+                    (and draw? draw-vision-lines))) 
+             (list '* %null-pointer)))
+      
       
       (let ((scheme-vision (make-vision-input (fp:state my-fode-state)
                                                          (1- body-count) ;; object count
@@ -576,7 +587,7 @@
         (last-body-count body-count)
         (last-IC choose-initial-conditions)
         (fitnesses '()))
-    (set! body-count 2)
+    #;(set! body-count 2)
     (do ((i 1 (1+ i)))
         ((> i trials))
       (set! choose-initial-conditions (list-ref initial-conditions (1- i)))
