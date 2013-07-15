@@ -34,7 +34,9 @@
  
 (define (gen-count-for-IC IC)
   (let ((gens '()))
-   (dotimes trials (cons! (generation-count-to-do (list IC) max-generations) gens))
+   (dotimes trials (cons! 
+                    (generation-count-to-do (list IC) max-generations '()) 
+                    gens))
    (mean (map car gens))))
 
 (define gens (map gen-count-for-IC ICs))

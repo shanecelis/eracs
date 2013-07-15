@@ -154,7 +154,7 @@ seconds."
                       0.) 
                      #(0. 0. 0.))))
   (update-fake-state bp)
-  (sim-tick (bp:sim bp) h (step-count bp)))
+  (throw 'sim-tick (bp:sim bp) h (step-count bp)))
 
 (define-method (reset-physics (bp <bullet-physics>))
   (set-time! bp 0.)
@@ -226,7 +226,6 @@ seconds."
 
 (define object-vx (make-procedure-with-setter object-vx-ref object-vx-set!))
 (define object-vy (make-procedure-with-setter object-vy-ref object-vy-set!))
-
 
 (define eval-robot-render-speed 1)
 

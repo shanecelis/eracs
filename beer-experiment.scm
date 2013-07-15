@@ -18,7 +18,7 @@
  (mathematica-plot plot)
  (freeze-random)
  (mathematica)
-)
+ (ice-9 q))
 
 (define physics-class <fode-physics>)
 ;(define physics-class <bullet-physics>)
@@ -30,6 +30,28 @@
       (set! physics-class <bullet-physics-car>)
       (set! physics-class <fode-physics>))
   (reset-fode))
+
+(define (make-cycle list func)
+  (let ((i 0)
+        (v (list->vector list)))
+    (lambda* (#:optional (incr 1))
+             (format #t "BEFORE i = ~a~%" i)
+             (set! i (modulo (+ i incr) (vector-length v)))
+             (format #t "i = ~a~%" i)
+             (func (vector-ref v i)))))
+
+(define temp (make-cycle
+  (list <fode-physics> <bullet-physics-car>)
+  (lambda (x)
+    (set! physics-class x)
+    (reset-fode))))
+
+;; XXX There is a bug here because I can't get rid of temp.  The macro
+;; won't behave.  Adding new define-*s is tricky, maybe not worth the
+;; effort.
+(define-interactive cycle-physics
+  temp)
+
 
 (define ctrnn (make-n-ctrnn node-count))
 (define ctrnn-state (make-ctrnn-state ctrnn))
@@ -65,10 +87,25 @@
 (define (time->float time)
   (string->number (format #f "~a.~a" (time-second time) (time-nanosecond time))))
 
-(define (make-effector-func ctrnn-state)
+(define (make-effector-func-proc ctrnn-state)
   (lambda (t i)
     (let ((first-effector-index (1+ sensor-count)))
       (: ctrnn-state @ (first-effector-index + (i - 1))))))
+
+(define (make-effector-func-unified ctrnn-state)
+  (make-unified-procedure double 
+                          (lambda (t i . rest)
+                            (let ((first-effector-index (1+ sensor-count)))
+                              (: ctrnn-state @ (first-effector-index + (i - 1)))))
+                          (list double int '*)))
+
+(define (make-c-effector-func ctrnn-state)
+  (make-unified-procedure double 
+                          fode:c-ctrnn-effector
+                          (list double int '*)))
+
+(define make-effector-func make-effector-func-unified)
+;(define make-effector-func make-c-effector-func)
 
 (define (random-range low high)
   (if (> low high)
@@ -94,7 +131,7 @@
                 (set! (object-x ty i) (+ i -3.))
                 (set! (object-y ty 1) max-height))
               (range 1 (1- (object-count physics))))
-    ty))
+    physics))
 
 (let ((orig emacsy-mode-line))
   (set! emacsy-mode-line 
@@ -116,6 +153,34 @@
   (and (>= x (car list))
        (<= x (cadr list))))
 
+;; the initial conditions might be defined like this:
+;; generate-IC :: int -> alist
+;; gather-IC :: fode-params -> alist
+;; apply-IC :: (fode-params) -> 0
+
+(define (gather-IC params)
+  (let* ((n (object-count params))
+         (rs (map (lambda (i)
+                (vector (object-x params i)
+                        (object-y params i))) (iota n)))
+         (vs (map (lambda (i)
+                (vector (object-vx params i)
+                        (object-vy params i))) (iota n))))
+    `((position . ,rs)
+      (velocity . ,vs))))
+
+(define (apply-IC params alist)
+  (let ((n (object-count params))
+        (rs (assq-ref alist 'position))
+        (vs (assq-ref alist 'velocity)))
+    (if (not (= n (length rs)))
+        (throw 'wrong-object-count params alist))
+    (map (lambda (i r v)
+           (set! (object-x params i) (vector-ref rs 0))
+           (set! (object-y params i) (vector-ref rs 1))
+           (set! (object-vx params i) (vector-ref vs 0))
+           (set! (object-vy params i) (vector-ref vs 1))) 
+         (iota n) rs vs)))
 
 (define (beer-choose-initial-conditions fode-params fode-state)
   "This is how beer chooses his initial conditions for 1 or 2 objects."
@@ -124,7 +189,7 @@
         (n (object-count fode-params))
         #;(k  (fp:k-params fode-params)))
       ;; Set the heights to the same thing.
-    (format #t "choosing ICs~%")
+    ;;(format #t "choosing ICs~%")
     ;; object 1 yi
     (set! (object-y fode-params 1) max-height)
     ;; object 1 position
@@ -148,7 +213,7 @@
                   (* #;(: k @ 4) (object-vx fode-state 2)
                                   t1)))
              (v2y (apply random-range vertical-velocity-2))
-             (t2 (/ (: ty @ 6) v2y))
+             (t2 (/ #;(: ty @ 6) (object-y fode-state 2) v2y))
              (beta (* motor-constant alpha (abs (- t1 t2))))
              (x2 (random-range (- x1 beta) (+ beta x1)))
              (v2x (apply random-range horizontal-velocity))
@@ -230,18 +295,16 @@
                  (set! (object-x fode-state i) (* (1- i) position-difference))
                  (set! (object-y fode-state i) max-height)
                  (set! (object-vx k i) 0.)
-                 (set! (object-vy k i) (car vertical-velocity-1)))
+                 (set! (object-vy k i) (min -1. (+ (* (1- i) 2.) (cadr vertical-velocity-1)))))
                (range 1 (1- n))))))
 
 
 
 ;(define choose-initial-conditions (make-freeze-random beer-choose-initial-conditions))
-(define choose-initial-conditions (make-parametric-IC 30.))
+(define choose-initial-conditions (make-parametric-IC 50.))
 
 (define-interactive (change-IC)
   (set! choose-initial-conditions (make-freeze-random beer-choose-initial-conditions)))
-
-
 
 (define fode-state #f)
 
@@ -290,12 +353,12 @@
 (define-interactive (toggle-draw-display)
   (set! draw-display? (not draw-display?)))
 
-(define-key eracs-mode-map (kbd "d")   'toggle-draw-display)
+(define-key eracs-mode-map (kbd "d") 'toggle-draw-display)
 
 (define-interactive (toggle-pause-fode)
   (set! pause-fode? (not pause-fode?)))
 
-(define-key eracs-mode-map (kbd "p")   'toggle-pause-fode)
+(define-key eracs-mode-map (kbd "p") 'toggle-pause-fode)
 
 (define (fode-physics-tick)
   (let* ((scene (current-scene)) ;; This should be attached to the buffer.
@@ -502,23 +565,23 @@
   (set! fode-state (fix-physics fode))
   (choose-initial-conditions fode fode-state)
   (set! (input-func ctrnn) (make-current-vision-input))
-  (set! vision-line-actors #f)
-  )
+  (set! vision-line-actors #f))
 
 
 (define-interactive (randomize-brain)
   (randomize-genome! current-genome)
   (genome->ctrnn current-genome ctrnn)
   (set! (input-func ctrnn) (make-current-vision-input))
-  (randomize-ctrnn-state! ctrnn-state)
-  ;;(list-set! fode 2 (make-effector-func ctrnn-state))
-  )
+  (randomize-ctrnn-state! ctrnn-state))
+
+(define-interactive (reset-camera)
+  (set-parameter! 'camera-position (vector 0 (/ max-height 2) 300))
+  (set-parameter! 'camera-target (vector 0 (/ max-height 2) 0))
+  (set-parameter! 'camera-up #(0 1 0)))
 
 (add-hook! post-window-open-hook 
            (lambda ()
-             (set-parameter! 'camera-position (vector 0 (/ max-height 2) 300))
-             (set-parameter! 'camera-target (vector 0 (/ max-height 2) 0))
-             (set-parameter! 'camera-up #(0 1 0))
+             (reset-camera)
              (randomize-genome! current-genome)
              (reset-fode)) 
            #t)
@@ -547,9 +610,13 @@
 
 (define-fitness
   ((minimize "Distance to objects"))
-  (beer-selective-attention #:optional (genome current-genome))
+  (beer-selective-attention #:optional (genome current-genome)
+                            (initial-condition choose-initial-conditions))
   (let ((d (make-vector body-count #f))
         (fitness #f))
+    (define (begin-func fode-state)
+      (if initial-condition
+       (initial-condition fode-state fode-state)))
     ;; Set the agent body to a distance of zero.
     (define (step-func fode-state)
       (for-each 
@@ -573,36 +640,68 @@
     (vector-set! d 0 0.)
         
     (set! fitness (eval-beer-robot genome 
+                                   #:begin-fn begin-func
                                    #:step-fn step-func 
                                    #:end-fn end-func))
     (message "Fitness ~a." fitness)
     fitness))
 
-(define initial-conditions (list case-1-IC case-2-IC case-3-IC))
+;(define initial-conditions (list case-1-IC case-2-IC case-3-IC))
+
+(define initial-conditions (list choose-initial-conditions))
+
+(define-interactive (add-IC)
+  (cons! (make-freeze-random beer-choose-initial-conditions) initial-conditions))
 
 (define-fitness
-  ((minimize "Average distance to objects for different initial conditions."))
-  (beer-selective-attention-n #:optional (genome current-genome))
-  (let ((trials (length initial-conditions))
-        (last-body-count body-count)
-        (last-IC choose-initial-conditions)
-        (fitnesses '()))
-    #;(set! body-count 2)
+  ((minimize "the maximum distance to objects for a set of initial conditions."))
+  (beer-selective-attention-n 
+   #:optional 
+   (genome current-genome)
+   (my-initial-conditions initial-conditions))
+  
+  (let* ((initial-conditions (run-if-thunkable my-initial-conditions))
+         (trials (length initial-conditions))
+         (last-body-count body-count)
+         (fitnesses '()))
+    
     (do ((i 1 (1+ i)))
         ((> i trials))
-      (set! choose-initial-conditions (list-ref initial-conditions (1- i)))
-      (cons! (vector-ref (beer-selective-attention genome) 0) fitnesses))
-   (set! choose-initial-conditions last-IC)
+      (cons! (vector-ref (beer-selective-attention 
+                          genome
+                          (list-ref initial-conditions (1- i))) 
+                         0) fitnesses))
    (set! body-count last-body-count)
    (vector (apply max fitnesses))))
 
 (define init-ctrnn-state (make-ctrnn-state ctrnn))
 (randomize-ctrnn-state! init-ctrnn-state)
 
-
+(define*
+  (eval-beer-robot-render genome
+                          #:key 
+                          (step-fn identity)
+                          (begin-fn identity)
+                          (end-fn identity)
+                          (max-tick-count 2000))
+  (let* ((buffer (switch-to-buffer "*eval-robot*" <physics-buffer>))
+         (scene (scene buffer)))
+    (define (draw fode-state)
+      (when draw-display?
+          (draw-physics scene fode-state)
+          (if (q-empty? event-queue)
+             (block-yield)
+             (primitive-command-tick))))
+    (eval-beer-robot-headless genome
+                              #:step-fn (lambda (fode-state) 
+                                          (draw fode-state) 
+                                          (step-fn fode-state))
+                              #:begin-fn begin-fn
+                              #:end-fn end-fn
+                              #:max-tick-count max-tick-count)))
 
 (define*
-  (eval-beer-robot genome
+  (eval-beer-robot-headless genome
                    #:key 
                    (step-fn identity)
                    (begin-fn identity)
@@ -619,7 +718,7 @@
                                                   fode-state
                                                   ))
          (tick-count 0))
-    (choose-initial-conditions fode fode-state)
+    #;(choose-initial-conditions fode fode-state)
     ;(randomize-ctrnn-state! ctrnn-state)
     ;(vector-move-left! init-ctrnn-state 0 (vector-length init-ctrnn-state) ctrnn-state 0)
     (array-copy! init-ctrnn-state ctrnn-state)
@@ -641,6 +740,8 @@
     #;(format #t "step-count ~a~%"(step-count fode-state))
     (end-fn fode-state)))
 
+(define eval-beer-robot eval-beer-robot-headless)
+
 (define last-fitness-func #f) 
 (define last-results #f)
 
@@ -652,6 +753,37 @@
   (format #t "checking fitness ~a~%" fitness)
   (let ((distance (generalized-vector-ref fitness 0)))
     (<= distance successful-distance)))
+
+(define (any-individual-succeeded? generation results)
+  "Returns true if we haven't found a successful candidate.  Input is (rank genome objective)."
+  (format #t "Continue? ~a~%" generation)
+  (any (compose individual-succeeded? caddr) results))
+
+(define (scaffold-any-individual-succeeded? generation results)
+  (if (any-individual-succeeded? generation results)
+      (if (< (length initial-conditions) 4)
+          (begin
+            (add-IC)
+            (format #t "Succeeded. Adding next task. ~a~%" initial-conditions)
+            #f)
+          #t)
+      #f))
+
+(define (make-scaffold-any-individual-succeeded? tasks-count add-IC!)
+  (let ((added-count 0))
+   (lambda (generation results)
+     (if (any-individual-succeeded? generation results)
+         (if (< added-count tasks-count)
+             (begin
+               (add-IC!)
+               (incr! added-count)
+               (format #t "Succeeded. Adding next task. ~a~%" initial-conditions)
+               #f)
+             #t)
+         #f))))
+
+(define-interactive (beer-optimize)
+  (optimize beer-selective-attention-n 30 '() (compose not scaffold-any-individual-succeeded?)))
 
 (define-interactive
   (optimize 
@@ -670,15 +802,8 @@
     (read-from-string (read-from-minibuffer "Generation count: "
                                             ;:history* 'generation-count
                                             )))
-   (seed-population (list current-genome)))
-  
-  
-  (define (continue-searching? generation results)
-    "Returns true if we haven't found a successful candidate.  Input is (rank genome objective)."
-    (format #t "Continue? ~a~%" generation)
-    (not (any (compose individual-succeeded? caddr)  results))
-    #;(format #t "Continue? DONE~%")
-    )
+   (seed-population (list current-genome))
+   (continue-search? (compose not any-individual-succeeded?)))
   
   "Optimizes the given fitness function for a certain number of
 generations with a given seed population.  The results are a list
@@ -714,8 +839,9 @@ objective. Genome and fitness are #f64 arrays."
                    #:seed-population seed-population
                    #:generation-tick-func (lambda args
                                             (incr! generation-count)
-                                            (apply continue-searching? args))
-                   )))
+                                            (if continue-search?
+                                             (apply continue-search? args)
+                                             #t)))))
     ;; Get rid of any duplicate individuals.
     #;(set! results (uniq results))
     (set! last-fitness-func fitness-fn)
@@ -738,17 +864,28 @@ objective. Genome and fitness are #f64 arrays."
     #;(set! (controller (current-robot)) run-nn-brain)
     ))
 
+(define (run-if-thunkable x)
+  (if (thunk? x)
+      (x)
+      x))
 
-(define* (generation-count-to-do my-initial-conditions #:optional (max-generations #f))
+(define* (generation-count-to-do my-initial-conditions 
+                                 #:optional 
+                                 (max-generations #f) 
+                                 (seed-population '()) 
+                                 (continue-search? #f))
   "Determine the number of generations required to succeed at the
 given tasks."
-  (let ((fitness-fn beer-selective-attention-n)
-        (last initial-conditions))
-    (set! initial-conditions my-initial-conditions)
+  (define-fitness
+    ((minimize "distance from origin"))
+    (fitness-fn genome)
+    (beer-selective-attention-n genome my-initial-conditions))
+  (let ()
     (receive (results gen-count eval-count) (optimize 
                                              fitness-fn
-                                             max-generations)
-      (set! initial-conditions last)
+                                             max-generations
+                                             seed-population
+                                             continue-search?)
       (list gen-count eval-count))))
 
 (define (mean lst)

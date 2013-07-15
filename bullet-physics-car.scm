@@ -109,4 +109,4 @@ seconds."
         (for-each (lambda (motor) (actuate-angular-motor motor
                                           (- (* velocity-constant e2)))) (list motor2 motor4))))
   (update-fake-state bp)
-  (sim-tick (bp:sim bp) h))
+  (sim-tick (bp:sim bp) h (step-count bp)))

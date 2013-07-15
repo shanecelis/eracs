@@ -63,6 +63,9 @@
 (define-method (get-time (fp <fode-physics>))
   (fode:fode-time (fp:state fp)))
 
+(define-method (set-time! (fp <fode-physics>) t)
+  (fode:fode-time-set! (fp:state fp) t))
+
 (define-method (draw-physics scene (fp <fode-physics>))
   (for-each (lambda (actor) (remove-actor scene actor)) (fp:scene-actors fp))
   (set! (fp:scene-actors fp) '())

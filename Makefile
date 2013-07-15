@@ -110,6 +110,7 @@ NOTANGLE = $(TOP)/bin/mynotangle $@
 all: 
 	make -C emacsy
 	make -C ctrnn
+	make -C libguile-mathematica
 	$(MAKE) source
 	$(MAKE) $(LIBS)
 	$(MAKE) $(TARGET)
