@@ -71,8 +71,21 @@
 (restore-signals)
 ;(load "quadruped-experiment.scm")
 
+(use-modules (experiment)
+             (experiment-buffer)
+             (experiment-gen-count-vs-select-attn)
+             (oop goops)
+             (oop goops save)
+             )
+<gen-count-vs-select-attn-trial>
 (load "beer-parameters.scm") 
-(load "bullet-physics.scm") ; XXX rename to bullet-physics.scm
+(load "bullet-physics.scm")
 (load "bullet-physics-car.scm")
 (load "fode-physics.scm")
 (load "beer-experiment.scm")
+
+;(load-experiment "experiment-max-speed-1.dat")
+;(my-load-file "experiment-max-speed-1.dat")
+;(load "experiment-max-speed-1.dat")
+;<gen-count-vs-select-attn-dummy>
+;(primitive-load "experiment-max-speed-1.dat")

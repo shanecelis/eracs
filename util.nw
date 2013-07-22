@@ -26,12 +26,17 @@ SCM scm_c_string_to_symbol(const char *);
 \subsection{Scheme}
 
 <<file:util.scm>>=
+(use-modules (system repl error-handling))
 <<util:procedure>>
 @
 
 <<util:procedure>>=
 (define-public (my-load-file filename)
-  (with-backtrace* (lambda () (load filename)) '(quit)))
+  #;(with-backtrace* (lambda () (load filename)) '(quit))
+  (call-with-error-handling (lambda () 
+    (format #t "~a" (current-module))
+    (load filename)))
+)
 @ 
 
 <<util:procedure>>=

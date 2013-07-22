@@ -1,3 +1,15 @@
+* TODO
+  - Need to identify the runs that succeeded over those that failed.
+  - [ ] need to replay the experimental results reliably (can't we use these stupid buffers already?)
+    like get an <experiment-buffer> or something?
+  - [ ] Need to capture total wall-clock time, number of evaluations
+  - [ ] Need to do the matrix thing.
+  - [X] Need to compose these experiments into multiple trials
+  - [X] Need to save these experimental results into something, maybe redis?  Or just to a file!
+  - [X] Can't use C for CTRNN effector because the CTRNN state isn't
+    available to plugin.  Fixed with bytevector->pointer BAM!
+  - [X] The current generation of beer parameters can create unwinnable conditions. Fix it.
+
 * TODO What parameters are required NSGA-II?
   - pop size (multiples of 4)
   - # of generations

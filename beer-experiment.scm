@@ -18,7 +18,12 @@
  (mathematica-plot plot)
  (freeze-random)
  (mathematica)
- (ice-9 q))
+ (ice-9 q)
+ (ice-9 match)
+ (emacsy emacsy)
+ (emacsy core)
+ (oop goops)
+ )
 
 (define physics-class <fode-physics>)
 ;(define physics-class <bullet-physics>)
@@ -88,7 +93,7 @@
   (string->number (format #f "~a.~a" (time-second time) (time-nanosecond time))))
 
 (define (make-effector-func-proc ctrnn-state)
-  (lambda (t i)
+  (lambda (t i . rest)
     (let ((first-effector-index (1+ sensor-count)))
       (: ctrnn-state @ (first-effector-index + (i - 1))))))
 
@@ -102,10 +107,23 @@
 (define (make-c-effector-func ctrnn-state)
   (make-unified-procedure double 
                           fode:c-ctrnn-effector
-                          (list double int '*)))
+                          (list double int (list '* (bytevector->pointer ctrnn-state)))))
 
-(define make-effector-func make-effector-func-unified)
-;(define make-effector-func make-c-effector-func)
+(define* (time-to-arrival pos vel #:optional (y1 0.))
+  "Return the amount of time until an object at #(x0 y0) with velocity #(vx vy) arrives at y1."
+  (let* ((y0 (: pos @ 1))
+         (vy (: vel @ 1))
+         (t (if (= vy 0.)
+                0.
+                (/ (- y1 y0) vy)))
+         (x0 (: pos @ 0))
+         (vx (: vel @ 0))
+         (x1 (+ x0 (* vx t))))
+    (list t x1)))
+
+
+;(define make-effector-func make-effector-func-unified)
+(define make-effector-func make-c-effector-func)
 
 (define (random-range low high)
   (if (> low high)
@@ -133,7 +151,22 @@
               (range 1 (1- (object-count physics))))
     physics))
 
-(let ((orig emacsy-mode-line))
+;; XXX huh, have to be careful about when define-method-public is
+;; called; here using it instead of define-method break it.
+(define-method (emacsy-mode-line (buffer <physics-buffer>))
+  (if fode-state
+      (format #f "~a sim-time ~1,1f agent (~1,1f, ~1,1f)~{ object (~1,1f, ~1,1f)~}"
+              (next-method)
+              (get-time fode-state)
+              (object-x fode-state 0)
+              (object-y fode-state 0)
+              (append-map (lambda (i)
+                            (list (object-x fode-state i)
+                                  (object-y fode-state i)))
+                          (range 1 (1- body-count))))
+      (next-method)))
+
+#;(let ((orig emacsy-mode-line))
   (set! emacsy-mode-line 
         (lambda ()
         (with-buffer (recent-buffer)
@@ -156,31 +189,83 @@
 ;; the initial conditions might be defined like this:
 ;; generate-IC :: int -> alist
 ;; gather-IC :: fode-params -> alist
-;; apply-IC :: (fode-params) -> 0
+;; apply-IC! :: (alist, fode-params) -> undefined
 
-(define (gather-IC params)
-  (let* ((n (object-count params))
+
+(define* (generate-IC #:optional (object-count body-count))
+  (let ((rs (map
+             (lambda (i)
+               (vector (apply random-range horizontal-position)
+                       max-height)) 
+             (range 0 (- object-count 2))))
+        (vs (map
+             (lambda (i)
+               (vector 
+                (apply random-range horizontal-velocity)
+                (apply random-range (if (odd? i) 
+                                        vertical-velocity-1
+                                        vertical-velocity-2))))
+             (range 0 (- object-count 2)))))
+    `((position . ,(cons #(0 0) rs))
+      (velocity . ,(cons #(0 0) vs)))))
+
+(define* (generate-catchable-IC #:optional 
+                                (object-count body-count)
+                                (max-speed motor-constant)
+                                (max-tries 100))
+  (let ((params (generate-IC object-count))
+        (tries 0))
+    (while (not (can-catch-objects? params max-speed))
+      (if (> tries max-tries)
+          (throw 'too-many-tries-for-generate-catchable-IC object-count max-speed max-tries))
+      (set! params (generate-IC object-count))
+      (incr! tries))
+    params))
+
+(define (speeds-to-catch-objects params)
+  "Return the speeds required to catch all the objects."
+  (let* ((rs (assq-ref params 'position))
+         (vs (assq-ref params 'velocity))
+         
+         (t-x1s (map time-to-arrival rs vs))
+         (speeds #f))
+    
+    (set! t-x1s (sort! t-x1s (lambda (a b) (< (car a) (car b)))))
+    (set! speeds (map
+                  (match-lambda*
+                   (((t1 x1) (t2 x2))
+                    (/ (- x2 x1) (- t2 t1))))
+                  t-x1s (cdr t-x1s)))
+    (map abs speeds)))
+
+(define* (can-catch-objects? params #:optional (max-speed (- motor-constant 1.)))
+  (< (apply max (speeds-to-catch-objects params)) max-speed))
+
+(define (gather-IC fode-params)
+  (let* ((n (object-count fode-params))
          (rs (map (lambda (i)
-                (vector (object-x params i)
-                        (object-y params i))) (iota n)))
+                (vector (object-x fode-params i)
+                        (object-y fode-params i))) (iota n)))
          (vs (map (lambda (i)
-                (vector (object-vx params i)
-                        (object-vy params i))) (iota n))))
+                (vector (object-vx fode-params i)
+                        (object-vy fode-params i))) (iota n))))
     `((position . ,rs)
       (velocity . ,vs))))
 
-(define (apply-IC params alist)
-  (let ((n (object-count params))
-        (rs (assq-ref alist 'position))
-        (vs (assq-ref alist 'velocity)))
-    (if (not (= n (length rs)))
-        (throw 'wrong-object-count params alist))
-    (map (lambda (i r v)
-           (set! (object-x params i) (vector-ref rs 0))
-           (set! (object-y params i) (vector-ref rs 1))
-           (set! (object-vx params i) (vector-ref vs 0))
-           (set! (object-vy params i) (vector-ref vs 1))) 
-         (iota n) rs vs)))
+(define (make-apply-IC alist)
+  (lambda (fode-params . rest)
+   (let ((n (object-count fode-params))
+         (rs (assq-ref alist 'position))
+         (vs (assq-ref alist 'velocity)))
+     (if (not (= n (length rs)))
+         (throw 'wrong-object-count fode-params alist))
+     (map (lambda (i r v)
+            (unless (= i 0)
+              (set! (object-x fode-params i) (vector-ref r 0))
+              (set! (object-y fode-params i) (vector-ref r 1))
+              (set! (object-vx fode-params i) (vector-ref v 0))
+              (set! (object-vy fode-params i) (vector-ref v 1)))) 
+          (iota n) rs vs))))
 
 (define (beer-choose-initial-conditions fode-params fode-state)
   "This is how beer chooses his initial conditions for 1 or 2 objects."
@@ -297,8 +382,6 @@
                  (set! (object-vx k i) 0.)
                  (set! (object-vy k i) (min -1. (+ (* (1- i) 2.) (cadr vertical-velocity-1)))))
                (range 1 (1- n))))))
-
-
 
 ;(define choose-initial-conditions (make-freeze-random beer-choose-initial-conditions))
 (define choose-initial-conditions (make-parametric-IC 50.))
@@ -750,7 +833,7 @@
 
 (define (individual-succeeded? fitness)
   "Did the individual come in contact with the object."
-  (format #t "checking fitness ~a~%" fitness)
+  #;(format #t "checking fitness ~a~%" fitness)
   (let ((distance (generalized-vector-ref fitness 0)))
     (<= distance successful-distance)))
 
@@ -775,12 +858,15 @@
      (if (any-individual-succeeded? generation results)
          (if (< added-count tasks-count)
              (begin
-               (add-IC!)
+               (add-IC! generation)
                (incr! added-count)
-               (format #t "Succeeded. Adding next task. ~a~%" initial-conditions)
-               #f)
-             #t)
-         #f))))
+               (format #t "Succeeded. Adding task ~a/~a.~%" added-count tasks-count)
+               #f ;; Continue searching.
+               )
+             #t ;; Stop searching.
+             )
+         #f ;; Continue searching.
+         ))))
 
 (define-interactive (beer-optimize)
   (optimize beer-selective-attention-n 30 '() (compose not scaffold-any-individual-succeeded?)))
@@ -864,6 +950,14 @@ objective. Genome and fitness are #f64 arrays."
     #;(set! (controller (current-robot)) run-nn-brain)
     ))
 
+#;(define-interactive (secondary-optimize)
+  (let ((results
+         (nsga-ii-search
+          
+          )
+         )))
+  )
+
 (define (run-if-thunkable x)
   (if (thunk? x)
       (x)
@@ -887,6 +981,25 @@ given tasks."
                                              seed-population
                                              continue-search?)
       (list gen-count eval-count))))
+
+(define* (generation-count-to-do2 my-initial-conditions 
+                                 #:optional 
+                                 (max-generations #f) 
+                                 (seed-population '()) 
+                                 (continue-search? #f))
+  "Determine the number of generations required to succeed at the
+given tasks."
+  (define-fitness
+    ((minimize "distance from origin"))
+    (fitness-fn genome)
+    (beer-selective-attention-n genome my-initial-conditions))
+  (let ()
+    (receive (results gen-count eval-count) (optimize 
+                                             fitness-fn
+                                             max-generations
+                                             seed-population
+                                             continue-search?)
+      (list results gen-count eval-count))))
 
 (define (mean lst)
   (exact->inexact (/ (apply + lst) (length lst))))

@@ -4,6 +4,7 @@ export ERACS_HOME=/Users/shane/School/uvm/CSYS-395-evolutionary-robotics/noweb-e
 export DYLD_FALLBACK_LIBRARY_PATH=$ERACS_HOME/ctrnn/src/minimal-cognition/.libs:/opt/local/lib:/usr/local/lib:$ERACS_HOME/libguile-mathematica/src/.libs:
 
 export GUILE_LOAD_PATH=.:$ERACS_HOME/emacsy/src:$ERACS_HOME/ctrnn/src/:$ERACS_HOME/libguile-mathematica/src:
+export GUILE_LOAD_COMPILED_PATH=.:$ERACS_HOME/emacsy/src:$ERACS_HOME/ctrnn/src/:$ERACS_HOME/libguile-mathematica/src:
 
 export PATH=.:`pwd`/bin:$PATH
 export MYLOG_FILE=`pwd`/mylog.txt

@@ -9,7 +9,7 @@
 ;(define body-count 2)
 (define agent-diameter 30)
 (define object-diameter 26)
-(define motor-constant 5)
+(define motor-constant 5.0)
 (define max-sight-distance 205)
 (define visual-angle (/ pi 6))
 (define max-sight-output 10)

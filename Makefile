@@ -205,10 +205,10 @@ osc.o: osc.c.x
 libguile-osc.dylib: osc.o
 	$(CC) -g $(GUILE_CFLAGS) $(GUILE_LDFLAGS) $(LDFLAGS) -shared -o $@ -fPIC $^
 
-# test: eracs $(SRCS) $(TESTS) $(LIBS)
-# 	for test in $(TESTS); do \
-# 		 ./eracs -l $$test || exit 1; \
-# 	done
+test: eracs $(SRCS) $(TESTS) $(LIBS)
+	for test in $(TESTS); do \
+	 ./eracs -l $$test || exit 1; \
+	done
 
 check: eracs $(SRCS) $(TESTS) $(LIBS) $(TESTS_OUT)
 

@@ -202,7 +202,8 @@ seconds."
 (define-method (agent-motor-constant-ref (bp <bullet-physics>))
   (slot-ref bp 'force-constant))
 
-(define velocity-factor 6.)
+;; XXX fudge factor
+(define velocity-factor 1.)
 (define (to-velocity v)
   (* velocity-factor v))
 

@@ -11,6 +11,10 @@ the following assumptions: real valued genes only, no constraints.
 #include "rand.h"
 #include "logging.h"
 #include "util.h"
+#include "math.h"
+
+// Turn off numerous warnings caused by Guile's headers.  No big deal.
+//#pragma GCC diagnostic ignored "-Wnull-dereference"
 
 <<Macro>>
 
@@ -25,7 +29,7 @@ the following assumptions: real valued genes only, no constraints.
 void init_nsga2()
 {
   scm_c_define_gsubr("primitive-nsga-ii-search", 
-                     9, 0, 0, 
+                     10, 0, 0, 
                      primitive_nsga_ii_search); 
 }
 @
@@ -43,7 +47,10 @@ Scheme code, which is a lot easier.
                                 (random-seed #f)
                                 (seed-individual #f)
                                 (seed-population #f)
-                                (generation-tick-func #f))
+                                (generation-tick-func #f)
+                                (bin-count 0)
+                                (bit-count 1)
+                                )
   (primitive-nsga-ii-search fitness-function 
                             objective-count 
                             gene-count 
@@ -52,7 +59,9 @@ Scheme code, which is a lot easier.
                             random-seed
                             seed-individual
                             seed-population
-                            generation-tick-func))
+                            generation-tick-func
+                            (list bin-count
+                                  bit-count)))
 @ 
 
 <<test>>=
@@ -87,6 +96,17 @@ Let's minimize for $x^2$.
   (check (cdr result) (=> vector=?) #(0.0)))
 @ 
 
+<<test>>=
+(let ((result  (car (nsga-ii-search (lambda (x) (vector (bit-count #f (vector-ref x 0))))
+                                #:random-seed 0.1 
+                                #:gene-count 0
+                                #:bin-count 1
+                                #:bit-count 5
+                                #:generation-count 100))))
+  (check (car result) => #b11111))
+
+@ 
+
 
 The primitive procedure has no optional arguments.  The code is
 derived from the NSGA-II code in [[nsga2r.c]].
@@ -101,7 +121,8 @@ SCM primitive_nsga_ii_search(
   SCM random_seed,
   SCM seed_individual,
   SCM seed_population,
-  SCM generation_tick_func
+  SCM generation_tick_func,
+  SCM last_args
 )
 {
   int i;
@@ -109,13 +130,15 @@ SCM primitive_nsga_ii_search(
   population *child_pop;
   population *mixed_pop;
 
+  SCM bin_count;
+  SCM bit_count;
+  bin_count = scm_car(last_args);
+  last_args = scm_cdr(last_args);
+  bit_count = scm_car(last_args);
+  last_args = scm_cdr(last_args);
+
   <<Setup search parameters.>>
   fitness_procedure = fitness_function;
-  bitlength = 0;
-  nbinmut = 0;
-  nrealmut = 0;
-  nbincross = 0;
-  nrealcross = 0;
 
   parent_pop = (population *)malloc(sizeof(population));
   child_pop  = (population *)malloc(sizeof(population));
@@ -152,16 +175,21 @@ SCM primitive_nsga_ii_search(
     //report_pop(parent_pop,fpt4);
     //fflush(fpt4);
     //printf("\n gen = %d",i);
-    scm_gc();
+    //scm_gc();
   }
 
 no_loop:
-  ; /* workaround for Guile bug, I believe. */
+  ; /* Goto label must come before a statement not a declaration. */
   SCM results = scm_report_feasible(parent_pop);
   if (nreal!=0) {
     free (min_realvar);
     free (max_realvar);
   }
+
+  if (nbin != 0) {
+    free (min_binvar);
+    free (max_binvar);
+  } 
   deallocate_memory_pop (parent_pop, popsize);
   deallocate_memory_pop (child_pop, popsize);
   deallocate_memory_pop (mixed_pop, 2*popsize);
@@ -174,7 +202,7 @@ no_loop:
 
 <<Call generation tick.>>=
 if (! scm_is_false(generation_tick_func)) {
-  continue_p = scm_call_2(generation_tick_func, scm_from_int(i), scm_report(parent_pop));
+  continue_p = scm_call_2(generation_tick_func, scm_from_int(i), scm_report_aliased(parent_pop));
 }
 @ 
 
@@ -236,7 +264,12 @@ void test_problem (double *xreal,
                    double *constr)
 {
   SCM genome, objectives;
-  genome = scm_c_array_to_vector(nreal, xreal);
+  //SCM binary_genome = SCM_BOOL_F;
+  // Nobody should keep references to these arrays, so we can do it without copying.
+  if (nreal != 0)
+    genome = scm_c_array_to_aliased_f64_vector(nreal, xreal);
+  if (nbin != 0)
+    genome = scm_c_array_to_bitvector(nbin, gene);
   objectives = scm_call_1(fitness_procedure, genome);
   scm_c_vector_to_array(objectives, nobj, obj);
 }
@@ -268,6 +301,53 @@ SCM scm_c_array_to_f64_vector(int count, double* array)
   return v;
 }
 @ 
+
+The [[scm_c_array_to_aliased_f64_vector]] function returns an aliased
+array.  It's much faster, but it means that the vector will be
+writeable, and that the vector's memory is backed by the given array.
+So be careful not to keep a hold of it.
+
+<<Helper Function>>=
+SCM scm_c_array_to_aliased_f64_vector(int count, double* array) 
+{
+  return scm_pointer_to_bytevector(scm_from_pointer(array, NULL), scm_from_int(count), scm_from_int(0), C_STRING_TO_SYMBOL("f64"));
+}
+@ 
+
+<<Helper Function>>=
+SCM scm_c_array_to_s32_vector(int count, int* array) 
+{
+  int i;
+  SCM v = scm_make_typed_array(C_STRING_TO_SYMBOL("s32"), SCM_UNSPECIFIED, scm_list_1(scm_from_int(count)));
+  for (i = 0; i < count; i++) 
+    scm_array_set_x(v, scm_from_int(array[i]), scm_list_1(scm_from_int(i)));
+  return v;
+}
+@ 
+
+<<Helper Function>>=
+SCM scm_c_int_to_bitvector(int bit_count, int* bits) 
+{
+  int i;
+  SCM v = scm_c_make_bitvector(bit_count, SCM_BOOL_F);
+  for (i = 0; i < bit_count; i++) 
+    if (bits[i]) 
+      scm_c_bitvector_set_x(v, i, SCM_BOOL_T);
+  return v;
+}
+@ 
+
+<<Helper Function>>=
+SCM scm_c_array_to_bitvector(int count, int** array) 
+{
+  int i;
+  SCM v = scm_c_make_vector(count, SCM_UNSPECIFIED);
+  for (i = 0; i < count; i++) 
+    scm_c_vector_set_x(v, i, scm_c_int_to_bitvector(nbits[i], array[i]));
+  return v;
+}
+@ 
+
 
 
 <<Helper Function>>=
@@ -318,7 +398,23 @@ SCM fitness_procedure;
   // XXX Find out!
   eta_c = 5;
   eta_m = 5;
-  nbin = 0;
+  nbin = scm_to_int(bin_count);
+  if (nbin != 0 && nreal != 0) {
+    // We're only going to allow real or binary genes not both.
+    scm_throw(scm_c_string_to_symbol("must-use-bin-or-real"), scm_list_2(gene_count, bin_count));
+  }
+  nbits = (int *)malloc(nbin*sizeof(int));
+  
+  min_binvar = (double *)malloc(nbin*sizeof(double));
+  max_binvar = (double *)malloc(nbin*sizeof(double));
+  // We're making the values uniform for now.
+  for (i = 0; i < nbin; i++) {
+    nbits[i] = scm_to_int(bit_count); 
+    min_binvar[i] = 0.;
+    max_binvar[i] = pow(2., (double) nbits[i]) - 1.;
+  }
+  pcross_bin = 0.6;
+  pmut_bin = 1.0/((double)nbits[0]);
   choice = 0;
 @ 
 
@@ -372,7 +468,10 @@ SCM scm_report_feasible(population *pop)
       SCM genome;
       // XXX Switch these to uniform vectors
       objective = scm_c_array_to_vector(nobj,  pop->ind[i].obj);
-      genome    = scm_c_array_to_f64_vector(nreal, pop->ind[i].xreal);
+      if (nreal != 0)
+        genome = scm_c_array_to_aliased_f64_vector(nreal, pop->ind[i].xreal);
+      if (nbin != 0)
+        genome = scm_c_array_to_bitvector(nbin, pop->ind[i].gene);
       // Add it to the list.
       list = scm_cons(scm_cons(genome, objective), list);
     }
@@ -404,6 +503,31 @@ SCM scm_report(population *pop)
 }
 @ 
 
+When checking whether to continue the generations, we use aliased
+vectors that should not be stored.
+
+<<Helper Function>>=
+SCM scm_report_aliased(population *pop)
+{
+  SCM list = SCM_EOL;
+  int i, j, k;
+  for (i = 0; i < popsize; i++) {
+    if (1
+      //pop->ind[i].constr_violation == 0.0 
+    //&& pop->ind[i].rank == 1
+    ) {
+      SCM objective;
+      SCM genome;
+      objective = scm_c_array_to_aliased_f64_vector(nobj,  pop->ind[i].obj);
+      genome    = scm_c_array_to_aliased_f64_vector(nreal, pop->ind[i].xreal);
+      // Add it to the list.
+      list = scm_cons(scm_list_3(scm_from_int(pop->ind[i].rank), genome, objective), list);
+    }
+  }
+  return list;
+}
+@ 
+
 
 Let's write a module file that'll automatically load this shared
 library.
@@ -411,7 +535,7 @@ library.
 (define-module (nsga2)
  #:use-module (ice-9 optargs))
 
-(load-extension "./libguile-nsga2.dylib" "init_nsga2")
+(load-extension "libguile-nsga2" "init_nsga2")
 <<Procedure>>
 
 (export nsga-ii-search)
