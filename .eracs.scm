@@ -48,7 +48,7 @@
 (set! %load-hook (lambda (filename)
                    (mylog "load" pri-debug "Loading ~a .." filename)))
 (define profile? #f)
-(define spawn-threads? #t)
+(define spawn-threads? #f)
 
 (define (stop-profiling)
     (statprof-stop)

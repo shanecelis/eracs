@@ -120,6 +120,12 @@
          (s (std results)))
     (set! (exp:results exp) (list m s))
     #;(format #t "points ~a~%" (append-map! exp->points exps))
+    (call-with-output-file "generation.m" 
+      (lambda (port) 
+        (format port "~a" (sexp->mathematica (map exp->points exps)))))
+    (call-with-output-file "time.m" 
+      (lambda (port) 
+        (format port "~a" (sexp->mathematica (map exp-time->points exps)))))
     (line-plot (map exp->points exps) #:joined #t #:axes-label '("task number" "mean generation"))
     (line-plot (map exp-time->points exps) #:joined #t #:axes-label '("task number" "mean time"))
     

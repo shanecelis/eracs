@@ -110,7 +110,7 @@ NOTANGLE = $(TOP)/bin/mynotangle $@
 all: 
 	make -C emacsy
 	make -C ctrnn
-	make -C libguile-mathematica
+	make -C guile-mathematica
 	$(MAKE) source
 	$(MAKE) $(LIBS)
 	$(MAKE) $(TARGET)
@@ -223,8 +223,6 @@ linear-spline.scm: linear-spline.nw
 linear-spline.paper.pdf: linear-spline.tex
 
 osc.paper.pdf: osc.tex
-
-ctrnn.paper.pdf: ctrnn.tex
 
 debug: eracs
 	gdb --args ./eracs
