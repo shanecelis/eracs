@@ -41,7 +41,8 @@
 (set! emacsy-log-debug (lambda (format-msg . args)
                     (apply mylog "emacsy" pri-debug  format-msg args)))
 
-
+(set! *random-state* (random-state-from-platform))
+(set! debug-on-error? #f)
 ; (use-modules (system vm trace))
 ; (trace-calls-to-procedure make-stack)
 (set! %load-hook (lambda (filename)
@@ -83,6 +84,12 @@
 (load "bullet-physics-car.scm")
 (load "fode-physics.scm")
 (load "beer-experiment.scm")
+
+(add-hook! post-window-open-hook 
+           (lambda ()
+             (load-experiment "bullet-7.dat")
+             ) 
+           #t)
 
 ;(load-experiment "experiment-max-speed-1.dat")
 ;(my-load-file "experiment-max-speed-1.dat")

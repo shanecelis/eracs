@@ -212,7 +212,7 @@
 (define* (generate-catchable-IC #:optional 
                                 (object-count body-count)
                                 (max-speed motor-constant)
-                                (max-tries 100))
+                                (max-tries 10000))
   (let ((params (generate-IC object-count))
         (tries 0))
     (while (not (can-catch-objects? params max-speed))
@@ -382,6 +382,20 @@
                  (set! (object-vx k i) 0.)
                  (set! (object-vy k i) (min -1. (+ (* (1- i) 2.) (cadr vertical-velocity-1)))))
                (range 1 (1- n))))))
+
+(define* (make-parametric-IC* position-difference #:optional (object-count body-count))
+  (let ((rs (map (lambda (i)
+                   (vector (* i position-difference)
+                           max-height))
+                 (iota (1- object-count))))
+        (vs (map (lambda (i)
+                (vector 0. 
+                        (min -1. (+ (* i 2.) (cadr vertical-velocity-1)))))
+              (iota (1- object-count)))))
+    `((position . ,(cons #(0 0) rs))
+      (velocity . ,(cons #(0 0) vs)))))
+
+
 
 ;(define choose-initial-conditions (make-freeze-random beer-choose-initial-conditions))
 (define choose-initial-conditions (make-parametric-IC 50.))
@@ -755,10 +769,14 @@
                           (list-ref initial-conditions (1- i))) 
                          0) fitnesses))
    (set! body-count last-body-count)
-   (vector (apply max fitnesses))))
+   (let ((total-fitness (vector (apply max fitnesses))))
+     (message "Aggregate/Max fitness ~a." total-fitness)
+     total-fitness
+     )))
 
 (define init-ctrnn-state (make-ctrnn-state ctrnn))
-(randomize-ctrnn-state! init-ctrnn-state)
+;; XXX Let's not randomize just yet.
+;(randomize-ctrnn-state! init-ctrnn-state)
 
 (define*
   (eval-beer-robot-render genome
@@ -833,7 +851,7 @@
 
 (define (individual-succeeded? fitness)
   "Did the individual come in contact with the object."
-  #;(format #t "checking fitness ~a~%" fitness)
+  (format #t "checking fitness ~a~%" fitness)
   (let ((distance (generalized-vector-ref fitness 0)))
     (<= distance successful-distance)))
 
@@ -866,6 +884,22 @@
              #t ;; Stop searching.
              )
          #f ;; Continue searching.
+         ))))
+
+(define (make-scaffold-any-individual-not-succeeded? tasks-count add-IC!)
+  (let ((added-count 0))
+   (lambda (generation results)
+     (if (any-individual-succeeded? generation results)
+         (if (< added-count tasks-count)
+             (begin
+               (add-IC! generation)
+               (incr! added-count)
+               (format #t "Succeeded. Adding task ~a/~a.~%" added-count tasks-count)
+               'fitness-changed ;; Continue searching.
+               )
+             #f ;; Stop searching.
+             )
+         #t ;; Continue searching.
          ))))
 
 (define-interactive (beer-optimize)
@@ -994,6 +1028,7 @@ given tasks."
     (fitness-fn genome)
     (beer-selective-attention-n genome my-initial-conditions))
   (let ()
+    ;; results are ((genome . objective-value) ... )
     (receive (results gen-count eval-count) (optimize 
                                              fitness-fn
                                              max-generations

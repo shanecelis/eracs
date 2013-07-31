@@ -1,0 +1,2 @@
+#!./eracs -b -s ./run-experiment.scm
+!#

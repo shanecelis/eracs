@@ -156,10 +156,16 @@ SCM primitive_nsga_ii_search(
   evaluate_pop (parent_pop);
   assign_rank_and_crowding_distance (parent_pop);
   SCM continue_p = SCM_BOOL_T;
+  SCM fitness_changed_p = SCM_BOOL_F;
   <<Call generation tick.>>
   if (scm_is_false(continue_p))
     goto no_loop;
   for (i = 2; i <= ngen; i++) {
+    if (scm_is_true(fitness_changed_p)) {
+      mylog("nsga2", PRI_INFO, "fitness function changed BEGIN re-evaluating parent population.");
+      evaluate_pop(parent_pop);
+      mylog("nsga2", PRI_INFO, "fitness function changed END re-evaluating parent population.");
+    }
     selection (parent_pop, child_pop);
     mylog("nsga2", PRI_TRACE, "start of generation %d", i);
     mutation_pop (child_pop);
@@ -203,6 +209,7 @@ no_loop:
 <<Call generation tick.>>=
 if (! scm_is_false(generation_tick_func)) {
   continue_p = scm_call_2(generation_tick_func, scm_from_int(i), scm_report_aliased(parent_pop));
+  fitness_changed_p = scm_eq_p(continue_p, C_STRING_TO_SYMBOL("fitness-changed"));
 }
 @ 
 

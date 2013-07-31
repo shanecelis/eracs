@@ -9,6 +9,10 @@
             <gen-count-vs-select-attn>
 
             <gen-count-vs-select-attn-dummy>
+            <gen-count-vs-select-attn-trial-easier>
+            get-ICs
+            get-genomes
+            exp:physics-class
             exp:task-count))
 
 (eval-when (compile load eval)
@@ -26,16 +30,40 @@
 
 (define-class <gen-count-vs-select-attn-dummy> (<gen-count-vs-select-attn-trial>))
 
+(define-class <gen-count-vs-select-attn-trial-easier> (<gen-count-vs-select-attn-trial>))
+
 (define-method (initialize (exp <gen-count-vs-select-attn-trial>) initargs)
   (next-method)
   (set! (exp:task-done-at-gen exp)  (make-vector (exp:task-count exp) #f))
   (set! (exp:task-done-at-time exp) (make-vector (exp:task-count exp) #f)))
 
 (define-method (generate-parameters! (exp <gen-count-vs-select-attn-trial>))
+  (define (max-speed x)
+    (apply max (speeds-to-catch-objects x)))
   (set! (exp:parameters exp)
         (map (lambda (i) 
                (generate-catchable-IC body-count (exp:max-speed exp)))
+             (iota (exp:task-count exp))))
+  ;; Sort so that the easiest come first.
+  (format #t "Original speeds: ~a~%" (map max-speed (exp:parameters exp)))
+  (set! (exp:parameters exp)
+        (sort! (exp:parameters exp) (lambda (a b)
+                                      (< (max-speed a) (max-speed b)))))
+  (format #t "Sorted speeds: ~a~%" (map max-speed (exp:parameters exp))))
+
+(define-method (generate-parameters! (exp <gen-count-vs-select-attn-trial-easier>))
+  (set! (exp:parameters exp)
+        (map (lambda (i) 
+               (make-parametric-IC* (* 30. i) body-count))
              (iota (exp:task-count exp)))))
+
+
+
+(define-method (get-ICs (exp <gen-count-vs-select-attn-trial>))
+  (map make-apply-IC (exp:parameters exp)))
+
+(define-method (get-genomes (exp <gen-count-vs-select-attn-trial>))
+  (map car (car (exp:data exp))))
 
 (define-method (run-experiment! (exp <gen-count-vs-select-attn-dummy>))
   (format #t "Running dummy~%")
@@ -57,17 +85,15 @@
       (vector-set! (exp:task-done-at-gen exp) (1- task-counter) generation)
       (vector-set! (exp:task-done-at-time exp) (1- task-counter) (- (emacsy-time) start-time))
       (incr! task-counter)
-      (when (<= (length (exp:parameters exp)) task-counter)
-       (set! ICs (map make-apply-IC (take (exp:parameters exp) task-counter))))
-      ICs)
+      (set! ICs (map make-apply-IC (take (exp:parameters exp) task-counter))))
     (set! (exp:data exp)
           (generation-count-to-do2 
            (lambda () ICs) 
            (exp:max-gen exp)
            '()
-           (compose not (make-scaffold-any-individual-succeeded? 
-                         (1- (exp:task-count exp))
-                         add-IC!))))))
+           (make-scaffold-any-individual-not-succeeded? 
+            (1- (exp:task-count exp))
+            add-IC!)))))
 
 (define-method (analyze-data! (exp <gen-count-vs-select-attn-trial>))
   (set! (exp:results exp) (cadr (exp:data exp))))

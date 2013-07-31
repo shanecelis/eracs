@@ -1,6 +1,6 @@
 ;; bullet-physics-car.scm
 
-(define-class <bullet-physics-car> (<bullet-physics>)
+(define-class-public <bullet-physics-car> (<bullet-physics>)
   (wheels #:accessor bpc:wheels #:init-value '())
   (axes #:accessor bpc:axes #:init-value '())
   (slider #:accessor bpc:slider #:init-value #f)

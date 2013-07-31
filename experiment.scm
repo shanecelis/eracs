@@ -10,6 +10,7 @@
             generate-parameters!
             run-experiment!
             analyze-data!
+            copy-parameters!
             clear-experiment!
             
             <parent-experiment>
@@ -34,6 +35,9 @@
 (define-method (analyze-data! (exp <experiment>))
   #f)
 
+(define-method (copy-parameters! (dest <experiment>) (src <experiment>))
+  (set! (exp:parameters dest) (exp:parameters src)))
+
 
 (define-method (clear-experiment! (exp <experiment>))
   (set! (exp:parameters exp) #f)
@@ -45,6 +49,9 @@
   (child-experiments #:accessor exp:child-experiments #:init-keyword #:child-experiments #:init-form '())
   (aggregate-proc #:accessor exp:aggregate-proc #:init-keyword #:aggregate-proc #:init-value #f)
   )
+
+(define-method (trial-count (exp <parent-experiment>))
+  (length (exp:child-experiments exp)))
 
 (define-method (generate-parameters! (exp <parent-experiment>))
   (for-each generate-parameters! (exp:child-experiments exp))
@@ -63,3 +70,8 @@
 (define-method (clear-experiment! (exp <parent-experiment>))
   (next-method)
   (for-each clear-experiment! (exp:child-experiments exp)))
+
+(define-method (copy-parameters! (dest <parent-experiment>) (src <parent-experiment>))
+  (if (= (trial-count dest) (trial-count src))
+      (for-each copy-parameters! (exp:child-experiments dest) (exp:child-experiments src))
+      (scm-error 'invalid-trial-counts 'copy-parameters! "Cannot copy parameters from one <parent-experiment> because they are different sizes: dest has ~a trials and src has ~a trials." (list (trial-count dest) (trial-count src)) #f)))

@@ -5,11 +5,10 @@
 (use-modules ((minimal-cognition fode)
              #:renamer (symbol-prefix-proc 'fode:)))
 
-(define-class <fode-physics> (<physics>)
+(define-class-public <fode-physics> (<physics>)
   (params #:init-value #f)
   (state #:getter fp:state #:init-value #f)
-  (scene-actors #:accessor fp:scene-actors #:init-value '())
-  )
+  (scene-actors #:accessor fp:scene-actors #:init-value '()))
 
 (define-method (initialize (fp <fode-physics>) initargs)
   (next-method)

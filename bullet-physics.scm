@@ -40,7 +40,7 @@
   #;(max-sight-distance #:getter max-sight-distance #:init-value 205)
   )
 
-(define-class <bullet-physics> (<physics>)
+(define-class-public <bullet-physics> (<physics>)
   (sim #:accessor bp:sim #:init-keyword #:sim #:init-form (make-sim) #;(current-sim))
   (objects #:accessor bp:objects #:init-value '())
   (fake-state #:getter fp:state #:init-value #f)
@@ -114,7 +114,8 @@ CTRNN."
 
 (define-method (undraw-physics scene (bp <bullet-physics>))
   "Draws the bullet physics simulation."
-  (scene-clear-physics scene))
+  (if scene 
+      (scene-clear-physics scene)))
 
 
 (define (go-right t i)
@@ -162,7 +163,8 @@ seconds."
          (sim-remove-body (bp:sim bp) body)) 
        (bp:objects bp))
   (set! (bp:objects bp) '())
-  (scene-clear-physics (current-scene)))
+  (if (current-scene)
+   (scene-clear-physics (current-scene))))
 
 (define x-axis 0)
 (define y-axis 2) ;; The y-axis for the experiment is the z-axis for
