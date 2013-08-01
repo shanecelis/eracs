@@ -85,7 +85,7 @@
 (load "fode-physics.scm")
 (load "beer-experiment.scm")
 
-(add-hook! post-window-open-hook 
+#;(add-hook! post-window-open-hook 
            (lambda ()
              (load-experiment "bullet-7.dat")
              ) 

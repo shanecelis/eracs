@@ -1,8 +1,8 @@
 \chapter{Boiler Plate}
 \section{C Code}
 <<+ Preamble>>=
-/* FILENAME
-DO NOT EDIT - automatically generated from FILENAME.
+/* 
+DO NOT EDIT - automatically generated from a Noweb source file.
 */
 <<+ Copyright>>
 <<+ License>>
@@ -40,8 +40,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 \section{Lisp Code}
 
 <<+ Lisp Preamble>>=
-#| FILENAME
-DO NOT EDIT - automatically generated from FILENAME.
+#| 
+DO NOT EDIT - automatically generated from a Noweb source file.
 
 <<+ Copyright>>
 <<+ License>>

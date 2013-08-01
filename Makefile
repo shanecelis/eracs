@@ -11,8 +11,8 @@ GUILE_LDFLAGS = $(shell pkg-config guile-2.0 --libs)
 GSL_CFLAGS = $(shell pkg-config gsl --cflags)
 GSL_LDFLAGS = $(shell pkg-config gsl --libs)
 
-LOG4C_CFLAGS = -DWITH_LOG4C 
-LOG4C_LDFLAGS = -L/opt/local/lib -llog4c
+LOG4C_CFLAGS = $(shell pkg-config guile-logging --cflags)
+LOG4C_LDFLAGS = $(shell pkg-config guile-logging --libs)
 
 LIB_EMACSY = /Users/shane/School/uvm/CSYS-395-evolutionary-robotics/noweb-eracs/emacsy/src/emacsy/.libs/libemacsy.a
 
@@ -29,13 +29,13 @@ LDFLAGS = $(GUILE_LDFLAGS) $(shell pkg-config libglfw --libs) -lVLCore -lVLGraph
 TARGET = eracs
 VERSION = 0.1
 
-LITSRCS = eracs.nw main.nw render.nw physics.nw primitive-procedures.nw vlref-smob.nw scene-smob.nw sim-smob.nw rigid-body-smob.nw osc.nw nn.nw physics-buffer.nw camera.nw boiler-plate.nw physics-ui.nw nsga2.nw linear-spline.nw logging.nw util.nw util-cpp.nw 
+LITSRCS = eracs.nw main.nw render.nw physics.nw primitive-procedures.nw vlref-smob.nw scene-smob.nw sim-smob.nw rigid-body-smob.nw osc.nw nn.nw physics-buffer.nw camera.nw boiler-plate.nw physics-ui.nw nsga2.nw linear-spline.nw util.nw util-cpp.nw 
 
 TEXS := $(patsubst %.nw, %.tex, $(LITSRCS))
 
 DEFS := $(patsubst %.nw, %.defs, $(LITSRCS))
 
-SRCS = main.cpp render.cpp physics.cpp primitive-procedures.cpp vlref-smob.cpp scene-smob.cpp sim-smob.cpp rigid-body-smob.cpp nn.c dummy-opengl-context.cpp physics-buffer.scm camera.scm physics-ui.scm nsga2.c nsga2.scm osc.c osc.scm linear-spline.scm logging.c scm-logging.c logging.scm util.c util-cpp.cpp scene-smob.scm util.scm 
+SRCS = main.cpp render.cpp physics.cpp primitive-procedures.cpp vlref-smob.cpp scene-smob.cpp sim-smob.cpp rigid-body-smob.cpp nn.c dummy-opengl-context.cpp physics-buffer.scm camera.scm physics-ui.scm nsga2.c nsga2.scm osc.c osc.scm linear-spline.scm  util.c util-cpp.cpp scene-smob.scm util.scm 
 
 TESTS = nsga2.test.scm vlref-smob.test.scm sim-smob.test.scm linear-spline.test.scm 
 
@@ -43,9 +43,9 @@ TESTS = nsga2.test.scm vlref-smob.test.scm sim-smob.test.scm linear-spline.test.
 
 TESTS_OUT := $(patsubst %.test.scm, %.test.out, $(TESTS))
 
-HDRS = render.h physics.h primitive-procedures.h vlref-smob.hpp scene-smob.h sim-smob.h rigid-body-smob.h osc.h nn.h dummy-opengl-context.hpp vl.h logging.h scm-logging.h util.h util-cpp.hpp 
+HDRS = render.h physics.h primitive-procedures.h vlref-smob.hpp scene-smob.h sim-smob.h rigid-body-smob.h osc.h nn.h dummy-opengl-context.hpp vl.h  util.h util-cpp.hpp 
 
-OBJS = main.o render.o physics.o primitive-procedures.o vlref-smob.o scene-smob.o sim-smob.o rigid-body-smob.o nn.o dummy-opengl-context.o logging.o scm-logging.o util.o util-cpp.o
+OBJS = main.o render.o physics.o primitive-procedures.o vlref-smob.o scene-smob.o sim-smob.o rigid-body-smob.o nn.o dummy-opengl-context.o  util.o util-cpp.o
 
 
 BIBS = 
@@ -156,8 +156,8 @@ dummy-opengl-context.hpp dummy-opengl-context.cpp: render.nw boiler-plate.nw
 vl.h: main.nw boiler-plate.nw
 	$(NOTANGLE) $(NOTANGLE_C_FLAGS) -R"file:$@" $^ 
 
-scm-logging.h scm-logging.c: logging.nw boiler-plate.nw
-	$(NOTANGLE) $(NOTANGLE_C_FLAGS) -R"file:$@" $^ 
+# scm-logging.h scm-logging.c: logging.nw boiler-plate.nw
+# 	$(NOTANGLE) $(NOTANGLE_C_FLAGS) -R"file:$@" $^ 
 
 # util.h: rigid-body-smob.nw boiler-plate.nw
 # 	$(NOTANGLE) $(NOTANGLE_C_FLAGS) -R"file:$@" $^ 
@@ -185,7 +185,7 @@ main.o: main.cpp main.cpp.x
 
 # Must be careful here. This ends up inadvertently controlling the order in
 # which global chunks are concatenated.
-main.cpp: main.nw render.nw nn.nw osc.nw primitive-procedures.nw rigid-body-smob.nw scene-smob.nw physics-buffer.nw sim-smob.nw vlref-smob.nw physics.nw logging.nw camera.nw physics-ui.nw 
+main.cpp: main.nw render.nw nn.nw osc.nw primitive-procedures.nw rigid-body-smob.nw scene-smob.nw physics-buffer.nw sim-smob.nw vlref-smob.nw physics.nw camera.nw physics-ui.nw 
 
 # nn.h: nn.nw boiler-plate.nw 
 
@@ -197,8 +197,8 @@ nsga2.scm: nsga2.nw
 
 NSGA2_HOME = nsga2-gnuplot-v1.1.6
 
-libguile-nsga2.dylib: nsga2.c $(NSGA2_HOME)/allocate.c $(NSGA2_HOME)/auxiliary.c $(NSGA2_HOME)/crossover.c $(NSGA2_HOME)/crowddist.c $(NSGA2_HOME)/decode.c $(NSGA2_HOME)/display.c $(NSGA2_HOME)/dominance.c $(NSGA2_HOME)/eval.c $(NSGA2_HOME)/fillnds.c $(NSGA2_HOME)/initialize.c $(NSGA2_HOME)/list.c $(NSGA2_HOME)/merge.c $(NSGA2_HOME)/mutation.c $(NSGA2_HOME)/nsga2r.c $(NSGA2_HOME)/rand.c $(NSGA2_HOME)/rank.c $(NSGA2_HOME)/report.c $(NSGA2_HOME)/sort.c $(NSGA2_HOME)/tourselect.c logging.o util.o
-	$(CC) -g -I $(NSGA2_HOME) $(GUILE_CFLAGS) $(GUILE_LDFLAGS) $(LOG4C_LDFLAGS) $(EMACSY_LDFLAGS) -shared -o $@ -fPIC $^
+libguile-nsga2.dylib: nsga2.c $(NSGA2_HOME)/allocate.c $(NSGA2_HOME)/auxiliary.c $(NSGA2_HOME)/crossover.c $(NSGA2_HOME)/crowddist.c $(NSGA2_HOME)/decode.c $(NSGA2_HOME)/display.c $(NSGA2_HOME)/dominance.c $(NSGA2_HOME)/eval.c $(NSGA2_HOME)/fillnds.c $(NSGA2_HOME)/initialize.c $(NSGA2_HOME)/list.c $(NSGA2_HOME)/merge.c $(NSGA2_HOME)/mutation.c $(NSGA2_HOME)/nsga2r.c $(NSGA2_HOME)/rand.c $(NSGA2_HOME)/rank.c $(NSGA2_HOME)/report.c $(NSGA2_HOME)/sort.c $(NSGA2_HOME)/tourselect.c util.c
+	$(CC) -g -I $(NSGA2_HOME) $(GUILE_CFLAGS) $(LOG4C_CFLAGS) $(GUILE_LDFLAGS) $(LOG4C_LDFLAGS) $(EMACSY_LDFLAGS) -shared -o $@ -fPIC $^
 
 osc.o: osc.c.x
 
