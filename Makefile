@@ -22,30 +22,28 @@ EMACSY_CFLAGS = -Iemacsy/src/emacsy
 
 FANN_LDFLAGS = -L/usr/local/lib -lm -ldoublefann  
 
-CPPFLAGS = -ferror-limit=3 -fmacro-backtrace-limit=1 -g $(GUILE_CFLAGS) $(EMACSY_CFLAGS) $(shell pkg-config bullet --cflags) $(LOG4C_CFLAGS) $(GSL_CFLAGS)
+CPPFLAGS = -ferror-limit=3 -fmacro-backtrace-limit=1 -g $(GUILE_CFLAGS) $(EMACSY_CFLAGS) $(shell pkg-config bullet guile-bullet --cflags) $(LOG4C_CFLAGS) $(GSL_CFLAGS)
 
-LDFLAGS = $(GUILE_LDFLAGS) $(shell pkg-config libglfw --libs) -lVLCore -lVLGraphics $(EMACSY_LDFLAGS) -lstdc++ $(shell pkg-config bullet --libs) $(shell pkg-config liblo --libs) $(FANN_LDFLAGS) $(LOG4C_LDFLAGS) $(GSL_LDFLAGS)
+LDFLAGS = $(GUILE_LDFLAGS) $(shell pkg-config libglfw --libs) -lVLCore -lVLGraphics $(EMACSY_LDFLAGS) -lstdc++ $(shell pkg-config bullet guile-bullet --libs) $(shell pkg-config liblo --libs) $(FANN_LDFLAGS) $(LOG4C_LDFLAGS) $(GSL_LDFLAGS)
 
 TARGET = eracs
 VERSION = 0.1
 
-LITSRCS = eracs.nw main.nw render.nw physics.nw primitive-procedures.nw vlref-smob.nw scene-smob.nw sim-smob.nw rigid-body-smob.nw osc.nw nn.nw physics-buffer.nw camera.nw boiler-plate.nw physics-ui.nw nsga2.nw linear-spline.nw util.nw util-cpp.nw 
+LITSRCS = eracs.nw main.nw render.nw physics.nw primitive-procedures.nw vlref-smob.nw scene-smob.nw   osc.nw nn.nw physics-buffer.nw camera.nw boiler-plate.nw physics-ui.nw nsga2.nw linear-spline.nw util.nw util-cpp.nw 
 
 TEXS := $(patsubst %.nw, %.tex, $(LITSRCS))
 
 DEFS := $(patsubst %.nw, %.defs, $(LITSRCS))
 
-SRCS = main.cpp render.cpp physics.cpp primitive-procedures.cpp vlref-smob.cpp scene-smob.cpp sim-smob.cpp rigid-body-smob.cpp nn.c dummy-opengl-context.cpp physics-buffer.scm camera.scm physics-ui.scm nsga2.c nsga2.scm osc.c osc.scm linear-spline.scm  util.c util-cpp.cpp scene-smob.scm util.scm 
+SRCS = main.cpp render.cpp physics.cpp primitive-procedures.cpp vlref-smob.cpp scene-smob.cpp   nn.c dummy-opengl-context.cpp physics-buffer.scm camera.scm physics-ui.scm nsga2.c nsga2.scm osc.c osc.scm linear-spline.scm  util.c util-cpp.cpp scene-smob.scm util.scm 
 
-TESTS = nsga2.test.scm vlref-smob.test.scm sim-smob.test.scm linear-spline.test.scm 
-
-#TESTS = sim-smob.test.scm
+TESTS = nsga2.test.scm vlref-smob.test.scm linear-spline.test.scm 
 
 TESTS_OUT := $(patsubst %.test.scm, %.test.out, $(TESTS))
 
-HDRS = render.h physics.h primitive-procedures.h vlref-smob.hpp scene-smob.h sim-smob.h rigid-body-smob.h osc.h nn.h dummy-opengl-context.hpp vl.h  util.h util-cpp.hpp 
+HDRS = render.h physics.h primitive-procedures.h vlref-smob.hpp scene-smob.h  osc.h nn.h dummy-opengl-context.hpp vl.h  util.h util-cpp.hpp 
 
-OBJS = main.o render.o physics.o primitive-procedures.o vlref-smob.o scene-smob.o sim-smob.o rigid-body-smob.o nn.o dummy-opengl-context.o  util.o util-cpp.o
+OBJS = main.o render.o physics.o primitive-procedures.o vlref-smob.o scene-smob.o  nn.o dummy-opengl-context.o  util.o util-cpp.o
 
 
 BIBS = 
@@ -167,8 +165,6 @@ physics.o: physics.cpp physics.cpp.x
 
 primitive-procedures.o: primitive-procedures.cpp primitive-procedures.cpp.x
 
-rigid-body-smob.o: rigid-body-smob.cpp rigid-body-smob.cpp.x
-
 scene-smob.o: scene-smob.cpp scene-smob.cpp.x
 
 vlref-smob.o: vlref-smob.cpp vlref-smob.cpp.x
@@ -177,7 +173,6 @@ osc.o: osc.c osc.c.x
 
 nn.o: nn.c nn.c.x
 
-sim-smob.o: sim-smob.cpp sim-smob.cpp.x
 
 render.o: render.cpp render.cpp.x
 
@@ -185,7 +180,7 @@ main.o: main.cpp main.cpp.x
 
 # Must be careful here. This ends up inadvertently controlling the order in
 # which global chunks are concatenated.
-main.cpp: main.nw render.nw nn.nw osc.nw primitive-procedures.nw rigid-body-smob.nw scene-smob.nw physics-buffer.nw sim-smob.nw vlref-smob.nw physics.nw camera.nw physics-ui.nw 
+main.cpp: main.nw render.nw nn.nw osc.nw primitive-procedures.nw  scene-smob.nw physics-buffer.nw vlref-smob.nw physics.nw camera.nw physics-ui.nw 
 
 # nn.h: nn.nw boiler-plate.nw 
 

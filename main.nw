@@ -24,7 +24,10 @@ int main(int argc, char** argv) {
 
   mylog("main", PRI_INFO, "Load scheme files.");
   scm_c_primitive_load("util.scm"); 
+  scm_c_use_module("logging");
+  scm_c_use_module("bullet");
   <<+ Load scheme files.>>
+  
 
   <<Process arguments.>>
 
