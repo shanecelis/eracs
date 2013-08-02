@@ -8,7 +8,7 @@
 
 (use-modules ((rnrs) #:select (vector-map vector-for-each mod))
              (emacsy emacsy)
-             (nsga2)
+             (nsga-ii)
              (vector-math)
              (infix)
              (ice-9 q)

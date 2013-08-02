@@ -29,15 +29,15 @@ LDFLAGS = $(GUILE_LDFLAGS) $(shell pkg-config libglfw --libs) -lVLCore -lVLGraph
 TARGET = eracs
 VERSION = 0.1
 
-LITSRCS = eracs.nw main.nw render.nw physics.nw primitive-procedures.nw vlref-smob.nw scene-smob.nw   osc.nw nn.nw physics-buffer.nw camera.nw boiler-plate.nw physics-ui.nw nsga2.nw linear-spline.nw util.nw util-cpp.nw 
+LITSRCS = eracs.nw main.nw render.nw physics.nw primitive-procedures.nw vlref-smob.nw scene-smob.nw   osc.nw nn.nw physics-buffer.nw camera.nw boiler-plate.nw physics-ui.nw linear-spline.nw util.nw util-cpp.nw 
 
 TEXS := $(patsubst %.nw, %.tex, $(LITSRCS))
 
 DEFS := $(patsubst %.nw, %.defs, $(LITSRCS))
 
-SRCS = main.cpp render.cpp physics.cpp primitive-procedures.cpp vlref-smob.cpp scene-smob.cpp   nn.c dummy-opengl-context.cpp physics-buffer.scm camera.scm physics-ui.scm nsga2.c nsga2.scm osc.c osc.scm linear-spline.scm  util.c util-cpp.cpp scene-smob.scm util.scm 
+SRCS = main.cpp render.cpp physics.cpp primitive-procedures.cpp vlref-smob.cpp scene-smob.cpp   nn.c dummy-opengl-context.cpp physics-buffer.scm camera.scm physics-ui.scm  osc.c osc.scm linear-spline.scm  util.c util-cpp.cpp scene-smob.scm util.scm 
 
-TESTS = nsga2.test.scm vlref-smob.test.scm linear-spline.test.scm 
+TESTS =  vlref-smob.test.scm linear-spline.test.scm 
 
 TESTS_OUT := $(patsubst %.test.scm, %.test.out, $(TESTS))
 
@@ -50,7 +50,7 @@ BIBS =
  
 STYS = 
 
-LIBS = libguile-nsga2.dylib libguile-osc.dylib
+LIBS = libguile-osc.dylib
 
 DIST = Makefile README $(LITSRCS) $(TARGET)doc.tex $(SRCS) $(HDRS) $(BIBS) $(STYS)
 
@@ -185,15 +185,6 @@ main.cpp: main.nw render.nw nn.nw osc.nw primitive-procedures.nw  scene-smob.nw 
 # nn.h: nn.nw boiler-plate.nw 
 
 # camera.scm: camera.nw boiler-plate.nw 
-
-nsga2.c: nsga2.nw
-
-nsga2.scm: nsga2.nw
-
-NSGA2_HOME = nsga2-gnuplot-v1.1.6
-
-libguile-nsga2.dylib: nsga2.c $(NSGA2_HOME)/allocate.c $(NSGA2_HOME)/auxiliary.c $(NSGA2_HOME)/crossover.c $(NSGA2_HOME)/crowddist.c $(NSGA2_HOME)/decode.c $(NSGA2_HOME)/display.c $(NSGA2_HOME)/dominance.c $(NSGA2_HOME)/eval.c $(NSGA2_HOME)/fillnds.c $(NSGA2_HOME)/initialize.c $(NSGA2_HOME)/list.c $(NSGA2_HOME)/merge.c $(NSGA2_HOME)/mutation.c $(NSGA2_HOME)/nsga2r.c $(NSGA2_HOME)/rand.c $(NSGA2_HOME)/rank.c $(NSGA2_HOME)/report.c $(NSGA2_HOME)/sort.c $(NSGA2_HOME)/tourselect.c util.c
-	$(CC) -g -I $(NSGA2_HOME) $(GUILE_CFLAGS) $(LOG4C_CFLAGS) $(GUILE_LDFLAGS) $(LOG4C_LDFLAGS) $(EMACSY_LDFLAGS) -shared -o $@ -fPIC $^
 
 osc.o: osc.c.x
 

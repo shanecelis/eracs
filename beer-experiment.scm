@@ -9,7 +9,7 @@
  (minimal-cognition vision)
  (minimal-cognition unified-procedure)
  (system foreign)
- (nsga2) 
+ (nsga-ii) 
  (fitness)
  (infix)
  (srfi srfi-19)
