@@ -10,6 +10,13 @@ size_t scm_c_length(SCM list) {
   return scm_to_int(scm_length(list));
 }
 
+int my_load_file(const char *filename)
+{
+  scm_call_1(scm_c_public_ref("util", "my-load-file"),
+             scm_from_locale_string(filename));
+  return 0;
+}
+
 <<file:util.h>>=
 #ifndef _UTIL_H_
 #define _UTIL_H_
@@ -18,6 +25,7 @@ size_t scm_c_length(SCM list) {
 
 size_t scm_c_length(SCM list);
 SCM scm_c_string_to_symbol(const char *);
+int my_load_file(const char *filename);
 
 <<+ End C Header Guard.>>
 #endif /* _UTIL_H_ */
@@ -26,12 +34,21 @@ SCM scm_c_string_to_symbol(const char *);
 \subsection{Scheme}
 
 <<file:util.scm>>=
-(use-modules (system repl error-handling))
+(define-module (util)
+ #:use-module (system repl error-handling)
+ #:use-module (vector-math)
+ #:export (
+ my-load-file
+ for-each-i
+ for-each-i0
+ map-i
+ map-i0
+  ))
 <<util:procedure>>
 @
 
 <<util:procedure>>=
-(define-public (my-load-file filename)
+(define (my-load-file filename)
   #;(with-backtrace* (lambda () (load filename)) '(quit))
   (call-with-error-handling (lambda () 
     (format #t "~a" (current-module))

@@ -66,6 +66,7 @@ backward, up, and down with additional bindings \verb|C-i| and
 (use-modules (vector-math))
 (use-modules (emacsy emacsy))
 (use-modules (convenience-lambda))
+(use-modules (scene-smob))
 <<+ Load scheme files.>>=
 scm_c_primitive_load("camera.scm");
 @ 

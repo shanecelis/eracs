@@ -396,6 +396,7 @@ void scene_init() {
 #ifndef SCM_MAGIC_SNARFER 
 #include "render.cpp.x" 
 #endif
+scm_c_export("scene-set-viewport!", "scene-render", "scene-update-camera", NULL);
 }
 @ 
 

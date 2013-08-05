@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
   <<+ Initialize submodules.>>
 
   mylog("main", PRI_INFO, "Load scheme files.");
-  scm_c_primitive_load("util.scm"); 
+  scm_c_use_module("util"); 
   scm_c_use_module("logging");
   scm_c_use_module("bullet");
   <<+ Load scheme files.>>
@@ -51,6 +51,7 @@ int main(int argc, char** argv) {
 
   mylog("main", PRI_INFO, "Running post-window-open-hook.");
   emacsy_run_hook_0("post-window-open-hook");   
+  mylog("main", PRI_INFO, "Finished post-window-open-hook.");
 
   <<Run shell.>>
 
@@ -341,12 +342,6 @@ int load_file_safe(const char *filename)
   return 0;
 }
 
-int my_load_file(const char *filename)
-{
-  scm_call_1(scm_c_public_ref("guile-user", "my-load-file"),
-             scm_from_locale_string(filename));
-  return 0;
-}
 @ 
 <<Setup callbacks.>>=
 
@@ -429,6 +424,7 @@ lightweight library.)
 #include "primitive-procedures.h"
 
 <<+ Include submodules.>>
+#include "util.h"
 #endif
 <<Defines>>=
 

@@ -37,6 +37,7 @@ int flags;
 };
 
 void init_scene_type(void);
+SCM _init_scene_type(void*);
 void init_glcontext(void);
 struct scene* unwrap_scene(SCM scene);
 SCM scm_wrap_scene(struct scene*);
@@ -141,8 +142,9 @@ vl::ref<vl::OpenGLContext> glcontext;
 static scm_t_bits scene_tag;
 <<Initialize.>>=
 
-void init_scene_type(void)
+SCM _init_scene_type(void* context)
 {
+  // I need to load these inside the (scene-smob) module not whatever the current module is.
 #ifndef SCM_MAGIC_SNARFER 
 #include "scene-smob.cpp.x" 
 #endif
@@ -150,7 +152,14 @@ void init_scene_type(void)
   scm_set_smob_mark (scene_tag, mark_scene);
   scm_set_smob_free (scene_tag, free_scene);
   scm_set_smob_print (scene_tag, print_scene);
+  return SCM_UNSPECIFIED;
 }
+
+void init_scene_type(void)
+{
+  scm_c_call_with_current_module(scm_c_resolve_module("scene-smob"), _init_scene_type, NULL);
+}
+
 
 void init_glcontext()
 {
@@ -346,7 +355,7 @@ We want to be able to get the current scene of the buffer in C.
 <<Functions>>=
 SCM scm_current_scene()
 {
-    return scm_call_0(scm_c_public_ref("guile-user",
+    return scm_call_0(scm_c_public_ref("scene-smob",
                                        "current-scene"));
 }
 
@@ -363,7 +372,7 @@ struct scene* scm_c_current_scene()
 <<Functions>>=
 SCM scm_recent_scene()
 {
-    return scm_call_0(scm_c_public_ref("guile-user",
+    return scm_call_0(scm_c_public_ref("scene-smob",
                                        "recent-scene"));
 }
 
@@ -478,11 +487,14 @@ argument handling.
 We'd like to have a scene buffer for ERACS.
 
 <<file:scene-smob.scm>>=
-(use-modules 
-  (oop goops)
-  (emacsy emacsy)
-  (srfi srfi-1)  ; find
-  (srfi srfi-26) ; cute
+(define-module (scene-smob)
+  #:use-module (logging)
+  #:use-module (oop goops)
+  #:use-module (emacsy emacsy)
+  #:use-module (srfi srfi-1)  ; find
+  #:use-module (srfi srfi-26) ; cute
+  #:use-module (guile-user) ; scene-set-viewport!
+  #:export (make-scene set-scene-parameter! scene-render)
   )
 
 (define-class-public <scene-buffer> (<buffer>)
@@ -517,5 +529,5 @@ We'd like to have a scene buffer for ERACS.
 (define-method-public (buffer-render (buffer <buffer>))
   (mylog "scene-smob.buffer-render" pri-debug "Don't know how to render buffer ~a" buffer))
 <<+ Load scheme files.>>=
-  scm_c_primitive_load("scene-smob.scm");
+  scm_c_use_module("scene-smob");
 @ 
