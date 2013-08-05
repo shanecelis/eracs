@@ -34,11 +34,16 @@
 (define-key eracs-mode-map (kbd "p") 'toggle-pause)
 @ 
 <<Load modules.>>=
-(use-modules (vector-math)
-             (scene-smob))
-(use-modules (emacsy emacsy))
-(use-modules (convenience-lambda))
+(define-module (physics-ui)
+  #:use-module (vector-math)
+  #:use-module (scene-smob)
+  #:use-module (camera)
+  #:use-module (emacsy emacsy)
+  #:use-module (convenience-lambda)
+  #:use-module (guile-user)
+  #:export (toggle-pause set-pause! pause? physics-tick-hook)
+  )
 <<+ Load scheme files.>>=
 
-  scm_c_primitive_load("physics-ui.scm");
+  scm_c_use_module("physics-ui");
 @

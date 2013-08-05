@@ -28,6 +28,7 @@ void primitive_procedures_init()
 #ifndef SCM_MAGIC_SNARFER 
 #include "primitive-procedures.cpp.x" 
 #endif
+  scm_c_export("get-parameter", "set-parameter!", NULL);
 }
 <<+ Initialize submodules.>>=
 

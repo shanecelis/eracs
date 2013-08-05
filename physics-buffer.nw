@@ -3,10 +3,14 @@
 We'd like to have a physics buffer for ERACS rather than a text buffer.
 
 <<file:physics-buffer.scm>>=
-(use-modules 
-  (oop goops)
-  (emacsy emacsy)
-  (logging))
+(define-module (physics-buffer)
+  #:use-module (oop goops)
+  #:use-module (scene-smob)
+  #:use-module (bullet)
+  #:use-module (camera)
+  #:use-module (guile-user)
+  #:use-module (emacsy emacsy)
+  #:use-module (logging))
 
 #;(define-class <void-class> (<class>))
 
@@ -49,10 +53,10 @@ We'd like to have a physics buffer for ERACS rather than a text buffer.
   obj)
 
 
-(define (current-sim)
+(define-public (current-sim)
   (if (is-a? (current-buffer) <physics-buffer>)
     (sim (current-buffer))
     #f))
 <<+ Load scheme files.>>=
-  scm_c_primitive_load("physics-buffer.scm");
+  scm_c_use_module("physics-buffer");
 @ 

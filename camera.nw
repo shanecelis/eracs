@@ -14,9 +14,9 @@ backward, up, and down with additional bindings \verb|C-i| and
 <<Procedures>>
 <<Key bindings>>
 <<Variables>>=
-(define eracs-mode-map (make-keymap))
-(define post-window-open-hook (make-hook))
-(define eracs-buffer #f)
+(define-public eracs-mode-map (make-keymap))
+(define-public post-window-open-hook (make-hook))
+(define-public eracs-buffer #f)
 
 (define-interactive (eracs-mode)
   (use-local-map eracs-mode-map))
@@ -62,11 +62,14 @@ backward, up, and down with additional bindings \verb|C-i| and
 
 
 <<Load modules.>>=
-(use-modules (oop goops))
-(use-modules (vector-math))
-(use-modules (emacsy emacsy))
-(use-modules (convenience-lambda))
-(use-modules (scene-smob))
+(define-module (camera)
+  #:use-module (oop goops)
+  #:use-module (physics-buffer)
+  #:use-module (vector-math)
+  #:use-module (emacsy emacsy)
+  #:use-module (convenience-lambda)
+  #:use-module (guile-user)
+  #:use-module (scene-smob))
 <<+ Load scheme files.>>=
-scm_c_primitive_load("camera.scm");
+scm_c_use_module("camera");
 @ 
