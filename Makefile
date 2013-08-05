@@ -14,6 +14,9 @@ GSL_LDFLAGS = $(shell pkg-config gsl --libs)
 LOG4C_CFLAGS = $(shell pkg-config guile-logging --cflags)
 LOG4C_LDFLAGS = $(shell pkg-config guile-logging --libs)
 
+OSC_CFLAGS = $(shell pkg-config guile-osc --cflags)
+OSC_LDFLAGS = $(shell pkg-config guile-osc --libs)
+
 LIB_EMACSY = /Users/shane/School/uvm/CSYS-395-evolutionary-robotics/noweb-eracs/emacsy/src/emacsy/.libs/libemacsy.a
 
 EMACSY_LDFLAGS = $(LIB_EMACSY)
@@ -22,26 +25,26 @@ EMACSY_CFLAGS = -Iemacsy/src/emacsy
 
 FANN_LDFLAGS = -L/usr/local/lib -lm -ldoublefann  
 
-CPPFLAGS = -ferror-limit=3 -fmacro-backtrace-limit=1 -g $(GUILE_CFLAGS) $(EMACSY_CFLAGS) $(shell pkg-config bullet guile-bullet --cflags) $(LOG4C_CFLAGS) $(GSL_CFLAGS)
+CPPFLAGS = -ferror-limit=3 -fmacro-backtrace-limit=1 -g $(GUILE_CFLAGS) $(EMACSY_CFLAGS) $(shell pkg-config bullet guile-bullet --cflags) $(OSC_CFLAGS) $(GSL_CFLAGS) $(LOG4C_CFLAGS) $(OSC_CFLAGS)
 
 LDFLAGS = $(GUILE_LDFLAGS) $(shell pkg-config libglfw --libs) -lVLCore -lVLGraphics $(EMACSY_LDFLAGS) -lstdc++ $(shell pkg-config bullet guile-bullet --libs) $(shell pkg-config liblo --libs) $(FANN_LDFLAGS) $(LOG4C_LDFLAGS) $(GSL_LDFLAGS)
 
 TARGET = eracs
 VERSION = 0.1
 
-LITSRCS = eracs.nw main.nw render.nw physics.nw primitive-procedures.nw vlref-smob.nw scene-smob.nw   osc.nw nn.nw physics-buffer.nw camera.nw boiler-plate.nw physics-ui.nw linear-spline.nw util.nw util-cpp.nw 
+LITSRCS = eracs.nw main.nw render.nw physics.nw primitive-procedures.nw vlref-smob.nw scene-smob.nw   nn.nw physics-buffer.nw camera.nw boiler-plate.nw physics-ui.nw linear-spline.nw util.nw util-cpp.nw 
 
 TEXS := $(patsubst %.nw, %.tex, $(LITSRCS))
 
 DEFS := $(patsubst %.nw, %.defs, $(LITSRCS))
 
-SRCS = main.cpp render.cpp physics.cpp primitive-procedures.cpp vlref-smob.cpp scene-smob.cpp   nn.c dummy-opengl-context.cpp physics-buffer.scm camera.scm physics-ui.scm  osc.c osc.scm linear-spline.scm  util.c util-cpp.cpp scene-smob.scm util.scm 
+SRCS = main.cpp render.cpp physics.cpp primitive-procedures.cpp vlref-smob.cpp scene-smob.cpp   nn.c dummy-opengl-context.cpp physics-buffer.scm camera.scm physics-ui.scm  linear-spline.scm  util.c util-cpp.cpp scene-smob.scm util.scm 
 
 TESTS =  vlref-smob.test.scm linear-spline.test.scm 
 
 TESTS_OUT := $(patsubst %.test.scm, %.test.out, $(TESTS))
 
-HDRS = render.h physics.h primitive-procedures.h vlref-smob.hpp scene-smob.h  osc.h nn.h dummy-opengl-context.hpp vl.h  util.h util-cpp.hpp 
+HDRS = render.h physics.h primitive-procedures.h vlref-smob.hpp scene-smob.h   nn.h dummy-opengl-context.hpp vl.h  util.h util-cpp.hpp 
 
 OBJS = main.o render.o physics.o primitive-procedures.o vlref-smob.o scene-smob.o  nn.o dummy-opengl-context.o  util.o util-cpp.o
 
@@ -50,7 +53,7 @@ BIBS =
  
 STYS = 
 
-LIBS = libguile-osc.dylib
+LIBS = 
 
 DIST = Makefile README $(LITSRCS) $(TARGET)doc.tex $(SRCS) $(HDRS) $(BIBS) $(STYS)
 
@@ -108,9 +111,7 @@ NOTANGLE = $(TOP)/bin/mynotangle $@
 all: 
 	make -C emacsy
 	make -C ctrnn
-	make -C guile-mathematica
 	$(MAKE) source
-	$(MAKE) $(LIBS)
 	$(MAKE) $(TARGET)
 
 doc:
@@ -169,10 +170,7 @@ scene-smob.o: scene-smob.cpp scene-smob.cpp.x
 
 vlref-smob.o: vlref-smob.cpp vlref-smob.cpp.x
 
-osc.o: osc.c osc.c.x
-
 nn.o: nn.c nn.c.x
-
 
 render.o: render.cpp render.cpp.x
 
@@ -180,16 +178,11 @@ main.o: main.cpp main.cpp.x
 
 # Must be careful here. This ends up inadvertently controlling the order in
 # which global chunks are concatenated.
-main.cpp: main.nw render.nw nn.nw osc.nw primitive-procedures.nw  scene-smob.nw physics-buffer.nw vlref-smob.nw physics.nw camera.nw physics-ui.nw 
+main.cpp: main.nw render.nw nn.nw primitive-procedures.nw  scene-smob.nw physics-buffer.nw vlref-smob.nw physics.nw camera.nw physics-ui.nw 
 
 # nn.h: nn.nw boiler-plate.nw 
 
 # camera.scm: camera.nw boiler-plate.nw 
-
-osc.o: osc.c.x
-
-libguile-osc.dylib: osc.o
-	$(CC) -g $(GUILE_CFLAGS) $(GUILE_LDFLAGS) $(LDFLAGS) -shared -o $@ -fPIC $^
 
 test: eracs $(SRCS) $(TESTS) $(LIBS)
 	for test in $(TESTS); do \
@@ -207,8 +200,6 @@ linear-spline.scm: linear-spline.nw
 # Then one can create the X.paper.pdf.  See paper-wrapper.nw for LaTeX
 # environment that it creates.
 linear-spline.paper.pdf: linear-spline.tex
-
-osc.paper.pdf: osc.tex
 
 debug: eracs
 	gdb --args ./eracs
