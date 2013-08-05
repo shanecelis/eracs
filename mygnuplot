@@ -1,0 +1,10 @@
+#!/bin/bash
+# mygnuplot
+#. myenv.sh
+#export DYLD_FALLBACK_LIBRARY_PATH=/opt/local/lib:/usr/local/lib:
+#env | grep -i dyld
+unset DYLD_LIBRARY_PATH
+#env | grep -i dyld
+exec gnuplot "$@"
+#echo "plot sin(x)" | gnuplot
+#echo hi

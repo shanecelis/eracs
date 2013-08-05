@@ -1,9 +1,11 @@
 * TODO
   - Need to identify the runs that succeeded over those that failed.
+  - [ ] Need to do the matrix thing.
+  - [ ] Need to create that graph
+  - [ ] Need to get it running on vacc
   - [ ] need to replay the experimental results reliably (can't we use these stupid buffers already?)
     like get an <experiment-buffer> or something?
   - [X] Need to capture total wall-clock time, number of evaluations
-  - [ ] Need to do the matrix thing.
   - [X] Need to compose these experiments into multiple trials
   - [X] Need to save these experimental results into something, maybe redis?  Or just to a file!
   - [X] Can't use C for CTRNN effector because the CTRNN state isn't

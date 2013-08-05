@@ -1,0 +1,15 @@
+#!/bin/bash
+# myexec
+#
+# For some reason systeming commands in Guile causes this error:
+#
+#dyld: Symbol not found: _gll_noop
+#  Referenced from: /System/Library/Frameworks/OpenGL.framework/Versions/A/OpenGL
+#  Expected in: /System/Library/Frameworks/OpenGL.framework/Versions/A/OpenGL
+# in /System/Library/Frameworks/OpenGL.framework/Versions/A/OpenGL
+#
+# Unsetting the DYLD_LIBRARY_PATH fixes it.
+
+unset DYLD_LIBRARY_PATH
+exec "$@"
+

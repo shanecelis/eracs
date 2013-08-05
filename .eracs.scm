@@ -72,18 +72,18 @@
 (restore-signals)
 ;(load "quadruped-experiment.scm")
 
-(use-modules (experiment)
+#;(use-modules (experiment)
              (experiment-buffer)
              (experiment-gen-count-vs-select-attn)
              (oop goops)
              (oop goops save)
              )
-<gen-count-vs-select-attn-trial>
-(load "beer-parameters.scm") 
-(load "bullet-physics.scm")
-(load "bullet-physics-car.scm")
-(load "fode-physics.scm")
-(load "beer-experiment.scm")
+
+;; (load "beer-parameters.scm") 
+;; (load "bullet-physics.scm")
+;; (load "bullet-physics-car.scm")
+;; (load "fode-physics.scm")
+;; (load "beer-experiment.scm")
 
 #;(add-hook! post-window-open-hook 
            (lambda ()

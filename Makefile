@@ -17,6 +17,9 @@ LOG4C_LDFLAGS = $(shell pkg-config guile-logging --libs)
 OSC_CFLAGS = $(shell pkg-config guile-osc --cflags)
 OSC_LDFLAGS = $(shell pkg-config guile-osc --libs)
 
+MC_CFLAGS = $(shell  pkg-config guile-minimal-cognition --cflags)
+MC_LDFLAGS = $(shell pkg-config guile-minimal-cognition --libs)
+
 LIB_EMACSY = /Users/shane/School/uvm/CSYS-395-evolutionary-robotics/noweb-eracs/emacsy/src/emacsy/.libs/libemacsy.a
 
 EMACSY_LDFLAGS = $(LIB_EMACSY)
@@ -25,9 +28,9 @@ EMACSY_CFLAGS = -Iemacsy/src/emacsy
 
 FANN_LDFLAGS = -L/usr/local/lib -lm -ldoublefann  
 
-CPPFLAGS = -ferror-limit=3 -fmacro-backtrace-limit=1 -g $(GUILE_CFLAGS) $(EMACSY_CFLAGS) $(shell pkg-config bullet guile-bullet --cflags) $(OSC_CFLAGS) $(GSL_CFLAGS) $(LOG4C_CFLAGS) $(OSC_CFLAGS)
+CPPFLAGS = -ferror-limit=3 -fmacro-backtrace-limit=1 -g $(GUILE_CFLAGS) $(EMACSY_CFLAGS) $(shell pkg-config bullet guile-bullet --cflags) $(GSL_CFLAGS) $(LOG4C_CFLAGS) $(OSC_CFLAGS)
 
-LDFLAGS = $(GUILE_LDFLAGS) $(shell pkg-config libglfw --libs) -lVLCore -lVLGraphics $(EMACSY_LDFLAGS) -lstdc++ $(shell pkg-config bullet guile-bullet --libs) $(shell pkg-config liblo --libs) $(FANN_LDFLAGS) $(LOG4C_LDFLAGS) $(GSL_LDFLAGS)
+LDFLAGS = $(GUILE_LDFLAGS) $(shell pkg-config libglfw --libs) -lVLCore -lVLGraphics $(EMACSY_LDFLAGS) -lstdc++ $(shell pkg-config bullet guile-bullet --libs) $(shell pkg-config liblo --libs) $(FANN_LDFLAGS) $(LOG4C_LDFLAGS) $(GSL_LDFLAGS) $(OSC_LDFLAGS)
 
 TARGET = eracs
 VERSION = 0.1
@@ -110,7 +113,6 @@ NOTANGLE = $(TOP)/bin/mynotangle $@
 
 all: 
 	make -C emacsy
-	make -C ctrnn
 	$(MAKE) source
 	$(MAKE) $(TARGET)
 
