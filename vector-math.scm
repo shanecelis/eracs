@@ -4,6 +4,7 @@
   #:use-module (srfi  srfi-1)
   #:use-module (oop goops)
   #:use-module ((rnrs) #:select (vector-map vector-for-each))
+  #:re-export (vector-map vector-for-each)
   #:export (vector-fold
             vector-fold1
             vector-sum
