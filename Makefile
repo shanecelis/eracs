@@ -63,11 +63,12 @@ DIST = Makefile README $(LITSRCS) $(TARGET)doc.tex $(SRCS) $(HDRS) $(BIBS) $(STY
 GRAPHICS_PATH = 
 #docs2comment does NOT WORK with -L
 #NOTANGLE_LISP_FLAGS = -filter 'docs2comments -one -scm' -L
-NOTANGLE_LISP_FLAGS = -L
+#NOTANGLE_LISP_FLAGS = -L
+NOTANGLE_LISP_FLAGS = 
 #NOTANGLE_C_FLAGS = -L'\#line %L "%F"%N' -filter 'docs2comments -one -c' 
 #NOTANGLE_C_FLAGS = -filter 'docs2comments -one -c' 
-NOTANGLE_C_FLAGS = -L -markup 'mymarkup'
-#NOTANGLE_C_FLAGS = -markup 'mymarkup'
+#NOTANGLE_C_FLAGS = -L -markup 'mymarkup'
+NOTANGLE_C_FLAGS = -markup 'mymarkup'
 NOTANGLE = $(TOP)/bin/mynotangle $@
 .PHONY : all
 

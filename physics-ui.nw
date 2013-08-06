@@ -41,6 +41,8 @@
   #:use-module (emacsy emacsy)
   #:use-module (convenience-lambda)
   #:use-module (guile-user)
+  #:use-module (physics-buffer)
+  
   #:export (toggle-pause set-pause! pause? physics-tick-hook)
   )
 <<+ Load scheme files.>>=

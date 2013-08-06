@@ -10,7 +10,8 @@ We'd like to have a physics buffer for ERACS rather than a text buffer.
   #:use-module (camera)
   #:use-module (guile-user)
   #:use-module (emacsy emacsy)
-  #:use-module (logging))
+  #:use-module (logging)
+  #:export (paused? buffer-robot sim))
 
 #;(define-class <void-class> (<class>))
 
@@ -45,7 +46,7 @@ We'd like to have a physics buffer for ERACS rather than a text buffer.
   (sim #:accessor sim #:init-keyword #:sim #:init-form (make-sim))
   (paused? #:accessor paused? #:init-value #f)
   (robot #:accessor buffer-robot #:init-value #f))
-(export paused? buffer-robot)
+
 
 (define-method (initialize (obj <physics-buffer>) initargs)
   (next-method)

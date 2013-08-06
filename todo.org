@@ -1,5 +1,7 @@
 * TODO
   - Need to identify the runs that succeeded over those that failed.
+  - [X] Split the experiments apart
+  - [ ] Get experiments to run without eracs, just with Guile.
   - [ ] Need to do the matrix thing.
   - [ ] Need to create that graph
   - [ ] Need to get it running on vacc

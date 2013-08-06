@@ -494,7 +494,7 @@ We'd like to have a scene buffer for ERACS.
   #:use-module (srfi srfi-1)  ; find
   #:use-module (srfi srfi-26) ; cute
   #:use-module (guile-user) ; scene-set-viewport!
-  #:export (make-scene set-scene-parameter! scene-render)
+  #:export (make-scene set-scene-parameter! scene-parameter scene-render add-line update-line remove-actor add-sphere <scene-buffer> scene)
   )
 
 (define-class-public <scene-buffer> (<buffer>)

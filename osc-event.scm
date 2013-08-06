@@ -1,8 +1,10 @@
-
-(use-modules (oop goops)
-             (emacsy emacsy)
-  (ice-9 match)
-  (ice-9 regex))
+;; This should be added to (emacsy contrib osc) or (osc emacsy) something like that.
+(define-module (osc-event)
+  #:use-module (oop goops)
+  #:use-module (emacsy emacsy)
+  #:use-module (ice-9 match)
+  #:use-module (ice-9 regex)
+  #:export (<osc-event> osc-path osc-values handle-osc-event))
 
 (define-class <osc-event> (<event>)
   (osc-path #:getter osc-path #:init-keyword #:osc-path)
