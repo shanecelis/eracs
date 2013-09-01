@@ -272,7 +272,6 @@
   (and (apply =? (car a) (car b) rest)
        (apply =? (cdr a) (cdr b) rest)))
 
-
 (define-method (=? (a <vector>) (b <vector>) . rest)
   (apply =? (vector->list a) (vector->list b) rest))
 

@@ -142,8 +142,12 @@ veryclean: clean
 preview: $(TARGET).pdf
 	open -a Skim.app $<
 
-eracs: $(OBJS) $(LIB_EMACSY)
+eracs: $(OBJS) $(LIB_EMACSY) Makefile
 	$(CC) $(LDFLAGS) $(OBJS) -o $(TARGET)
+	install_name_tool -change libVLCore.2011.9.dylib /usr/local/lib/libVLCore.2011.9.dylib eracs
+	install_name_tool -change libVLGraphics.2011.9.dylib /usr/local/lib/libVLGraphics.2011.9.dylib eracs
+	install_name_tool -change libdoublefann.2.dylib /usr/local/lib/libdoublefann.2.dylib eracs
+
 
 $(TARGET).pdf: $(TEXS) 
 

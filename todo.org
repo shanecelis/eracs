@@ -1,10 +1,10 @@
 * TODO
-  - Need to identify the runs that succeeded over those that failed.
+  - [ ] Need to identify the runs that succeeded over those that failed.
   - [X] Split the experiments apart
-  - [ ] Get experiments to run without eracs, just with Guile.
-  - [ ] Need to do the matrix thing.
-  - [ ] Need to create that graph
-  - [ ] Need to get it running on vacc
+  - [X] Get experiments to run without eracs, just with Guile.
+  - [X] Need to do the matrix thing.
+  - [X] Need to create that graph with 3 things
+  - [X] Need to get it running on vacc - does this work?
   - [ ] need to replay the experimental results reliably (can't we use these stupid buffers already?)
     like get an <experiment-buffer> or something?
   - [X] Need to capture total wall-clock time, number of evaluations
@@ -13,8 +13,9 @@
   - [X] Can't use C for CTRNN effector because the CTRNN state isn't
     available to plugin.  Fixed with bytevector->pointer BAM!
   - [X] The current generation of beer parameters can create unwinnable conditions. Fix it.
-  - [ ] How do you deal with interactive commands that might work differently in different buffers?
-    For instance, how could one have a method as an interactive command?
+  - [ ] How do you deal with interactive commands that might work
+    differently in different buffers?  For instance, how could one
+    have a method as an interactive command?
 
 * TODO What parameters are required NSGA-II?
   - pop size (multiples of 4)

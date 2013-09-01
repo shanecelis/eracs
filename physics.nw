@@ -35,6 +35,7 @@ void physics_init() {
 #include "physics.cpp.x" 
 #endif
   scm_c_eval_string("(display (current-module))");
+  scm_c_export("scene-add-physics", "scene-update-physics", "scene-clear-physics", NULL);
 }
 @ Let's include the necessary headers from Bullet.
 
@@ -128,7 +129,7 @@ SCM_DEFINE (scm_scene_add_physics, "scene-add-physics", 2, 0, 0,
 <<Includes>>=
 #include "sim-smob.h"
 <<Add shape to scene.>>=
-if (shape->getShapeType() == BOX_SHAPE_PROXYTYPE) {
+if (shape->getShapeType() == BOX_SHAPE_PROXYTYPE || shape->getShapeType() == CYLINDER_SHAPE_PROXYTYPE) {
   const btBoxShape* boxShape;
         btVector3 halfExtent;
   boxShape = static_cast<const btBoxShape*>(shape);

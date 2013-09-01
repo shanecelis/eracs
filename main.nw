@@ -9,7 +9,7 @@ int main(int argc, char** argv) {
   <<Setup logging.>>
   /* Initialize Guile. */
   scm_init_guile();
-  scm_c_use_module("line-pragma"); 
+  //scm_c_use_module("line-pragma"); 
   /* Initialize Emacsy. */ 
   emacsy_initialize();
   /* Load the optional windows module. */
@@ -59,7 +59,6 @@ int main(int argc, char** argv) {
 
   <<Run loop.>>
   emacsy_run_hook_0("emacsy-terminate-hook"); 
-  /* physics_terminate(); */
   vl::VisualizationLibrary::shutdown();
   glfwTerminate();
   <<Teardown logging.>>
@@ -136,7 +135,7 @@ while (!stop && (c = getopt (argc, argv, "bhl:s:S")) != -1)
     script = scm_from_locale_string(optarg);
     mylog("main", PRI_DEBUG, "Setting program arguments and script '%s'.", optarg);
     //scm_set_program_arguments(argc - (optind - 1), argv + (optind - 1), NULL);
-    scm_set_program_arguments(argc - (optind - 0), argv + (optind - 0), NULL);
+    scm_set_program_arguments(argc - (optind - 0), argv + (optind - 0), optarg);
     stop = 1;
     break;
   case 'S':
