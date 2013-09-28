@@ -253,7 +253,21 @@ int get_modifier_key_flags() {
   return flags;
 }
 @ %def get_modifier_key_flags
-@ \begin{multicols}{2}
+@ 
+
+We also want to make [[get_modifier_key_flags]] accessible in Scheme
+for when we add other events.
+
+<<Primitives>>=
+SCM_DEFINE(scm_get_modifier_key_list, "get-modifier-key-list", 
+           0, 0, 0, (),
+           "Return the current modifier key list of symbols.")
+{
+  return modifier_key_flags_to_list(get_modifier_key_flags());
+}
+@
+
+\begin{multicols}{2}
 
 <<Helper Functions>>=
 int scm_c_char_to_int(const char *char_name) {
@@ -398,6 +412,8 @@ mylog("main", PRI_TRACE, "END run loop.");
 <<State>>
 <<Helper Functions>>
 <<Functions>>
+<<Primitives>>
+<<Initialize>>
 <<Main>>
 @ The includes are a little tricky to get right on Mac OS X.  There is a
 dependency on the order because of the Visualization Library (VL)
@@ -473,10 +489,11 @@ if (log4c_fini() != 0) {
 #include "scm-logging.h"
 @ 
 
-<<Helper Functions>>=
+<<Initialize>>=
 void init_main()
 {
   #include "main.cpp.x"
+  scm_c_export("get-modifier-key-list", NULL);
 }
 @ 
 

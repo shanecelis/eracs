@@ -1,5 +1,6 @@
 * TODO
   - [ ] Need to identify the runs that succeeded over those that failed.
+  - [ ] Independent car experiment doesn't work
   - [X] Split the experiments apart
   - [X] Get experiments to run without eracs, just with Guile.
   - [X] Need to do the matrix thing.
