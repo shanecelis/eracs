@@ -90,10 +90,12 @@
              (load-experiment "bullet-7.dat")
              ) 
            #t)
-
+(define-interactive (start-server)
+  (spawn-server))
 ;(load-experiment "experiment-max-speed-1.dat")
 ;(my-load-file "experiment-max-speed-1.dat")
 ;(load "experiment-max-speed-1.dat")
 ;<gen-count-vs-select-attn-dummy>
 ;(primitive-load "experiment-max-speed-1.dat")
+;(load "exhibit-glbuffer-bug.scm")
 

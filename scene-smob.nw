@@ -274,6 +274,7 @@ SCM_DEFINE (scm_add_line, "add-line", 2, 1, 0,
     // Adds the geometry to the scene.
     SCM actor = scm_c_wrap_vlref(sc->scene_manager->tree()->addActor( geom.get(), effect.get(), NULL), "actor", "line");
     <<Add a cleanup hook.>>
+    scm_call_1(scm_variable_ref(scm_actor_guardian_var), actor);
     return actor;
   }
 @ 
@@ -315,6 +316,7 @@ SCM_DEFINE (scm_add_sphere, "add-sphere", 2, 2, 0,
     // Adds the geometry to the scene.
     SCM actor = scm_c_wrap_vlref(sc->scene_manager->tree()->addActor( geom.get(), effect.get(), NULL), "actor", "sphere");
     <<Add a cleanup hook.>>
+    scm_call_1(scm_variable_ref(scm_actor_guardian_var), actor);
     return actor;
   }
 @ 
@@ -494,7 +496,7 @@ We'd like to have a scene buffer for ERACS.
   #:use-module (srfi srfi-1)  ; find
   #:use-module (srfi srfi-26) ; cute
   #:use-module (guile-user) ; scene-set-viewport!
-  #:export (make-scene set-scene-parameter! scene-parameter scene-render add-line update-line remove-actor add-sphere <scene-buffer> scene)
+  #:export (make-scene set-scene-parameter! scene-parameter scene-render add-line update-line remove-actor add-sphere <scene-buffer> scene cleanup-actors)
   )
 
 (define-class-public <scene-buffer> (<buffer>)
@@ -528,6 +530,50 @@ We'd like to have a scene buffer for ERACS.
 
 (define-method-public (buffer-render (buffer <buffer>))
   (mylog "scene-smob.buffer-render" pri-debug "Don't know how to render buffer ~a" buffer))
+
+<<Procedures>>
 <<+ Load scheme files.>>=
   scm_c_use_module("scene-smob");
+@ 
+
+\subsection{Fixing the glDeleteBuffers Bug}
+
+I discovered a bug in the Visualization Library/OpenGL where if
+glDeleteBuffers is called in a different thread, it will crash the
+program.  My work-around solution is to collect all actors into a
+guardian.  Then one can periodically empty that guardian and call the
+garbage collector in the proper thread.
+
+<<State>>=
+SCM_VARIABLE_INIT(scm_actor_guardian_var, "actor-guardian", scm_make_guardian());
+@
+
+Just depleting the guardian and calling GC did not stop the crashes.
+There was still a race condition.  By placing this code in a critical
+section, it seems that I have stopped this error from occuring.  One
+potential problem with [[run-critical]] is that it may exit
+non-locally.
+
+<<Primitives>>=
+SCM_DEFINE (scm_run_critical, "run-critical", 1, 0, 0,
+            (SCM thunk),
+            "Run a critical thunk.")
+{
+  SCM_CRITICAL_SECTION_START;
+  scm_call_0(thunk);
+  SCM_CRITICAL_SECTION_END;
+  return SCM_UNSPECIFIED;
+}
+@ 
+
+<<Procedures>>=
+(define (cleanup-actors)
+ (run-critical (lambda ()
+                (let ((had-actors? #f))
+                 (let loop ((item (actor-guardian)))
+                  (when item
+                   (set! had-actors? #t)
+                   (loop (actor-guardian))))
+                 (when had-actors?
+                  (gc))))))
 @ 

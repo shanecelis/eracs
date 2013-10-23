@@ -390,7 +390,9 @@ while (! quitp) {
     glfwSwapBuffers(); 
     glfwPollEvents();
   }
+  //printf("BEGIN TICK\n");
   emacsy_flags = emacsy_tick();
+  //printf("END TICK\n");
   quitp = 
     emacsy_flags & EY_QUIT_APPLICATION
     || (!batch && ! glfwGetWindowParam(GLFW_OPENED));

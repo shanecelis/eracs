@@ -16,6 +16,7 @@
             vector-min
             vector-max
             vector-bound
+            vector-mean
             vector+
             vector-
             vector*
