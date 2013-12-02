@@ -244,6 +244,9 @@
 (define-method (sexp->mathematica (sexp <vector>))
   (sexp->mathematica (vector->list sexp)))
 
+(define-method (sexp->mathematica (sexp <uvec>))
+  (sexp->mathematica (array->list sexp)))
+
 (define-method (sexp->mathematica (sexp <string>))
   (format #f "\"~a\"" sexp))
 

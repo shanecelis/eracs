@@ -11,7 +11,7 @@ int main(int argc, char** argv) {
   scm_init_guile();
   //scm_c_use_module("line-pragma"); 
   /* Initialize Emacsy. */ 
-  emacsy_initialize();
+  emacsy_initialize(EMACSY_INTERACTIVE);
   /* Load the optional windows module. */
   //scm_c_use_module("emacsy windows"); 
   <<Initialize GLFW.>>
@@ -198,15 +198,15 @@ extern "C" void GLFWCALL key_callback(int key, int action) {
   int modkey_flags = get_modifier_key_flags();
   if (action == GLFW_PRESS) {
     key_pressed = true;
-    if ((modkey_flags & EY_MODKEY_CONTROL
-         || modkey_flags & EY_MODKEY_SUPER
-         || modkey_flags & EY_MODKEY_META)
+    if ((modkey_flags & EMACSY_MODKEY_CONTROL
+         || modkey_flags & EMACSY_MODKEY_SUPER
+         || modkey_flags & EMACSY_MODKEY_META)
         && isupper(key)) {
       //printf("char_callback 1\n");
-      char_callback(modkey_flags & EY_MODKEY_SHIFT ? key : tolower(key), action);
+      char_callback(modkey_flags & EMACSY_MODKEY_SHIFT ? key : tolower(key), action);
     } else {
 
-      if (59 == key && modkey_flags & EY_MODKEY_SHIFT) {
+      if (59 == key && modkey_flags & EMACSY_MODKEY_SHIFT) {
         char_callback(58, action);
         return;
       }
@@ -232,7 +232,7 @@ extern "C" void GLFWCALL key_callback(int key, int action) {
 
 <<Helper Functions>>=
 int get_modifier_key_flags() {
-  int mod_keys[EY_MODKEY_COUNT][3] = {
+  int mod_keys[EMACSY_MODKEY_COUNT][3] = {
     {0},                                   /* alt */
     {GLFW_KEY_LCTRL,  GLFW_KEY_RCTRL,  0}, /* control */
     {0},                                   /* hyper */
@@ -243,7 +243,7 @@ int get_modifier_key_flags() {
   };
   int flags = 0;
 
-  for (int i = 0; i < EY_MODKEY_COUNT; i++) {
+  for (int i = 0; i < EMACSY_MODKEY_COUNT; i++) {
     for (int j = 0; mod_keys[i][j]; j++) 
       if (glfwGetKey(mod_keys[i][j]) == GLFW_PRESS) {
         flags |= 1 @<< i;
@@ -294,8 +294,8 @@ We need to be able to handle button presses.
 extern "C" void GLFWCALL button_callback(int button, int action) {
   int x, y, ey_button, ey_state;
   switch (action) {
-  case GLFW_PRESS: ey_state = EY_MOUSE_BUTTON_DOWN; break;
-  case GLFW_RELEASE: ey_state = EY_MOUSE_BUTTON_UP; break;
+  case GLFW_PRESS: ey_state = EMACSY_MOUSE_BUTTON_DOWN; break;
+  case GLFW_RELEASE: ey_state = EMACSY_MOUSE_BUTTON_UP; break;
   default:
     mylog("main.event", PRI_WARN, "warning: neither mouse up nor down received.");
     return;
@@ -350,7 +350,7 @@ int load_file_safe(const char *filename)
                                   load_file_error, (void *) filename);
   if (scm_is_false(result)) {
     fprintf(stderr, "error: Unable to load file \"%s\".\n", filename);
-    return 1; //EY_ERR_NO_MODULE;
+    return 1; //EMACSY_ERR_NO_MODULE;
   }
   return 0;
 }
@@ -394,14 +394,15 @@ while (! quitp) {
   emacsy_flags = emacsy_tick();
   //printf("END TICK\n");
   quitp = 
-    emacsy_flags & EY_QUIT_APPLICATION
+    emacsy_flags & EMACSY_QUIT_APPLICATION_P
     || (!batch && ! glfwGetWindowParam(GLFW_OPENED));
   tick++;
   if (!batch 
       && (glfwGetWindowParam(GLFW_ICONIFIED) 
           || ! glfwGetWindowParam(GLFW_ACTIVE))) {
     // Let's sleep a little bit.
-    glfwSleep(1./30.);
+    //glfwSleep(1./30.);
+    //Turning off sleep.
   }
   //glfwSleep(1./30.);
   //printf("END RUN LOOP\n");

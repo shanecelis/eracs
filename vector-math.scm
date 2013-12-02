@@ -61,6 +61,10 @@
             subscript->linear
             subscript->linear*
             matrix?
+            clamp
+            lerp
+            vector-lerp
+            lerp-inverse
             )
   #:export-syntax ())
 
@@ -364,10 +368,11 @@
 (define* (vector->string v #:optional (element-format "~1,2f "))
   (call-with-output-string
                     (lambda (port)
+                      
                       (format port "#(")
 ;                      (error #t "I'm testing this thing ~a" 'ok )
                       ;(error "I'm testing this thing ~a" 'ok )
-                      (vector-for-each (lambda (x)
+                      (array-for-each (lambda (x)
                                          (format port element-format x)) v)
                       (format port ")"))))
 
@@ -399,3 +404,17 @@
 
 (define (matrix? M)
   (and (vector? M) (vector? (vector-ref M 0))))
+
+(define (clamp a b x)
+  "Clamp x to [a, b]."
+  (max a (min b x)))
+
+(define (lerp v0 v1 t)
+  (+ v0 (* t (- v1 v0))))
+
+(define (vector-lerp v0 v1 t)
+  (vector+ v0 (vector* t (vector- v1 v0))))
+
+(define (lerp-inverse v0 v1 v-of-t)
+  (/ (- v-of-t v0)
+     (- v1 v0)))

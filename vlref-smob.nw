@@ -62,7 +62,7 @@ static size_t free_vlref (SCM vlref_smob)
 {
   struct vlref *vlref = (struct vlref *) SCM_SMOB_DATA (vlref_smob);
 
-  mylog("vlref-smob", PRI_DEBUG, "freeing vlref-smob 0x%x", vlref->object);
+  //mylog("vlref-smob", PRI_DEBUG, "freeing vlref-smob 0x%x", vlref->object);
   scm_c_hook_run(&(vlref->before_free_hook), vlref_smob);
   
   if (vlref->object) {
@@ -171,7 +171,7 @@ SCM scm_c_wrap_vlref(vl::Object *object, const char *type, const char *name)
   vr->object = object;
   vr->object->incReference();
 
-  mylog("vlref-smob", PRI_DEBUG, "allocating vlref-smob 0x%x", vr->object);
+  //mylog("vlref-smob", PRI_DEBUG, "allocating vlref-smob 0x%x", vr->object);
      
   SCM_NEWSMOB (smob, vlref_tag, vr);
      

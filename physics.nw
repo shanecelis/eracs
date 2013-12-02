@@ -253,9 +253,9 @@ edge_renderer->setCreaseAngle(35.0f);
 // style options
 edge_renderer->setLineWidth(2.0f);
 edge_renderer->setSmoothLines(true);
-vl::vec4 line_color = vl::white;
-line_color.a() = 0.5;
-edge_renderer->setDefaultLineColor(line_color);
+/* vl::vec4 line_color = vl::black; */
+/* line_color.a() = 0.5; */
+edge_renderer->setDefaultLineColor(default_foreground_color);
 
 //solid_renderer->setEnableMask(0xFFFFFFFF);
 // preserve color buffer, clear depth buffer
