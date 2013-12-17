@@ -41,22 +41,24 @@ backward, up, and down with additional bindings \verb|C-i| and
     (vector-set! r i (+ amount (vector-ref r i)))
     (set-parameter! 'camera-position r)))
 
-(define-interactive (forward-camera-x #:optional (n 1))
-  (move-camera 0 n))
+(define-variable scale-camera-movement 1 "Scales the camera movement by this amount.")
 
-(define-interactive (forward-camera-y #:optional (n 1))
-  (move-camera 1 n))
+(define-interactive (forward-camera-x #:optional (n (universal-argument-pop!)))
+  (move-camera 0 (* scale-camera-movement n)))
 
-(define-interactive (forward-camera-z #:optional (n 1))
-  (move-camera 2 n))
+(define-interactive (forward-camera-y #:optional (n (universal-argument-pop!)))
+  (move-camera 1 (* scale-camera-movement n)))
 
-(define-interactive (backward-camera-x #:optional (n 1))
+(define-interactive (forward-camera-z #:optional (n (universal-argument-pop!)))
+  (move-camera 2 (* scale-camera-movement n)))
+
+(define-interactive (backward-camera-x #:optional (n (universal-argument-pop!)))
   (forward-camera-x (- n)))
 
-(define-interactive (backward-camera-y #:optional (n 1))
+(define-interactive (backward-camera-y #:optional (n (universal-argument-pop!)))
   (forward-camera-y (- n)))
 
-(define-interactive (backward-camera-z #:optional (n 1))
+(define-interactive (backward-camera-z #:optional (n (universal-argument-pop!)))
   (forward-camera-z (- n)))
 
 
@@ -69,7 +71,8 @@ backward, up, and down with additional bindings \verb|C-i| and
   #:use-module (emacsy emacsy)
   #:use-module (convenience-lambda)
   #:use-module (guile-user)
-  #:use-module (scene-smob))
+  #:use-module (scene-smob)
+  #:export (scale-camera-movement))
 <<+ Load scheme files.>>=
 scm_c_use_module("camera");
 @ 

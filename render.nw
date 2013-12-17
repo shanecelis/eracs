@@ -138,6 +138,8 @@ void render_init(int screen_width, int screen_height)
 <<Setup the SCM mode line scene.>>=
   scm_mode_line_scene = scm_make_scene();
   mode_line_scene = unwrap_scene(scm_mode_line_scene);
+// This is the default_background_color that's been lightened up.
+// Can we just do this programmatically?
   vl::vec4 background_color(90.f/255.f, 122.f/255.f, 186/255.f, 1.f);
   mode_line_scene->rendering->camera()->viewport()->setClearColor(background_color);
   scm_c_define("mode_line_scene", scm_mode_line_scene);

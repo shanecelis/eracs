@@ -410,11 +410,14 @@
   (max a (min b x)))
 
 (define (lerp v0 v1 t)
+  "Linear interpolation between [v0, v1] with t n [0, 1]."
   (+ v0 (* t (- v1 v0))))
 
 (define (vector-lerp v0 v1 t)
+  "Linear interpolation between low bound elements v0 and high-bound elements v1 with t n [0, 1]."
   (vector+ v0 (vector* t (vector- v1 v0))))
 
 (define (lerp-inverse v0 v1 v-of-t)
+  "Inverse linear interpolation"
   (/ (- v-of-t v0)
      (- v1 v0)))
